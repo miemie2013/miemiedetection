@@ -69,8 +69,8 @@ python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 --fp16 -c yolox_m.pth
 
 
 
-复现paddle版yolox迁移学习:（不加--fp16）
-python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 -c yolox_m.pth
+复现paddle版yolox迁移学习:（不加--fp16， -eb表示验证时的批大小）
+python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 -eb 2 -c yolox_m.pth
 
 实测yolox_m的AP(0.50:0.95)可以到达0.62+、AP(small)可以到达0.25+。
 

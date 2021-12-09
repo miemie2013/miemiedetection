@@ -170,7 +170,7 @@ class Trainer:
         self.model.train()
 
         self.evaluator = self.exp.get_evaluator(
-            batch_size=self.args.batch_size, is_distributed=self.is_distributed
+            batch_size=self.args.eval_batch_size, is_distributed=self.is_distributed
         )
         # Tensorboard logger
         if self.rank == 0:
