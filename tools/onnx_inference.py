@@ -12,10 +12,8 @@ import onnxruntime
 
 # add python path of this repo to sys.path
 import sys
-parent_path = os.path.abspath(os.path.join(__file__, *(['../../'] * 2)))
+parent_path = os.path.abspath(os.path.join(__file__, *(['..'] * 2)))
 sys.path.insert(0, parent_path)
-# parent_path = os.path.abspath(os.path.join(__file__, *(['..'] * 2)))
-# sys.path.insert(0, parent_path)
 
 from mmdet.data.data_augment import preproc as preprocess
 from mmdet.utils import mkdir, multiclass_nms, demo_postprocess, vis, get_classes
@@ -78,6 +76,8 @@ if __name__ == '__main__':
     input_shape = tuple(map(int, args.input_shape.split(',')))
     origin_img = cv2.imread(args.image_path)
     class_names = get_classes(args.cls_names)
+
+    # 这里修改为百度飞桨预处理代码
     img, ratio = preprocess(origin_img, input_shape)
 
     session = onnxruntime.InferenceSession(args.model)

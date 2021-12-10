@@ -5,7 +5,14 @@
 import cv2
 import numpy as np
 
-__all__ = ["vis"]
+__all__ = ["get_classes", "vis"]
+
+
+def get_classes(classes_path):
+    with open(classes_path) as f:
+        class_names = f.readlines()
+    class_names = [c.strip() for c in class_names]
+    return class_names
 
 
 def vis(img, boxes, scores, cls_ids, conf=0.5, class_names=None):

@@ -9,6 +9,11 @@ from loguru import logger
 import torch
 from torch import nn
 
+# add python path of this repo to sys.path
+import sys
+parent_path = os.path.abspath(os.path.join(__file__, *(['..'] * 2)))
+sys.path.insert(0, parent_path)
+
 from mmdet.exp import get_exp
 from mmdet.models.network_blocks import SiLU
 from mmdet.utils import replace_module
@@ -77,6 +82,8 @@ def main():
     if "model" in ckpt:
         ckpt = ckpt["model"]
     model.load_state_dict(ckpt)
+
+    # 把 nn.SiLU激活层 替换为 对导出友好的自定义的SiLU激活层
     model = replace_module(model, nn.SiLU, SiLU)
     model.head.decode_in_inference = False
 

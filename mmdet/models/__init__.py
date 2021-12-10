@@ -8,7 +8,7 @@ from .backbones.darknet import CSPDarknet, Darknet
 from .losses.losses import IOUloss
 
 
-from .heads.yolo_head import YOLOXHead
+from .heads.yolox_head import YOLOXHead
 
 
 from .necks.yolo_pafpn import YOLOPAFPN

@@ -5,6 +5,7 @@
 import datetime
 import os
 import time
+import numpy as np
 from loguru import logger
 
 import torch
@@ -178,6 +179,18 @@ class Trainer:
 
         logger.info("Training start...")
         logger.info("\n{}".format(model))
+        trainable_params = 0
+        nontrainable_params = 0
+        for name_, param_ in model.named_parameters():
+            mul = np.prod(param_.shape)
+            if param_.requires_grad is True:
+                trainable_params += mul
+            else:
+                nontrainable_params += mul
+        total_params = trainable_params + nontrainable_params
+        logger.info('Total params: %s' % format(total_params, ","))
+        logger.info('Trainable params: %s' % format(trainable_params, ","))
+        logger.info('Non-trainable params: %s' % format(nontrainable_params, ","))
 
     def after_train(self):
         logger.info(
@@ -187,7 +200,7 @@ class Trainer:
     def before_epoch(self):
         logger.info("---> start train epoch{}".format(self.epoch + 1))
 
-        if self.epoch + 1 == self.max_epoch - self.exp.no_aug_epochs or self.no_aug:
+        if self.epoch == self.max_epoch - self.exp.no_aug_epochs or self.no_aug:
             logger.info("--->No mosaic aug now!")
             self.train_loader.close_mosaic()
             logger.info("--->Add additional L1 loss now!")
@@ -200,7 +213,7 @@ class Trainer:
                 self.save_ckpt(ckpt_name="last_mosaic_epoch")
 
     def after_epoch(self):
-        self.save_ckpt(ckpt_name="latest")
+        self.save_ckpt(ckpt_name="%d" % (self.epoch + 1))
 
         if (self.epoch + 1) % self.exp.eval_interval == 0:
             all_reduce_norm(self.model)
@@ -236,7 +249,7 @@ class Trainer:
             )
 
             logger.info(
-                "{}, mem: {:.0f}Mb, {}, {}, lr: {:.3e}".format(
+                "{}, mem: {:.0f}Mb, {}, {}, lr: {:.6f}".format(
                     progress_str,
                     gpu_mem_usage(),
                     time_str,
@@ -270,11 +283,7 @@ class Trainer:
             model.load_state_dict(ckpt["model"])
             self.optimizer.load_state_dict(ckpt["optimizer"])
             # resume the training states variables
-            start_epoch = (
-                self.args.start_epoch - 1
-                if self.args.start_epoch is not None
-                else ckpt["start_epoch"]
-            )
+            start_epoch = ckpt["start_epoch"]
             self.start_epoch = start_epoch
             logger.info(
                 "loaded checkpoint '{}' (epoch {})".format(

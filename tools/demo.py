@@ -17,9 +17,8 @@ parent_path = os.path.abspath(os.path.join(__file__, *(['..'] * 2)))
 sys.path.insert(0, parent_path)
 
 from mmdet.data.data_augment import ValTransform
-from mmdet.data.datasets import COCO_CLASSES
 from mmdet.exp import get_exp
-from mmdet.utils import fuse_model, get_model_info, postprocess, vis
+from mmdet.utils import fuse_model, get_model_info, postprocess, vis, get_classes
 
 IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
 
@@ -107,7 +106,6 @@ class Predictor(object):
         self,
         model,
         exp,
-        cls_names=COCO_CLASSES,
         trt_file=None,
         decoder=None,
         device="cpu",
@@ -115,7 +113,7 @@ class Predictor(object):
         legacy=False,
     ):
         self.model = model
-        self.cls_names = cls_names
+        self.cls_names = get_classes(exp.cls_names)
         self.decoder = decoder
         self.num_classes = exp.num_classes
         self.confthre = exp.test_conf
@@ -304,7 +302,7 @@ def main(exp, args):
         decoder = None
 
     predictor = Predictor(
-        model, exp, COCO_CLASSES, trt_file, decoder,
+        model, exp, trt_file, decoder,
         args.device, args.fp16, args.legacy,
     )
     current_time = time.localtime()

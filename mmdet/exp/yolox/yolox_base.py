@@ -33,6 +33,7 @@ class YOLOXExp(BaseExp):
         # You can uncomment this line to specify a multiscale range
         # self.random_size = (14, 26)
         self.data_dir = '../COCO'
+        self.cls_names = './class_names/coco_classes.txt'
         self.ann_folder = "annotations"
         self.train_ann = "instances_train2017.json"
         self.val_ann = "instances_val2017.json"

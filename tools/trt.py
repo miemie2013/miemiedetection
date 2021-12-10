@@ -11,6 +11,11 @@ import tensorrt as trt
 import torch
 from torch2trt import torch2trt
 
+# add python path of this repo to sys.path
+import sys
+parent_path = os.path.abspath(os.path.join(__file__, *(['..'] * 2)))
+sys.path.insert(0, parent_path)
+
 from mmdet.exp import get_exp
 
 

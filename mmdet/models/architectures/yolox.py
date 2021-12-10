@@ -4,7 +4,7 @@
 
 import torch.nn as nn
 
-from mmdet.models.heads.yolo_head import YOLOXHead
+from mmdet.models.heads.yolox_head import YOLOXHead
 from mmdet.models.necks.yolo_pafpn import YOLOPAFPN
 
 

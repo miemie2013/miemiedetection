@@ -33,6 +33,7 @@ class YOLOXExp(BaseExp):
         # You can uncomment this line to specify a multiscale range
         # self.random_size = (14, 26)
         self.data_dir = '../data/data4379/pascalvoc/VOCdevkit/VOC2012'
+        self.cls_names = './class_names/voc_classes.txt'
         self.ann_folder = "annotations2"
         self.train_ann = "voc2012_train.json"
         self.val_ann = "voc2012_val.json"

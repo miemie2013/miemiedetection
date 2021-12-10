@@ -53,13 +53,6 @@ def make_parser():
     )
     parser.add_argument("-c", "--ckpt", default=None, type=str, help="checkpoint file")
     parser.add_argument(
-        "-e",
-        "--start_epoch",
-        default=None,
-        type=int,
-        help="resume training start epoch",
-    )
-    parser.add_argument(
         "--num_machines", default=1, type=int, help="num of node for training"
     )
     parser.add_argument(
