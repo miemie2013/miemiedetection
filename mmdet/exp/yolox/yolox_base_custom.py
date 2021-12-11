@@ -10,17 +10,16 @@ import torch
 import torch.distributed as dist
 import torch.nn as nn
 
-from ..base_exp import BaseExp
+from mmdet.exp.datasets.coco_base import COCOBaseExp
 
 
-class YOLOXExp(BaseExp):
+class YOLOXExp(COCOBaseExp):
     def __init__(self):
         super().__init__()
         # ---------------- architecture name(算法名) ---------------- #
         self.archi_name = 'YOLOX'
 
         # ---------------- model config ---------------- #
-        self.num_classes = 20
         self.depth = 1.00
         self.width = 1.00
         self.act = 'silu'
@@ -35,13 +34,6 @@ class YOLOXExp(BaseExp):
         self.multiscale_range = 5
         # You can uncomment this line to specify a multiscale range
         # self.random_size = (14, 26)
-        self.data_dir = '../data/data4379/pascalvoc/VOCdevkit/VOC2012'
-        self.cls_names = 'class_names/voc_classes.txt'
-        self.ann_folder = "annotations2"
-        self.train_ann = "voc2012_train.json"
-        self.val_ann = "voc2012_val.json"
-        self.train_image_folder = "JPEGImages"
-        self.val_image_folder = "JPEGImages"
         self.output_dir = "YOLOX_outputs"
 
         # --------------- transform config ----------------- #
