@@ -3,6 +3,7 @@
 # Copyright (c) 2014-2021 Megvii Inc. All rights reserved.
 
 import os
+import sys
 import random
 
 import torch
@@ -15,6 +16,8 @@ from ..base_exp import BaseExp
 class YOLOXExp(BaseExp):
     def __init__(self):
         super().__init__()
+        # ---------------- architecture name(算法名) ---------------- #
+        self.archi_name = 'YOLOX'
 
         # ---------------- model config ---------------- #
         self.num_classes = 20
@@ -33,13 +36,13 @@ class YOLOXExp(BaseExp):
         # You can uncomment this line to specify a multiscale range
         # self.random_size = (14, 26)
         self.data_dir = '../data/data4379/pascalvoc/VOCdevkit/VOC2012'
-        self.cls_names = './class_names/voc_classes.txt'
+        self.cls_names = 'class_names/voc_classes.txt'
         self.ann_folder = "annotations2"
         self.train_ann = "voc2012_train.json"
         self.val_ann = "voc2012_val.json"
         self.train_image_folder = "JPEGImages"
         self.val_image_folder = "JPEGImages"
-        self.output_dir = "./YOLOX_outputs"
+        self.output_dir = "YOLOX_outputs"
 
         # --------------- transform config ----------------- #
         self.mosaic_prob = 1.0
@@ -62,6 +65,7 @@ class YOLOXExp(BaseExp):
         self.no_aug_epochs = 1
         self.min_lr_ratio = 0.05
         self.ema = True
+        self.ema_decay = 0.9998
         self.freeze_at = 4
 
         self.weight_decay = 5e-4
@@ -74,6 +78,14 @@ class YOLOXExp(BaseExp):
         self.test_size = (640, 640)
         self.test_conf = 0.01
         self.nmsthre = 0.65
+
+        # 判断是否是调试状态
+        isDebug = True if sys.gettrace() else False
+        if isDebug:
+            print('Debug Mode.')
+            self.data_dir = '../' + self.data_dir
+            self.cls_names = '../' + self.cls_names
+            self.output_dir = '../' + self.output_dir
 
     def get_model(self):
         from mmdet.models import YOLOX, YOLOPAFPN, YOLOXHead
@@ -213,11 +225,14 @@ class YOLOXExp(BaseExp):
 
             for k, v in self.model.named_modules():
                 if hasattr(v, "bias") and isinstance(v.bias, nn.Parameter):
-                    pg2.append(v.bias)  # biases
+                    if v.bias.requires_grad:
+                        pg2.append(v.bias)  # biases
                 if isinstance(v, nn.BatchNorm2d) or "bn" in k:
-                    pg0.append(v.weight)  # no decay
+                    if v.weight.requires_grad:
+                        pg0.append(v.weight)  # no decay
                 elif hasattr(v, "weight") and isinstance(v.weight, nn.Parameter):
-                    pg1.append(v.weight)  # apply decay
+                    if v.weight.requires_grad:
+                        pg1.append(v.weight)  # apply decay
 
             optimizer = torch.optim.SGD(
                 pg0, lr=lr, momentum=self.momentum, nesterov=True

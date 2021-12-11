@@ -16,7 +16,7 @@ import sys
 parent_path = os.path.abspath(os.path.join(__file__, *(['..'] * 2)))
 sys.path.insert(0, parent_path)
 
-from mmdet.data.data_augment import ValTransform
+from mmdet.data.data_augment import *
 from mmdet.exp import get_exp
 from mmdet.utils import fuse_model, get_model_info, postprocess, vis, get_classes
 
@@ -24,7 +24,7 @@ IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
 
 
 def make_parser():
-    parser = argparse.ArgumentParser("YOLOX Demo!")
+    parser = argparse.ArgumentParser("MieMieDetection Demo!")
     parser.add_argument(
         "demo", default="image", help="demo type, eg. image, video and webcam"
     )
@@ -101,7 +101,7 @@ def get_image_list(path):
     return image_names
 
 
-class Predictor(object):
+class YOLOXPredictor(object):
     def __init__(
         self,
         model,
@@ -169,6 +169,7 @@ class Predictor(object):
         return outputs, img_info
 
     def visual(self, output, img_info, cls_conf=0.35):
+        output = output[0]
         ratio = img_info["ratio"]
         img = img_info["raw_img"]
         if output is None:
@@ -187,6 +188,92 @@ class Predictor(object):
         return vis_res
 
 
+class PPYOLOPredictor(object):
+    def __init__(
+        self,
+        model,
+        exp,
+        trt_file=None,
+        device="cpu",
+        fp16=False,
+        legacy=False,
+    ):
+        self.model = model
+        self.cls_names = get_classes(exp.cls_names)
+        self.num_classes = exp.num_classes
+        self.confthre = exp.test_conf
+        self.nmsthre = exp.nmsthre
+        self.test_size = exp.test_size
+        self.device = device
+        self.fp16 = fp16
+
+        # 预测时的数据预处理
+        self.context = exp.context
+        self.to_rgb = exp.decodeImage['to_rgb']
+        target_size = self.test_size[0]
+        resizeImage = ResizeImage(target_size=target_size, interp=exp.resizeImage['interp'])
+        normalizeImage = NormalizeImage(**exp.normalizeImage)
+        permute = Permute(**exp.permute)
+        self.preproc = PPYOLOValTransform(self.context, self.to_rgb, resizeImage, normalizeImage, permute)
+
+        # TensorRT
+        if trt_file is not None:
+            from torch2trt import TRTModule
+
+            model_trt = TRTModule()
+            model_trt.load_state_dict(torch.load(trt_file))
+
+            x = torch.ones(1, 3, exp.test_size[0], exp.test_size[1]).cuda()
+            self.model(x)
+            self.model = model_trt
+
+    def inference(self, img):
+        img_info = {"id": 0}
+        if isinstance(img, str):
+            img_info["file_name"] = os.path.basename(img)
+            img = cv2.imread(img)
+        else:
+            img_info["file_name"] = None
+
+        height, width = img.shape[:2]
+        img_info["height"] = height
+        img_info["width"] = width
+        img_info["raw_img"] = img
+
+        img, im_size = self.preproc(img)
+        img = torch.from_numpy(img)
+        im_size = torch.from_numpy(im_size)
+        img = img.float()
+        im_size = im_size.float()
+        if self.device == "gpu":
+            img = img.cuda()
+            im_size = im_size.cuda()
+            if self.fp16:
+                img = img.half()  # to FP16
+                im_size = im_size.half()  # to FP16
+
+        with torch.no_grad():
+            t0 = time.time()
+            outputs = self.model(img, im_size)
+            logger.info("Infer time: {:.4f}s".format(time.time() - t0))
+        return outputs, img_info
+
+    def visual(self, output, img_info, cls_conf=0.35):
+        output = output[0]
+        img = img_info["raw_img"]
+        if output is None:
+            return img
+        output = output.cpu()
+
+        bboxes = output[:, 2:6]
+
+        cls = output[:, 0]
+        scores = output[:, 1]
+
+        vis_res = vis(img, bboxes, scores, cls, cls_conf, self.cls_names)
+        return vis_res
+
+
 def image_demo(predictor, vis_folder, path, current_time, save_result):
     if os.path.isdir(path):
         files = get_image_list(path)
@@ -195,7 +282,7 @@ def image_demo(predictor, vis_folder, path, current_time, save_result):
     files.sort()
     for image_name in files:
         outputs, img_info = predictor.inference(image_name)
-        result_image = predictor.visual(outputs[0], img_info, predictor.confthre)
+        result_image = predictor.visual(outputs, img_info, predictor.confthre)
         if save_result:
             save_folder = os.path.join(
                 vis_folder, time.strftime("%Y_%m_%d_%H_%M_%S", current_time)
@@ -257,15 +344,29 @@ def main(exp, args):
 
     logger.info("Args: {}".format(args))
 
-    if args.conf is not None:
-        exp.test_conf = args.conf
-    if args.nms is not None:
-        exp.nmsthre = args.nms
-    if args.tsize is not None:
-        exp.test_size = (args.tsize, args.tsize)
+    # 算法名字
+    archi_name = exp.archi_name
+
+    # 不同的算法输入不同，新增算法时这里也要增加elif
+    if archi_name == 'YOLOX':
+        if args.conf is not None:
+            exp.test_conf = args.conf
+        if args.nms is not None:
+            exp.nmsthre = args.nms
+        if args.tsize is not None:
+            exp.test_size = (args.tsize, args.tsize)
+    elif archi_name == 'PPYOLO':
+        # PPYOLO使用的是matrix_nms，修改matrix_nms的配置。
+        if args.conf is not None:
+            exp.nms_cfg['score_threshold'] = args.conf
+            exp.nms_cfg['post_threshold'] = args.conf
+        if args.tsize is not None:
+            exp.test_size = (args.tsize, args.tsize)
+    else:
+        raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
 
     model = exp.get_model()
-    logger.info("Model Summary: {}".format(get_model_info(model, exp.test_size)))
+    # logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
 
     if args.device == "gpu":
         model.cuda()
@@ -273,38 +374,78 @@ def main(exp, args):
             model.half()  # to FP16
     model.eval()
 
-    if not args.trt:
-        if args.ckpt is None:
-            ckpt_file = os.path.join(file_name, "best_ckpt.pth")
+    predictor = None
+    # 不同的算法输入不同，新增算法时这里也要增加elif
+    if archi_name == 'YOLOX':
+        # 加载模型权重
+        if not args.trt:
+            if args.ckpt is None:
+                ckpt_file = os.path.join(file_name, "best_ckpt.pth")
+            else:
+                ckpt_file = args.ckpt
+            logger.info("loading checkpoint")
+            ckpt = torch.load(ckpt_file, map_location="cpu")
+            # load the model state dict
+            model.load_state_dict(ckpt["model"])
+            logger.info("loaded checkpoint done.")
+
+        # 卷积层和bn层合并为一个卷积层
+        if args.fuse:
+            logger.info("\tFusing model...")
+            model = fuse_model(model)
+
+        if args.trt:
+            assert not args.fuse, "TensorRT model is not support model fusing!"
+            trt_file = os.path.join(file_name, "model_trt.pth")
+            assert os.path.exists(
+                trt_file
+            ), "TensorRT model is not found!\n Run python3 tools/trt.py first!"
+            model.head.decode_in_inference = False
+            decoder = model.head.decode_outputs
+            logger.info("Using TensorRT to inference")
         else:
-            ckpt_file = args.ckpt
-        logger.info("loading checkpoint")
-        ckpt = torch.load(ckpt_file, map_location="cpu")
-        # load the model state dict
-        model.load_state_dict(ckpt["model"])
-        logger.info("loaded checkpoint done.")
+            trt_file = None
+            decoder = None
 
-    if args.fuse:
-        logger.info("\tFusing model...")
-        model = fuse_model(model)
+        predictor = YOLOXPredictor(
+            model, exp, trt_file, decoder,
+            args.device, args.fp16, args.legacy,
+        )
+    elif archi_name == 'PPYOLO':
+        # 加载模型权重
+        if not args.trt:
+            if args.ckpt is None:
+                ckpt_file = os.path.join(file_name, "best_ckpt.pth")
+            else:
+                ckpt_file = args.ckpt
+            logger.info("loading checkpoint")
+            ckpt = torch.load(ckpt_file, map_location="cpu")
+            # load the model state dict
+            model.load_state_dict(ckpt["model"])
+            logger.info("loaded checkpoint done.")
 
-    if args.trt:
-        assert not args.fuse, "TensorRT model is not support model fusing!"
-        trt_file = os.path.join(file_name, "model_trt.pth")
-        assert os.path.exists(
-            trt_file
-        ), "TensorRT model is not found!\n Run python3 tools/trt.py first!"
-        model.head.decode_in_inference = False
-        decoder = model.head.decode_outputs
-        logger.info("Using TensorRT to inference")
+        # 卷积层和bn层合并为一个卷积层
+        if args.fuse:
+            logger.info("\tFusing model...")
+            model = fuse_model(model)
+
+        if args.trt:
+            assert not args.fuse, "TensorRT model is not support model fusing!"
+            trt_file = os.path.join(file_name, "model_trt.pth")
+            assert os.path.exists(
+                trt_file
+            ), "TensorRT model is not found!\n Run python3 tools/trt.py first!"
+            model.head.decode_in_inference = False
+            logger.info("Using TensorRT to inference")
+        else:
+            trt_file = None
+
+        predictor = PPYOLOPredictor(
+            model, exp, trt_file,
+            args.device, args.fp16, args.legacy,
+        )
     else:
-        trt_file = None
-        decoder = None
-
-    predictor = Predictor(
-        model, exp, trt_file, decoder,
-        args.device, args.fp16, args.legacy,
-    )
+        raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
     current_time = time.localtime()
     if args.demo == "image":
         image_demo(predictor, vis_folder, args.path, current_time, args.save_result)

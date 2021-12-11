@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 from thop import profile
 
+
 __all__ = [
     "fuse_conv_and_bn",
     "fuse_model",
@@ -16,11 +17,19 @@ __all__ = [
 ]
 
 
-def get_model_info(model, tsize):
-
-    stride = 64
-    img = torch.zeros((1, 3, stride, stride), device=next(model.parameters()).device)
-    flops, params = profile(deepcopy(model), inputs=(img,), verbose=False)
+def get_model_info(archi_name, model, tsize):
+    # 不同的算法输入不同，新增算法时这里也要增加elif
+    if archi_name == 'YOLOX':
+        stride = 64
+        img = torch.zeros((1, 3, stride, stride), device=next(model.parameters()).device)
+        flops, params = profile(deepcopy(model), inputs=(img,), verbose=False)
+    elif archi_name == 'PPYOLO':
+        stride = 64
+        img = torch.zeros((1, 3, stride, stride), device=next(model.parameters()).device)
+        im_size = torch.zeros((1, 2), device=next(model.parameters()).device)
+        flops, params = profile(deepcopy(model), inputs=(img, im_size), verbose=False)
+    else:
+        raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
     params /= 1e6
     flops /= 1e9
     flops *= tsize[0] * tsize[1] / stride / stride * 2  # Gflops

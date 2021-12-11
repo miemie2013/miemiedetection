@@ -6,10 +6,10 @@ import os
 
 import torch.nn as nn
 
-from mmdet.exp import YOLOXExp as MyExp
+from mmdet.exp import YOLOXExp
 
 
-class Exp(MyExp):
+class Exp(YOLOXExp):
     def __init__(self):
         super(Exp, self).__init__()
         self.depth = 0.33

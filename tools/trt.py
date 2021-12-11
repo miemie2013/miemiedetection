@@ -20,7 +20,7 @@ from mmdet.exp import get_exp
 
 
 def make_parser():
-    parser = argparse.ArgumentParser("YOLOX ncnn deploy")
+    parser = argparse.ArgumentParser("MieMieDetection ncnn deploy")
     parser.add_argument("-expn", "--experiment-name", type=str, default=None)
     parser.add_argument("-n", "--name", type=str, default=None, help="model name")
 

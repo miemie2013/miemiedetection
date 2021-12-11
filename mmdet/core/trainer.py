@@ -130,8 +130,10 @@ class Trainer:
         # model related init
         torch.cuda.set_device(self.local_rank)
         model = self.exp.get_model()
+        # 算法名字
+        self.archi_name = self.exp.archi_name
         logger.info(
-            "Model Summary: {}".format(get_model_info(model, self.exp.test_size))
+            "Model Summary: {}".format(get_model_info(self.archi_name, model, self.exp.test_size))
         )
         model.to(self.device)
 
@@ -142,37 +144,70 @@ class Trainer:
         model = self.resume_train(model)
 
         # data related init
-        self.no_aug = self.start_epoch >= self.max_epoch - self.exp.no_aug_epochs
-        self.train_loader = self.exp.get_data_loader(
-            batch_size=self.args.batch_size,
-            is_distributed=self.is_distributed,
-            no_aug=self.no_aug,
-            cache_img=self.args.cache,
-        )
-        logger.info("init prefetcher, this might take one minute or less...")
-        self.prefetcher = DataPrefetcher(self.train_loader)
-        # max_iter means iters per epoch
-        self.max_iter = len(self.train_loader)
+        if self.archi_name == 'YOLOX':
+            self.no_aug = self.start_epoch >= self.max_epoch - self.exp.no_aug_epochs
+            self.train_loader = self.exp.get_data_loader(
+                batch_size=self.args.batch_size,
+                is_distributed=self.is_distributed,
+                no_aug=self.no_aug,
+                cache_img=self.args.cache,
+            )
+            logger.info("init prefetcher, this might take one minute or less...")
+            self.prefetcher = DataPrefetcher(self.train_loader)
+            # max_iter means iters per epoch
+            self.max_iter = len(self.train_loader)
 
-        self.lr_scheduler = self.exp.get_lr_scheduler(
-            self.exp.basic_lr_per_img * self.args.batch_size, self.max_iter
-        )
-        if self.args.occupy:
-            occupy_mem(self.local_rank)
+            self.lr_scheduler = self.exp.get_lr_scheduler(
+                self.exp.basic_lr_per_img * self.args.batch_size, self.max_iter
+            )
+            if self.args.occupy:
+                occupy_mem(self.local_rank)
 
-        if self.is_distributed:
-            model = DDP(model, device_ids=[self.local_rank], broadcast_buffers=False)
+            if self.is_distributed:
+                model = DDP(model, device_ids=[self.local_rank], broadcast_buffers=False)
 
-        if self.use_model_ema:
-            self.ema_model = ModelEMA(model, 0.9998)
-            self.ema_model.updates = self.max_iter * self.start_epoch
+            if self.use_model_ema:
+                self.ema_model = ModelEMA(model, self.exp.ema_decay)
+                self.ema_model.updates = self.max_iter * self.start_epoch
 
-        self.model = model
-        self.model.train()
+            self.model = model
+            self.model.train()
 
-        self.evaluator = self.exp.get_evaluator(
-            batch_size=self.args.eval_batch_size, is_distributed=self.is_distributed
-        )
+            self.evaluator = self.exp.get_evaluator(
+                batch_size=self.args.eval_batch_size, is_distributed=self.is_distributed
+            )
+        elif self.archi_name == 'PPYOLO':
+            self.train_loader = self.exp.get_data_loader(
+                batch_size=self.args.batch_size,
+                is_distributed=self.is_distributed,
+                cache_img=self.args.cache,
+            )
+            logger.info("init prefetcher, this might take one minute or less...")
+            self.prefetcher = DataPrefetcher(self.train_loader)
+            # max_iter means iters per epoch
+            self.max_iter = len(self.train_loader)
+
+            self.lr_scheduler = self.exp.get_lr_scheduler(
+                self.exp.basic_lr_per_img * self.args.batch_size, self.max_iter
+            )
+            if self.args.occupy:
+                occupy_mem(self.local_rank)
+
+            if self.is_distributed:
+                model = DDP(model, device_ids=[self.local_rank], broadcast_buffers=False)
+
+            if self.use_model_ema:
+                self.ema_model = ModelEMA(model, self.exp.ema_decay)
+                self.ema_model.updates = self.max_iter * self.start_epoch
+
+            self.model = model
+            self.model.train()
+
+            self.evaluator = self.exp.get_evaluator(
+                batch_size=self.args.eval_batch_size, is_distributed=self.is_distributed
+            )
+        else:
+            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
         # Tensorboard logger
         if self.rank == 0:
             self.tblogger = SummaryWriter(self.file_name)

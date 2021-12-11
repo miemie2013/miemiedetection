@@ -13,17 +13,190 @@ import torch.nn as nn
 from ..base_exp import BaseExp
 
 
-class YOLOXExp(BaseExp):
+class PPYOLO_R50VD_2x_Exp(BaseExp):
     def __init__(self):
         super().__init__()
         # ---------------- architecture name(算法名) ---------------- #
-        self.archi_name = 'YOLOX'
+        self.archi_name = 'PPYOLO'
+
+        # ---------------- dataset ---------------- #
+        # COCO2017 dataset
+        self.num_classes = 80
+        self.data_dir = '../COCO'
+        self.cls_names = 'class_names/coco_classes.txt'
+        self.ann_folder = "annotations"
+        self.train_ann = "instances_train2017.json"
+        self.val_ann = "instances_val2017.json"
+        self.train_image_folder = "train2017"
+        self.val_image_folder = "val2017"
+
+        # custom dataset
+        # self.train_image_folder = "val2017"
+        # self.train_ann = "instances_val2017.json"
+        # self.num_classes = 20
+        # self.data_dir = '../../data/data4379/pascalvoc/VOCdevkit/VOC2012'
+        # self.cls_names = '../class_names/voc_classes.txt'
+        # self.ann_folder = "annotations2"
+        # self.train_ann = "voc2012_train.json"
+        # self.val_ann = "voc2012_val.json"
+        # self.train_image_folder = "JPEGImages"
+        # self.val_image_folder = "JPEGImages"
+
 
         # ---------------- model config ---------------- #
-        self.num_classes = 80
-        self.depth = 1.00
-        self.width = 1.00
-        self.act = 'silu'
+        self.output_dir = "PPYOLO_outputs"
+        self.backbone = dict(
+            norm_type='bn',
+            feature_maps=[3, 4, 5],
+            dcn_v2_stages=[5],
+            downsample_in3x3=True,   # 注意这个细节，是在3x3卷积层下采样的。
+            freeze_at=-1,
+            fix_bn_mean_var_at=-1,
+            freeze_norm=False,
+            norm_decay=0.,
+        )
+        self.head = dict(
+            num_classes=self.num_classes,
+            norm_type='bn',
+            anchor_masks=[[6, 7, 8], [3, 4, 5], [0, 1, 2]],
+            anchors=[[10, 13], [16, 30], [33, 23],
+                     [30, 61], [62, 45], [59, 119],
+                     [116, 90], [156, 198], [373, 326]],
+            coord_conv=True,
+            iou_aware=True,
+            iou_aware_factor=0.4,
+            scale_x_y=1.05,
+            spp=True,
+            drop_block=True,
+            keep_prob=0.9,
+            downsample=[32, 16, 8],
+            in_channels=[2048, 1024, 512],
+        )
+        self.iou_loss = dict(
+            loss_weight=2.5,
+            max_height=608,
+            max_width=608,
+            ciou_term=False,
+        )
+        self.iou_aware_loss = dict(
+            loss_weight=1.0,
+            max_height=608,
+            max_width=608,
+        )
+        self.yolo_loss = dict(
+            ignore_thresh=0.7,
+            scale_x_y=1.05,
+            label_smooth=False,
+            use_fine_grained_loss=True,
+        )
+        self.nms_cfg = dict(
+            nms_type='matrix_nms',
+            score_threshold=0.01,
+            post_threshold=0.01,
+            nms_top_k=500,
+            keep_top_k=100,
+            use_gaussian=False,
+            gaussian_sigma=2.,
+        )
+
+        # ---------------- 预处理相关 ---------------- #
+        self.context = {'fields': ['image', 'gt_bbox', 'gt_class', 'gt_score']}
+        # DecodeImage
+        self.decodeImage = dict(
+            to_rgb=True,
+            with_mixup=True,
+            with_cutmix=False,
+            with_mosaic=False,
+        )
+        # MixupImage
+        self.mixupImage = dict(
+            alpha=1.5,
+            beta=1.5,
+        )
+        # CutmixImage
+        self.cutmixImage = dict(
+            alpha=1.5,
+            beta=1.5,
+        )
+        # MosaicImage
+        self.mosaicImage = dict(
+            alpha=1.5,
+            beta=1.5,
+        )
+        # ColorDistort
+        self.colorDistort = dict()
+        # RandomExpand
+        self.randomExpand = dict(
+            fill_value=[123.675, 116.28, 103.53],
+        )
+        # RandomCrop
+        self.randomCrop = dict()
+        # RandomFlipImage
+        self.randomFlipImage = dict(
+            is_normalized=False,
+        )
+        # NormalizeBox
+        self.normalizeBox = dict()
+        # PadBox
+        self.padBox = dict(
+            num_max_boxes=50,
+        )
+        # BboxXYXY2XYWH
+        self.bboxXYXY2XYWH = dict()
+        # RandomShape
+        self.randomShape = dict(
+            sizes=[320, 352, 384, 416, 448, 480, 512, 544, 576, 608],
+            random_inter=True,
+        )
+        # NormalizeImage
+        self.normalizeImage = dict(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225],
+            is_scale=True,
+            is_channel_first=False,
+        )
+        # Permute
+        self.permute = dict(
+            to_bgr=False,
+            channel_first=True,
+        )
+        # Gt2YoloTarget
+        self.gt2YoloTarget = dict(
+            anchor_masks=[[6, 7, 8], [3, 4, 5], [0, 1, 2]],
+            anchors=[[10, 13], [16, 30], [33, 23],
+                     [30, 61], [62, 45], [59, 119],
+                     [116, 90], [156, 198], [373, 326]],
+            downsample_ratios=[32, 16, 8],
+            num_classes=self.num_classes,
+        )
+        # ResizeImage
+        self.resizeImage = dict(
+            target_size=608,
+            interp=2,
+        )
+
+        # 预处理顺序。增加一些数据增强时这里也要加上，否则train.py中相当于没加！
+        self.sample_transforms_seq = []
+        self.sample_transforms_seq.append('decodeImage')
+        if self.decodeImage['with_mixup']:
+            self.sample_transforms_seq.append('mixupImage')
+        elif self.decodeImage['with_cutmix']:
+            self.sample_transforms_seq.append('cutmixImage')
+        elif self.decodeImage['with_mosaic']:
+            self.sample_transforms_seq.append('mosaicImage')
+        self.sample_transforms_seq.append('colorDistort')
+        self.sample_transforms_seq.append('randomExpand')
+        self.sample_transforms_seq.append('randomCrop')
+        self.sample_transforms_seq.append('randomFlipImage')
+        self.sample_transforms_seq.append('normalizeBox')
+        self.sample_transforms_seq.append('padBox')
+        self.sample_transforms_seq.append('bboxXYXY2XYWH')
+        self.batch_transforms_seq = []
+        self.batch_transforms_seq.append('randomShape')
+        self.batch_transforms_seq.append('normalizeImage')
+        self.batch_transforms_seq.append('permute')
+        self.batch_transforms_seq.append('gt2YoloTarget')
+
 
         # ---------------- dataloader config ---------------- #
         # set worker to 4 for shorter dataloader init time
@@ -35,14 +208,6 @@ class YOLOXExp(BaseExp):
         self.multiscale_range = 5
         # You can uncomment this line to specify a multiscale range
         # self.random_size = (14, 26)
-        self.data_dir = '../COCO'
-        self.cls_names = 'class_names/coco_classes.txt'
-        self.ann_folder = "annotations"
-        self.train_ann = "instances_train2017.json"
-        self.val_ann = "instances_val2017.json"
-        self.train_image_folder = "train2017"
-        self.val_image_folder = "val2017"
-        self.output_dir = "YOLOX_outputs"
 
         # --------------- transform config ----------------- #
         self.mosaic_prob = 1.0
@@ -57,25 +222,24 @@ class YOLOXExp(BaseExp):
         self.enable_mixup = True
 
         # --------------  training config --------------------- #
-        self.warmup_epochs = 5
-        self.max_epoch = 300
+        self.warmup_epochs = 6
+        self.max_epoch = 811
         self.warmup_lr = 0
-        self.basic_lr_per_img = 0.01 / 64.0
+        self.basic_lr_per_img = 0.01 / 192.0
         self.scheduler = "yoloxwarmcos"
-        self.no_aug_epochs = 15
         self.min_lr_ratio = 0.05
+
+
         self.ema = True
         self.ema_decay = 0.9998
-        self.freeze_at = -1
-
         self.weight_decay = 5e-4
         self.momentum = 0.9
-        self.print_interval = 10
+        self.print_interval = 20
         self.eval_interval = 10
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
         # -----------------  testing config ------------------ #
-        self.test_size = (640, 640)
+        self.test_size = (608, 608)
         self.test_conf = 0.01
         self.nmsthre = 0.65
 
@@ -88,26 +252,23 @@ class YOLOXExp(BaseExp):
             self.output_dir = '../' + self.output_dir
 
     def get_model(self):
-        from mmdet.models import YOLOX, YOLOPAFPN, YOLOXHead
-
-        def init_yolo(M):
-            for m in M.modules():
-                if isinstance(m, nn.BatchNorm2d):
-                    m.eps = 1e-3
-                    m.momentum = 0.03
-
+        from mmdet.models import Resnet50Vd, IouLoss, IouAwareLoss, YOLOv3Loss, YOLOv3Head, PPYOLO
         if getattr(self, "model", None) is None:
-            in_channels = [256, 512, 1024]
-            backbone = YOLOPAFPN(self.depth, self.width, in_channels=in_channels, act=self.act, freeze_at=self.freeze_at)
-            head = YOLOXHead(self.num_classes, self.width, in_channels=in_channels, act=self.act)
-            self.model = YOLOX(backbone, head)
-
-        self.model.apply(init_yolo)
-        self.model.head.initialize_biases(1e-2)
+            backbone = Resnet50Vd(**self.backbone)
+            # 冻结骨干网络
+            backbone.freeze()
+            backbone.fix_bn()
+            iou_loss = IouLoss(**self.iou_loss)
+            iou_aware_loss = None
+            if self.head['iou_aware']:
+                iou_aware_loss = IouAwareLoss(**self.iou_aware_loss)
+            yolo_loss = YOLOv3Loss(iou_loss=iou_loss, iou_aware_loss=iou_aware_loss, **self.yolo_loss)
+            head = YOLOv3Head(yolo_loss=yolo_loss, nms_cfg=self.nms_cfg, **self.head)
+            self.model = PPYOLO(backbone, head)
         return self.model
 
     def get_data_loader(
-        self, batch_size, is_distributed, no_aug=False, cache_img=False
+        self, batch_size, is_distributed, cache_img=False
     ):
         from mmdet.data import (
             COCODataset,
@@ -138,7 +299,7 @@ class YOLOXExp(BaseExp):
                     hsv_prob=self.hsv_prob),
                 cache=cache_img,
             )
-
+        no_aug = False
         dataset = MosaicDetection(
             dataset,
             mosaic=not no_aug,
@@ -235,7 +396,7 @@ class YOLOXExp(BaseExp):
                         pg1.append(v.weight)  # apply decay
 
             optimizer = torch.optim.SGD(
-                pg0, lr=lr, momentum=self.momentum, nesterov=True
+                pg0, lr=lr, momentum=self.momentum
             )
             optimizer.add_param_group(
                 {"params": pg1, "weight_decay": self.weight_decay}
@@ -260,8 +421,8 @@ class YOLOXExp(BaseExp):
         )
         return scheduler
 
-    def get_eval_loader(self, batch_size, is_distributed, testdev=False, legacy=False):
-        from mmdet.data import COCODataset, ValTransform
+    def get_eval_loader(self, batch_size, is_distributed, testdev=False):
+        from mmdet.data import COCODataset, PPYOLOValTransform
 
         valdataset = COCODataset(
             data_dir=self.data_dir,
@@ -269,7 +430,7 @@ class YOLOXExp(BaseExp):
             ann_folder=self.ann_folder,
             name=self.val_image_folder if not testdev else "test2017",
             img_size=self.test_size,
-            preproc=ValTransform(legacy=legacy),
+            preproc=PPYOLOValTransform(),
         )
 
         if is_distributed:

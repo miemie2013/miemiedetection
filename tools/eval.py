@@ -23,7 +23,7 @@ from mmdet.utils import configure_nccl, fuse_model, get_local_rank, get_model_in
 
 
 def make_parser():
-    parser = argparse.ArgumentParser("YOLOX Eval")
+    parser = argparse.ArgumentParser("MieMieDetection Eval")
     parser.add_argument("-expn", "--experiment-name", type=str, default=None)
     parser.add_argument("-n", "--name", type=str, default=None, help="model name")
 
@@ -136,16 +136,30 @@ def main(exp, args, num_gpu):
     setup_logger(file_name, distributed_rank=rank, filename="val_log.txt", mode="a")
     logger.info("Args: {}".format(args))
 
-    if args.conf is not None:
-        exp.test_conf = args.conf
-    if args.nms is not None:
-        exp.nmsthre = args.nms
-    if args.tsize is not None:
-        exp.test_size = (args.tsize, args.tsize)
+    # 算法名字
+    archi_name = exp.archi_name
+
+    # 不同的算法输入不同，新增算法时这里也要增加elif
+    if archi_name == 'YOLOX':
+        if args.conf is not None:
+            exp.test_conf = args.conf
+        if args.nms is not None:
+            exp.nmsthre = args.nms
+        if args.tsize is not None:
+            exp.test_size = (args.tsize, args.tsize)
+    elif archi_name == 'PPYOLO':
+        # PPYOLO使用的是matrix_nms，修改matrix_nms的配置。
+        if args.conf is not None:
+            exp.nms_cfg['score_threshold'] = args.conf
+            exp.nms_cfg['post_threshold'] = args.conf
+        if args.tsize is not None:
+            exp.test_size = (args.tsize, args.tsize)
+    else:
+        raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
 
     model = exp.get_model()
-    logger.info("Model Summary: {}".format(get_model_info(model, exp.test_size)))
-    logger.info("Model Structure:\n{}".format(str(model)))
+    # logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
+    # logger.info("Model Structure:\n{}".format(str(model)))
 
     evaluator = exp.get_evaluator(args.batch_size, is_distributed, args.test, args.legacy)
 

@@ -25,10 +25,10 @@ python tools/demo.py image -f exps/yolox/yolox_m.py -c YOLOX_outputs/yolox_m/1.p
 
 
 
-预测（逐行调试）
-python tools/demo.py image -f exps/yolox/yolox_s.py -c yolox_s.pth --path assets/dog.jpg --conf 0.25 --nms 0.45 --tsize 640 --save_result --device gpu
+(调试，配置文件中self.data_dir和self.cls_names前面也要加上../)
+python tools/demo.py image -f ../exps/yolox/yolox_s.py -c ../yolox_s.pth --path ../assets/dog.jpg --conf 0.25 --nms 0.45 --tsize 640 --save_result --device gpu
 
-python demo2.py image -f exps/yolox/yolox_s.py -c yolox_s.pth --path assets/dog.jpg --conf 0.25 --nms 0.45 --tsize 640 --save_result --device gpu
+
 
 
 
@@ -67,11 +67,8 @@ python train2.py -f exps/yolox/yolox_s.py -d 1 -b 2 --fp16 -o
 
 
 ----------------------- 迁移学习，带上-c（--ckpt）参数读取预训练模型。 -----------------------
-python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 --fp16 -c yolox_m.pth
-
-
-复现paddle版yolox迁移学习:（不加--fp16， -eb表示验证时的批大小）
-python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 -eb 2 -c yolox_m.pth
+复现paddle版yolox迁移学习:（可以加--fp16， -eb表示验证时的批大小）
+python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 -eb 2 --fp16 -c yolox_m.pth
 
 
 实测yolox_m的AP(0.50:0.95)可以到达0.62+、AP(small)可以到达0.25+。
@@ -85,7 +82,7 @@ python tools/train.py -f ../exps/yolox/yolox_m.py -d 1 -b 2 -eb 2 -c ../yolox_m.
 
 
 ----------------------- 恢复训练（加上参数--resume） -----------------------
-python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 -eb 2 -c YOLOX_outputs/yolox_m/3.pth --resume
+python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 -eb 2 --fp16 -c YOLOX_outputs/yolox_m/3.pth --resume
 
 
 
