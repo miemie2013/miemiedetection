@@ -33,8 +33,6 @@ python tools/demo.py image -f ../exps/yolox/yolox_s.py -c ../yolox_s.pth --path 
 
 
 ----------------------- 评估 -----------------------
-python tools/eval.py -f exps/yolox/yolox_s.py -d 1 -b 8 -c yolox_s.pth --conf 0.001 [--fp16] [--fuse]
-
 python tools/eval.py -f exps/yolox/yolox_s.py -d 1 -b 8 -c yolox_s.pth --conf 0.001
 
 

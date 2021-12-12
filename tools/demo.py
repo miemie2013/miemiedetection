@@ -366,7 +366,7 @@ def main(exp, args):
         raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
 
     model = exp.get_model()
-    # logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
+    logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
 
     if args.device == "gpu":
         model.cuda()

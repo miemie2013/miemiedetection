@@ -132,9 +132,7 @@ class Trainer:
         model = self.exp.get_model()
         # 算法名字
         self.archi_name = self.exp.archi_name
-        logger.info(
-            "Model Summary: {}".format(get_model_info(self.archi_name, model, self.exp.test_size))
-        )
+        logger.info("Model Summary: {}".format(get_model_info(self.archi_name, model, self.exp.test_size)))
         model.to(self.device)
 
         # solver related init

@@ -41,12 +41,13 @@ def paddle_yolo_box(conv_output, anchors, stride, num_classes, scale_x_y, im_siz
     # Grid Sensitive
     pred_xy = (scale_x_y * T.sigmoid(conv_raw_dxdy) + offset - (scale_x_y - 1.0) * 0.5 ) * stride
 
-    exp_wh = T.exp(conv_raw_dwdh)
+    device_name = conv_raw_dwdh.device.type
+    device_index = conv_raw_dwdh.device.index
     # _anchors = T.Tensor(anchors, device=exp_wh.device)   # RuntimeError: legacy constructor for device type: cpu was passed device type: cuda, but device type must be: cpu
-    # _anchors = torch.from_numpy(anchors)
-    # _anchors.to(exp_wh.device)
-    _anchors = T.Tensor(anchors).cuda()
-    pred_wh = (exp_wh * _anchors)
+    _anchors = torch.from_numpy(anchors)
+    if device_name == 'cuda':
+        _anchors = torch.from_numpy(anchors).cuda(device_index)
+    pred_wh = (T.exp(conv_raw_dwdh) * _anchors)
 
     pred_xyxy = T.cat([pred_xy - pred_wh / 2, pred_xy + pred_wh / 2], dim=-1)   # 左上角xy + 右下角xy
     pred_conf = T.sigmoid(conv_raw_conf)
