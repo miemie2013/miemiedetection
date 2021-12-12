@@ -6,6 +6,9 @@ import os
 from loguru import logger
 
 import cv2
+import copy
+import json
+import torch
 import numpy as np
 from pycocotools.coco import COCO
 
@@ -215,3 +218,153 @@ class COCODataset(Dataset):
         if self.preproc is not None:
             img, target = self.preproc(img, target, self.input_dim)
         return img, target, img_info, img_id
+
+
+# 数据清洗
+def data_clean(coco, img_ids, catid2clsid, image_dir, type):
+    records = []
+    ct = 0
+    for img_id in img_ids:
+        img_anno = coco.loadImgs(img_id)[0]
+        im_fname = img_anno['file_name']
+        im_w = float(img_anno['width'])
+        im_h = float(img_anno['height'])
+
+        ins_anno_ids = coco.getAnnIds(imgIds=img_id, iscrowd=False)   # 读取这张图片所有标注anno的id
+        instances = coco.loadAnns(ins_anno_ids)   # 这张图片所有标注anno。每个标注有'segmentation'、'bbox'、...
+
+        bboxes = []
+        anno_id = []    # 注解id
+        for inst in instances:
+            x, y, box_w, box_h = inst['bbox']   # 读取物体的包围框
+            x1 = max(0, x)
+            y1 = max(0, y)
+            x2 = min(im_w - 1, x1 + max(0, box_w - 1))
+            y2 = min(im_h - 1, y1 + max(0, box_h - 1))
+            if inst['area'] > 0 and x2 >= x1 and y2 >= y1:
+                inst['clean_bbox'] = [x1, y1, x2, y2]   # inst增加一个键值对
+                bboxes.append(inst)   # 这张图片的这个物体标注保留
+                anno_id.append(inst['id'])
+            else:
+                logger.warn(
+                    'Found an invalid bbox in annotations: im_id: {}, '
+                    'area: {} x1: {}, y1: {}, x2: {}, y2: {}.'.format(
+                        img_id, float(inst['area']), x1, y1, x2, y2))
+        num_bbox = len(bboxes)   # 这张图片的物体数
+
+        # 左上角坐标+右下角坐标+类别id
+        gt_bbox = np.zeros((num_bbox, 4), dtype=np.float32)
+        gt_class = np.zeros((num_bbox, 1), dtype=np.int32)
+        gt_score = np.ones((num_bbox, 1), dtype=np.float32)   # 得分的标注都是1
+        is_crowd = np.zeros((num_bbox, 1), dtype=np.int32)
+        difficult = np.zeros((num_bbox, 1), dtype=np.int32)
+        gt_poly = [None] * num_bbox
+
+        for i, box in enumerate(bboxes):
+            catid = box['category_id']
+            gt_class[i][0] = catid2clsid[catid]
+            gt_bbox[i, :] = box['clean_bbox']
+            is_crowd[i][0] = box['iscrowd']
+            if 'segmentation' in box:
+                gt_poly[i] = box['segmentation']
+
+        im_fname = os.path.join(image_dir,
+                                im_fname) if image_dir else im_fname
+        coco_rec = {
+            'im_file': im_fname,
+            'im_id': np.array([img_id]),
+            'h': im_h,
+            'w': im_w,
+            'is_crowd': is_crowd,
+            'gt_class': gt_class,
+            'anno_id': anno_id,
+            'gt_bbox': gt_bbox,
+            'gt_score': gt_score,
+            'gt_poly': gt_poly,
+        }
+
+        logger.debug('Load file: {}, im_id: {}, h: {}, w: {}.'.format(
+            im_fname, img_id, im_h, im_w))
+        records.append(coco_rec)   # 注解文件。
+        ct += 1
+    logger.info('{} samples in {} set.'.format(ct, type))
+    return records
+
+
+class MieMieCOCOEvalDataset(torch.utils.data.Dataset):
+    def __init__(self, data_dir, json_file, ann_folder, name, cfg, transforms):
+        self.data_dir = data_dir
+        self.json_file = json_file
+        self.ann_folder = ann_folder
+        self.name = name
+
+        # 验证集
+        val_path = os.path.join(self.data_dir, self.ann_folder, self.json_file)
+        val_pre_path = os.path.join(self.data_dir, self.name)
+
+        # 种类id
+        _catid2clsid = {}
+        _clsid2catid = {}
+        _clsid2cname = {}
+        with open(val_path, 'r', encoding='utf-8') as f2:
+            dataset_text = ''
+            for line in f2:
+                line = line.strip()
+                dataset_text += line
+            eval_dataset = json.loads(dataset_text)
+            categories = eval_dataset['categories']
+            for clsid, cate_dic in enumerate(categories):
+                catid = cate_dic['id']
+                cname = cate_dic['name']
+                _catid2clsid[catid] = clsid
+                _clsid2catid[clsid] = catid
+                _clsid2cname[clsid] = cname
+        class_names = []
+        num_classes = len(_clsid2cname.keys())
+        for clsid in range(num_classes):
+            class_names.append(_clsid2cname[clsid])
+
+        val_dataset = COCO(val_path)
+        val_img_ids = val_dataset.getImgIds()
+
+        keep_img_ids = []  # 只跑有gt的图片，跟随PaddleDetection
+        for img_id in val_img_ids:
+            ins_anno_ids = val_dataset.getAnnIds(imgIds=img_id, iscrowd=False)  # 读取这张图片所有标注anno的id
+            if len(ins_anno_ids) == 0:
+                continue
+            keep_img_ids.append(img_id)
+        val_img_ids = keep_img_ids
+
+        val_records = data_clean(val_dataset, val_img_ids, _catid2clsid, val_pre_path, 'val')
+
+        self.coco = val_dataset
+        self.records = val_records
+        self.context = cfg.context
+        self.transforms = transforms
+        self.catid2clsid = _catid2clsid
+        self.clsid2catid = _clsid2catid
+        self.num_record = len(val_records)
+        self.indexes = [i for i in range(self.num_record)]
+
+    def __len__(self):
+        return len(self.indexes)
+
+    def __getitem__(self, idx):
+        img_idx = self.indexes[idx]
+        sample = copy.deepcopy(self.records[img_idx])
+
+        # transforms
+        for transform in self.transforms:
+            # if isinstance(transform, YOLOXResizeImage):
+            #     sample = transform(sample, shape, self.context)
+            # else:
+            #     sample = transform(sample, self.context)
+            sample = transform(sample, self.context)
+
+        # 取出感兴趣的项
+        pimage = sample['image']
+        im_size = np.array([sample['h'], sample['w']]).astype(np.float32)
+        id = sample['im_id']
+        return pimage, im_size, id
+
+

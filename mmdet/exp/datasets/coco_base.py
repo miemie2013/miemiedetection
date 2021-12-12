@@ -19,11 +19,11 @@ class COCOBaseExp(BaseExp):
         self.val_image_folder = "val2017"
 
         # custom dataset
-        self.num_classes = 20
-        self.data_dir = '../data/data4379/pascalvoc/VOCdevkit/VOC2012'
-        self.cls_names = 'class_names/voc_classes.txt'
-        self.ann_folder = "annotations2"
-        self.train_ann = "voc2012_train.json"
-        self.val_ann = "voc2012_val.json"
-        self.train_image_folder = "JPEGImages"
-        self.val_image_folder = "JPEGImages"
+        # self.num_classes = 20
+        # self.data_dir = '../data/data4379/pascalvoc/VOCdevkit/VOC2012'
+        # self.cls_names = 'class_names/voc_classes.txt'
+        # self.ann_folder = "annotations2"
+        # self.train_ann = "voc2012_train.json"
+        # self.val_ann = "voc2012_val.json"
+        # self.train_image_folder = "JPEGImages"
+        # self.val_image_folder = "JPEGImages"

@@ -10,6 +10,7 @@ import torch
 import torch.distributed as dist
 import torch.nn as nn
 
+from mmdet.data import *
 from mmdet.exp.datasets.coco_base import COCOBaseExp
 
 
@@ -216,8 +217,6 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
 
         # -----------------  testing config ------------------ #
         self.test_size = (608, 608)
-        self.test_conf = 0.01
-        self.nmsthre = 0.65
 
         # 判断是否是调试状态
         isDebug = True if sys.gettrace() else False
@@ -398,15 +397,21 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
         return scheduler
 
     def get_eval_loader(self, batch_size, is_distributed, testdev=False):
-        from mmdet.data import COCODataset, PPYOLOValTransform
+        from mmdet.data import MieMieCOCOEvalDataset, PPYOLOValTransform
 
-        valdataset = COCODataset(
+        # 预测时的数据预处理
+        decodeImage = DecodeImage(**self.decodeImage)
+        resizeImage = ResizeImage(target_size=self.test_size[0], interp=self.resizeImage['interp'])
+        normalizeImage = NormalizeImage(**self.normalizeImage)
+        permute = Permute(**self.permute)
+        transforms = [decodeImage, resizeImage, normalizeImage, permute]
+        valdataset = MieMieCOCOEvalDataset(
             data_dir=self.data_dir,
             json_file=self.val_ann if not testdev else "image_info_test-dev2017.json",
             ann_folder=self.ann_folder,
             name=self.val_image_folder if not testdev else "test2017",
-            img_size=self.test_size,
-            preproc=PPYOLOValTransform(),
+            cfg=self,
+            transforms=transforms,
         )
 
         if is_distributed:
@@ -427,16 +432,17 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
 
         return val_loader
 
-    def get_evaluator(self, batch_size, is_distributed, testdev=False, legacy=False):
+    def get_evaluator(self, batch_size, is_distributed, testdev=False):
         from mmdet.evaluators import COCOEvaluator
 
-        val_loader = self.get_eval_loader(batch_size, is_distributed, testdev, legacy)
+        val_loader = self.get_eval_loader(batch_size, is_distributed, testdev)
         evaluator = COCOEvaluator(
             dataloader=val_loader,
             img_size=self.test_size,
-            confthre=self.test_conf,
-            nmsthre=self.nmsthre,
+            confthre=-99.0,
+            nmsthre=-99.0,
             num_classes=self.num_classes,
+            archi_name=self.archi_name,
             testdev=testdev,
         )
         return evaluator

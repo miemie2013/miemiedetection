@@ -139,7 +139,7 @@ def main(exp, args, num_gpu):
     # 算法名字
     archi_name = exp.archi_name
 
-    # 不同的算法输入不同，新增算法时这里也要增加elif
+    # 新增算法时这里也要增加elif
     if archi_name == 'YOLOX':
         if args.conf is not None:
             exp.test_conf = args.conf
@@ -147,6 +147,10 @@ def main(exp, args, num_gpu):
             exp.nmsthre = args.nms
         if args.tsize is not None:
             exp.test_size = (args.tsize, args.tsize)
+        model = exp.get_model()
+        # logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
+        # logger.info("Model Structure:\n{}".format(str(model)))
+        evaluator = exp.get_evaluator(args.batch_size, is_distributed, args.test, args.legacy)
     elif archi_name == 'PPYOLO':
         # PPYOLO使用的是matrix_nms，修改matrix_nms的配置。
         if args.conf is not None:
@@ -154,14 +158,13 @@ def main(exp, args, num_gpu):
             exp.nms_cfg['post_threshold'] = args.conf
         if args.tsize is not None:
             exp.test_size = (args.tsize, args.tsize)
+        model = exp.get_model()
+        # logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
+        # logger.info("Model Structure:\n{}".format(str(model)))
+        evaluator = exp.get_evaluator(args.batch_size, is_distributed, args.test)
     else:
         raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
 
-    model = exp.get_model()
-    # logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
-    # logger.info("Model Structure:\n{}".format(str(model)))
-
-    evaluator = exp.get_evaluator(args.batch_size, is_distributed, args.test, args.legacy)
 
     torch.cuda.set_device(rank)
     model.cuda(rank)
@@ -199,15 +202,28 @@ def main(exp, args, num_gpu):
         trt_file = None
         decoder = None
 
-    # start evaluate
-    *_, summary = evaluator.evaluate(
-        model, is_distributed, args.fp16, trt_file, decoder, exp.test_size
-    )
+    # start evaluate。新增算法时这里也要增加elif
+    if archi_name == 'YOLOX':
+        *_, summary = evaluator.evaluate_yolox(
+            model, is_distributed, args.fp16, trt_file, decoder, exp.test_size
+        )
+    elif archi_name == 'PPYOLO':
+        *_, summary = evaluator.evaluate_ppyolo(
+            model, is_distributed, args.fp16, trt_file, exp.test_size
+        )
+    else:
+        raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
     logger.info("\n" + summary)
 
 
 if __name__ == "__main__":
     args = make_parser().parse_args()
+    # 判断是否是调试状态
+    isDebug = True if sys.gettrace() else False
+    if isDebug:
+        print('Debug Mode.')
+        args.exp_file = '../' + args.exp_file
+        args.ckpt = '../' + args.ckpt
     exp = get_exp(args.exp_file, args.name)
     exp.merge(args.opts)
 

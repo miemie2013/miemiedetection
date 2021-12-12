@@ -292,6 +292,7 @@ class YOLOXExp(COCOBaseExp):
             confthre=self.test_conf,
             nmsthre=self.nmsthre,
             num_classes=self.num_classes,
+            archi_name=self.archi_name,
             testdev=testdev,
         )
         return evaluator

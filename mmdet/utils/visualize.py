@@ -5,7 +5,7 @@
 import cv2
 import numpy as np
 
-__all__ = ["get_classes", "vis"]
+__all__ = ["get_classes", "vis", "vis2"]
 
 
 def get_classes(classes_path):
@@ -47,6 +47,44 @@ def vis(img, boxes, scores, cls_ids, conf=0.5, class_names=None):
         cv2.putText(img, text, (x0, y0 + txt_size[1]), font, 0.4, txt_color, thickness=1)
 
     return img
+
+
+def vis2(img, boxes, scores, cls_ids, conf=0.5, class_names=None):
+    all_classes = class_names
+    num_classes = len(class_names)
+    import colorsys
+    import random
+    image = img
+    boxes = boxes.cpu().detach().numpy()
+    scores = scores.cpu().detach().numpy()
+    classes = cls_ids.cpu().detach().numpy().astype(np.int32)
+
+    image_h, image_w, _ = image.shape
+    # 定义颜色
+    hsv_tuples = [(1.0 * x / num_classes, 1., 1.) for x in range(num_classes)]
+    colors = list(map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples))
+    colors = list(map(lambda x: (int(x[0] * 255), int(x[1] * 255), int(x[2] * 255)), colors))
+
+    random.seed(0)
+    random.shuffle(colors)
+    random.seed(None)
+
+    for box, score, cl in zip(boxes, scores, classes):
+        x0, y0, x1, y1 = box
+        left = max(0, np.floor(x0 + 0.5).astype(int))
+        top = max(0, np.floor(y0 + 0.5).astype(int))
+        right = min(image.shape[1], np.floor(x1 + 0.5).astype(int))
+        bottom = min(image.shape[0], np.floor(y1 + 0.5).astype(int))
+        bbox_color = colors[cl]
+        # bbox_thick = 1 if min(image_h, image_w) < 400 else 2
+        bbox_thick = 1
+        cv2.rectangle(image, (left, top), (right, bottom), bbox_color, bbox_thick)
+        bbox_mess = '%s: %.2f' % (all_classes[cl], score)
+        t_size = cv2.getTextSize(bbox_mess, 0, 0.5, thickness=1)[0]
+        cv2.rectangle(image, (left, top), (left + t_size[0], top - t_size[1] - 3), bbox_color, -1)
+        cv2.putText(image, bbox_mess, (left, top - 2), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0, 0, 0), 1, lineType=cv2.LINE_AA)
+    return image
 
 
 _COLORS = np.array(

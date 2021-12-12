@@ -38,20 +38,16 @@ python tools/eval.py -f exps/yolox/yolox_s.py -d 1 -b 8 -c yolox_s.pth --conf 0.
 python tools/eval.py -f exps/yolox/yolox_s.py -d 1 -b 8 -c yolox_s.pth --conf 0.001
 
 
+(调试，配置文件中self.data_dir、self.cls_names、self.output_dir的前面已经自动加上'../')
+python tools/eval.py -f ../exps/yolox/yolox_s.py -d 1 -b 8 -c ../yolox_s.pth --conf 0.001
+
+
+
 python tools/eval.py -f exps/yolox/yolox_m.py -d 1 -b 8 -c yolox_m.pth --conf 0.001
 
 
 
 ----------------------- 训练 -----------------------
-修改配置文件
-        self.train_ann = "instances_train2017.json"
-        self.train_ann = "instances_val2017.json"
-        self.val_ann = "instances_val2017.json"
-修改coco.py
-        name = 'val2017'
-        self.data_dir = '../COCO'
-        self.json_file = json_file
-
 python tools/train.py -f exps/yolox/yolox_s.py -d 8 -b 64 --fp16 -o [--cache]
 
 

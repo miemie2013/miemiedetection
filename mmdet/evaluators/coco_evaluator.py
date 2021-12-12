@@ -30,7 +30,7 @@ class COCOEvaluator:
     """
 
     def __init__(
-        self, dataloader, img_size, confthre, nmsthre, num_classes, testdev=False
+        self, dataloader, img_size, confthre, nmsthre, num_classes, archi_name='', testdev=False
     ):
         """
         Args:
@@ -46,9 +46,10 @@ class COCOEvaluator:
         self.confthre = confthre
         self.nmsthre = nmsthre
         self.num_classes = num_classes
+        self.archi_name = archi_name
         self.testdev = testdev
 
-    def evaluate(
+    def evaluate_yolox(
         self,
         model,
         distributed=False,
@@ -132,6 +133,84 @@ class COCOEvaluator:
         synchronize()
         return eval_results
 
+    def evaluate_ppyolo(
+        self,
+        model,
+        distributed=False,
+        half=False,
+        trt_file=None,
+        test_size=None,
+    ):
+        """
+        COCO average precision (AP) Evaluation. Iterate inference on the test dataset
+        and the results are evaluated by COCO API.
+
+        NOTE: This function will change training mode to False, please save states if needed.
+
+        Args:
+            model : model to evaluate.
+
+        Returns:
+            ap50_95 (float) : COCO AP of IoU=50:95
+            ap50 (float) : COCO AP of IoU=50
+            summary (sr): summary info of evaluation.
+        """
+        # TODO half to amp_test
+        tensor_type = torch.cuda.HalfTensor if half else torch.cuda.FloatTensor
+        model = model.eval()
+        if half:
+            model = model.half()
+        data_list = []
+        progress_bar = tqdm if is_main_process() else iter
+
+        inference_time = 0
+        nms_time = 0
+        n_samples = max(len(self.dataloader) - 1, 1)
+
+        if trt_file is not None:
+            from torch2trt import TRTModule
+
+            model_trt = TRTModule()
+            model_trt.load_state_dict(torch.load(trt_file))
+
+            x = torch.ones(1, 3, test_size[0], test_size[1]).cuda()
+            model(x)
+            model = model_trt
+
+        for cur_iter, (pimages, im_sizes, ids) in enumerate(
+            progress_bar(self.dataloader)
+        ):
+            with torch.no_grad():
+                pimages = pimages.type(tensor_type)     # [N, 3, 608, 608]
+                im_sizes = im_sizes.type(tensor_type)   # [N, 2]
+
+                # skip the the last iters since batchsize might be not enough for batch inference
+                is_time_record = cur_iter < len(self.dataloader) - 1
+                if is_time_record:
+                    start = time.time()
+
+                preds = model(pimages, im_sizes)
+
+                if is_time_record:
+                    infer_end = time_synchronized()
+                    inference_time += infer_end - start
+                # NMS包含在了模型里，这里记录无效...
+                if is_time_record:
+                    nms_end = time_synchronized()
+                    nms_time += nms_end - infer_end
+
+            data_list.extend(self.convert_to_coco_format2(preds, ids))
+
+        statistics = torch.cuda.FloatTensor([inference_time, nms_time, n_samples])
+        if distributed:
+            data_list = gather(data_list, dst=0)
+            data_list = list(itertools.chain(*data_list))
+            torch.distributed.reduce(statistics, dst=0)
+
+        eval_results = self.evaluate_prediction(data_list, statistics)
+        synchronize()
+        return eval_results
+
     def convert_to_coco_format(self, outputs, info_imgs, ids):
         data_list = []
         for (output, img_h, img_w, img_id) in zip(
@@ -158,6 +237,48 @@ class COCOEvaluator:
                     "image_id": int(img_id),
                     "category_id": label,
                     "bbox": bboxes[ind].numpy().tolist(),
+                    "score": scores[ind].numpy().item(),
+                    "segmentation": [],
+                }  # COCO json format
+                data_list.append(pred_data)
+        return data_list
+
+    def convert_to_coco_format2(self, preds, ids):
+        data_list = []
+        for (pred, img_id) in zip(
+            preds, ids
+        ):
+            if pred is None:
+                continue
+            if pred[0][0] < 0.0:
+                continue
+            output = pred.cpu()
+
+            bboxes = output[:, 2:6]  # xyxy
+            # 这里开始YOLOX和PPYOLO的评测代码不同
+            # bboxes = xyxy2xywh(bboxes)
+
+            cls = output[:, 0]
+            scores = output[:, 1]
+            for ind in range(bboxes.shape[0]):
+                label = self.dataloader.dataset.clsid2catid[int(cls[ind])]
+
+                # YOLOX和PPYOLO的评测代码不同
+                xmin, ymin, xmax, ymax = bboxes[ind].numpy().tolist()
+                # PPYOLO需要+1，YOLOX不需要+1
+                w = xmax - xmin + 1
+                h = ymax - ymin + 1
+                # w = xmax - xmin
+                # h = ymax - ymin
+                bbox = [xmin, ymin, w, h]
+                # Round to the nearest 10th to avoid huge file sizes, as COCO suggests
+                bbox = [round(float(x) * 10) / 10 for x in bbox]
+
+                pred_data = {
+                    "image_id": int(img_id),
+                    "category_id": label,
+                    # "bbox": bboxes[ind].numpy().tolist(),
+                    "bbox": bbox,
                     "score": scores[ind].numpy().item(),
                     "segmentation": [],
                 }  # COCO json format

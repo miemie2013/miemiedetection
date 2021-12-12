@@ -29,6 +29,16 @@ python tools/convert_weights.py -f ../exps/ppyolo/ppyolo_r50vd_2x.py -c ../ppyol
 python tools/demo.py image -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo_2x.pth --path assets/dog.jpg --conf 0.15 --tsize 608 --save_result --device gpu
 
 
+
+python tools/demo.py image -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo_2x.pth --path D://GitHub/Pytorch-YOLO/images/test --conf 0.15 --tsize 608 --save_result --device gpu
+
+
+
+
+
+
+
+
 (调试，配置文件中self.data_dir、self.cls_names、self.output_dir的前面已经自动加上'../')
 python tools/demo.py image -f ../exps/ppyolo/ppyolo_r50vd_2x.py -c ../ppyolo_2x.pth --path ../assets/dog.jpg --conf 0.15 --tsize 608 --save_result --device gpu
 
@@ -48,26 +58,27 @@ python demo2.py image -f exps/ppyolo/ppyolo_r50vd_2x.py -c yolox_s.pth --path as
 
 
 ----------------------- 评估 -----------------------
-python tools/eval.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -c ppyolo_2x.pth --conf 0.01 [--fp16] [--fuse]
-
-python tools/eval.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -c ppyolo_2x.pth --conf 0.01
+python tools/eval.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 2 -c ppyolo_2x.pth --conf 0.01 --tsize 608
 
 
-(调试，配置文件中self.data_dir和self.cls_names前面也要加上../)
-python tools/eval.py -f ../exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -c ../ppyolo_2x.pth --conf 0.01
+Average forward time: 43.35 ms, Average NMS time: 0.01 ms, Average inference time: 43.36 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.448
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.649
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.492
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.265
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.483
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.593
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.337
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.571
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.624
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.420
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.665
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.773
+
 
 
 
 ----------------------- 训练 -----------------------
-修改配置文件
-        self.train_ann = "instances_train2017.json"
-        self.train_ann = "instances_val2017.json"
-        self.val_ann = "instances_val2017.json"
-修改coco.py
-        name = 'val2017'
-        self.data_dir = '../COCO'
-        self.json_file = json_file
-
 python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 --fp16
 
 

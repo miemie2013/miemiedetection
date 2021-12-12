@@ -18,7 +18,7 @@ sys.path.insert(0, parent_path)
 
 from mmdet.data.data_augment import *
 from mmdet.exp import get_exp
-from mmdet.utils import fuse_model, get_model_info, postprocess, vis, get_classes
+from mmdet.utils import fuse_model, get_model_info, postprocess, vis, get_classes, vis2
 
 IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
 
@@ -201,8 +201,7 @@ class PPYOLOPredictor(object):
         self.model = model
         self.cls_names = get_classes(exp.cls_names)
         self.num_classes = exp.num_classes
-        self.confthre = exp.test_conf
-        self.nmsthre = exp.nmsthre
+        self.confthre = exp.nms_cfg['post_threshold']
         self.test_size = exp.test_size
         self.device = device
         self.fp16 = fp16
@@ -270,6 +269,7 @@ class PPYOLOPredictor(object):
         cls = output[:, 0]
         scores = output[:, 1]
 
+        # vis_res = vis2(img, bboxes, scores, cls, cls_conf, self.cls_names)
         vis_res = vis(img, bboxes, scores, cls, cls_conf, self.cls_names)
         return vis_res
 
@@ -455,6 +455,13 @@ def main(exp, args):
 
 if __name__ == "__main__":
     args = make_parser().parse_args()
+    # 判断是否是调试状态
+    isDebug = True if sys.gettrace() else False
+    if isDebug:
+        print('Debug Mode.')
+        args.exp_file = '../' + args.exp_file
+        args.ckpt = '../' + args.ckpt
+        args.path = '../' + args.path   # 如果是绝对路径，把这一行注释掉
     exp = get_exp(args.exp_file, args.name)
 
     main(exp, args)
