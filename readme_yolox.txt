@@ -1,18 +1,8 @@
 
+nvidia-smi
 
 
-
-https://zhuanlan.zhihu.com/p/392221567
-
-
-pip install thop -i https://mirror.baidu.com/pypi/simple
-pip install tabulate -i https://mirror.baidu.com/pypi/simple
-
-
-yolox_base.py里
-self.data_dir = '../COCO'
-设置数据集路径
-
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 
 ----------------------- 预测 -----------------------
@@ -25,19 +15,24 @@ python tools/demo.py image -f exps/yolox/yolox_m.py -c YOLOX_outputs/yolox_m/1.p
 
 
 
-(调试，配置文件中self.data_dir和self.cls_names前面也要加上../)
-python tools/demo.py image -f ../exps/yolox/yolox_s.py -c ../yolox_s.pth --path ../assets/dog.jpg --conf 0.25 --nms 0.45 --tsize 640 --save_result --device gpu
-
-
-
-
 
 ----------------------- 评估 -----------------------
 python tools/eval.py -f exps/yolox/yolox_s.py -d 1 -b 8 -c yolox_s.pth --conf 0.001
 
 
-(调试，配置文件中self.data_dir、self.cls_names、self.output_dir的前面已经自动加上'../')
-python tools/eval.py -f ../exps/yolox/yolox_s.py -d 1 -b 8 -c ../yolox_s.pth --conf 0.001
+Average forward time: 10.76 ms, Average NMS time: 2.75 ms, Average inference time: 13.51 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.405
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.593
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.438
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.233
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.448
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.541
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.326
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.531
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.574
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.366
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.635
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.724
 
 
 
@@ -61,7 +56,7 @@ python train2.py -f exps/yolox/yolox_s.py -d 1 -b 2 --fp16 -o
 
 
 ----------------------- 迁移学习，带上-c（--ckpt）参数读取预训练模型。 -----------------------
-复现paddle版yolox迁移学习:（可以加--fp16， -eb表示验证时的批大小）
+复现paddle版yolox_m迁移学习:（可以加--fp16， -eb表示验证时的批大小）
 python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 -eb 2 --fp16 -c yolox_m.pth
 
 
@@ -69,8 +64,14 @@ python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 -eb 2 --fp16 -c yolox_m
 
 
 
-复现paddle版yolox迁移学习:（用来调试。另外，yolox_base.py的self.data_dir、self.cls_names前面也要加上../）
-python tools/train.py -f ../exps/yolox/yolox_m.py -d 1 -b 2 -eb 2 -c ../yolox_m.pth
+
+复现ppdet版yolox_s迁移学习:（可以加--fp16， -eb表示验证时的批大小）
+python tools/train.py -f exps/yolox/yolox_s.py -d 1 -b 8 -eb 2 --fp16 -c yolox_s.pth
+
+
+实测yolox_s的AP(0.50:0.95)可以到达0.xx+、AP(small)可以到达0.xx+。
+
+
 
 
 

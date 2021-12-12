@@ -359,6 +359,13 @@ def main(exp, args):
 
 if __name__ == "__main__":
     args = make_parser().parse_args()
+    # 判断是否是调试状态
+    isDebug = True if sys.gettrace() else False
+    if isDebug:
+        print('Debug Mode.')
+        args.exp_file = '../' + args.exp_file
+        args.ckpt = '../' + args.ckpt
+        args.output_ckpt = '../' + args.output_ckpt
     exp = get_exp(args.exp_file, args.name)
 
     main(exp, args)

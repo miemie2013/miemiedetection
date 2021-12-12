@@ -1,26 +1,12 @@
 
+nvidia-smi
 
 
-
-https://zhuanlan.zhihu.com/p/392221567
-
-
-pip install thop -i https://mirror.baidu.com/pypi/simple
-pip install tabulate -i https://mirror.baidu.com/pypi/simple
-
-
-yolox_base.py里
-self.data_dir = '../COCO'
-设置数据集路径
-
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 
 ----------------------- 转换权重 -----------------------
 python tools/convert_weights.py -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo.pdparams -oc ppyolo_2x.pth -nc 80
-
-
-python tools/convert_weights.py -f ../exps/ppyolo/ppyolo_r50vd_2x.py -c ../ppyolo.pdparams -oc ../ppyolo_2x.pth -nc 80
-
 
 
 
@@ -36,11 +22,6 @@ python tools/demo.py image -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo_2x.pth --
 
 
 
-
-
-
-(调试，配置文件中self.data_dir、self.cls_names、self.output_dir的前面已经自动加上'../')
-python tools/demo.py image -f ../exps/ppyolo/ppyolo_r50vd_2x.py -c ../ppyolo_2x.pth --path ../assets/dog.jpg --conf 0.15 --tsize 608 --save_result --device gpu
 
 
 
@@ -110,11 +91,6 @@ python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 2 --fp16 -
 
 实测yolox_m的AP(0.50:0.95)可以到达0.62+、AP(small)可以到达0.25+。
 
-
-
-复现paddle版yolox迁移学习:（用来调试。另外，yolox_base.py的self.data_dir、self.cls_names前面也要加上../）
-python tools/train.py -f ../exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 2 -eb 2 -c ../ppyolo_2x.pth
-python tools/train.py -f ../exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 2 -eb 2
 
 
 
