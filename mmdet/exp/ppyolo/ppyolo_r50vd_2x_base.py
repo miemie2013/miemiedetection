@@ -176,8 +176,8 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
 
 
         # ---------------- dataloader config ---------------- #
-        # set worker to 4 for shorter dataloader init time
-        self.data_num_workers = 4
+        # 默认是4。如果报错“OSError: [WinError 1455] 页面文件太小,无法完成操作”，设置为2或0解决。
+        self.data_num_workers = 2
         self.input_size = (640, 640)  # (height, width)
         # Actual multiscale ranges: [640-5*32, 640+5*32].
         # To disable multiscale training, set the
