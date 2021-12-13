@@ -448,4 +448,4 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
         return evaluator
 
     def eval(self, model, evaluator, is_distributed, half=False):
-        return evaluator.evaluate(model, is_distributed, half)
+        return evaluator.evaluate_ppyolo(model, is_distributed, half)

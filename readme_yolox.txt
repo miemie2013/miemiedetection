@@ -69,7 +69,7 @@ python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 -eb 2 --fp16 -c yolox_m
 python tools/train.py -f exps/yolox/yolox_s.py -d 1 -b 8 -eb 2 --fp16 -c yolox_s.pth
 
 
-实测yolox_s的AP(0.50:0.95)可以到达0.xx+、AP(small)可以到达0.xx+。
+实测yolox_s的AP(0.50:0.95)可以到达0.53+、AP(small)可以到达0.22+。
 
 
 

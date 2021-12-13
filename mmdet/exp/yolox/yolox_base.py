@@ -298,4 +298,4 @@ class YOLOXExp(COCOBaseExp):
         return evaluator
 
     def eval(self, model, evaluator, is_distributed, half=False):
-        return evaluator.evaluate(model, is_distributed, half)
+        return evaluator.evaluate_yolox(model, is_distributed, half)
