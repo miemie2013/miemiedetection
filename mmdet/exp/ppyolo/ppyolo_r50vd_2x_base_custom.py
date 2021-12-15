@@ -21,8 +21,8 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
         self.archi_name = 'PPYOLO'
 
         # --------------  training config --------------------- #
-        self.max_epoch = 8
-        self.aug_epochs = 8  # 前几轮进行mixup、cutmix、mosaic
+        self.max_epoch = 16
+        self.aug_epochs = 16  # 前几轮进行mixup、cutmix、mosaic
 
         self.ema = True
         self.ema_decay = 0.9998
@@ -37,7 +37,7 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
             base_lr=0.01 * 8.0 / 192,
             PiecewiseDecay=dict(
                 gamma=0.1,
-                milestones_epoch=[6, 7],
+                milestones_epoch=[12, 14],
             ),
             LinearWarmup=dict(
                 start_factor=0.,
