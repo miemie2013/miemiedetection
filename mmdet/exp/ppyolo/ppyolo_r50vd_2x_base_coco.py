@@ -21,15 +21,15 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
         self.archi_name = 'PPYOLO'
 
         # --------------  training config --------------------- #
-        self.max_epoch = 8
-        self.aug_epochs = 8  # 前几轮进行mixup、cutmix、mosaic
+        self.max_epoch = 811
+        self.aug_epochs = 811  # 前几轮进行mixup、cutmix、mosaic
 
         self.ema = True
         self.ema_decay = 0.9998
         self.weight_decay = 5e-4
         self.momentum = 0.9
         self.print_interval = 20
-        self.eval_interval = 1
+        self.eval_interval = 10
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
         self.learningRate = dict(
@@ -37,11 +37,11 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
             base_lr=0.01 * 8.0 / 192,
             PiecewiseDecay=dict(
                 gamma=0.1,
-                milestones_epoch=[6, 7],
+                milestones_epoch=[649, 730],
             ),
             LinearWarmup=dict(
                 start_factor=0.,
-                steps=500,
+                steps=4000,
             ),
         )
 
@@ -55,7 +55,7 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
             feature_maps=[3, 4, 5],
             dcn_v2_stages=[5],
             downsample_in3x3=True,   # 注意这个细节，是在3x3卷积层下采样的。
-            freeze_at=4,
+            freeze_at=-1,
             fix_bn_mean_var_at=-1,
             freeze_norm=False,
             norm_decay=0.,

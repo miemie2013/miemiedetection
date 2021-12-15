@@ -8,12 +8,13 @@
 #
 # ================================================================
 import torch
+import torch.nn as nn
 import torch as T
 import torch.nn.functional as F
 import numpy as np
 
 
-class IouLoss(object):
+class IouLoss(nn.Module):
     """
     iou loss, see https://arxiv.org/abs/1908.03851
     loss = 1.0 - iou * iou
@@ -31,6 +32,7 @@ class IouLoss(object):
                  max_width=608,
                  ciou_term=False,
                  loss_square=True):
+        super(IouLoss, self).__init__()
         self._loss_weight = loss_weight
         self._MAX_HI = max_height
         self._MAX_WI = max_width
@@ -221,7 +223,7 @@ class IouAwareLoss(IouLoss):
         return loss_iou_aware
 
 
-class MyIOUloss(object):
+class MyIOUloss(nn.Module):
     def __init__(self, reduction="none", loss_type="iou"):
         super(MyIOUloss, self).__init__()
         self.reduction = reduction

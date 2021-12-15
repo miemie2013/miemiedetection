@@ -12,6 +12,7 @@ import torch
 import numpy as np
 from pycocotools.coco import COCO
 
+from .. import RandomShapeSingle
 from ..dataloading import get_yolox_datadir
 from .datasets_wrapper import Dataset
 
@@ -366,5 +367,171 @@ class MieMieCOCOEvalDataset(torch.utils.data.Dataset):
         im_size = np.array([sample['h'], sample['w']]).astype(np.float32)
         id = sample['im_id']
         return pimage, im_size, id
+
+
+class MieMieCOCOTrainDataset(torch.utils.data.Dataset):
+    def __init__(self, data_dir, json_file, ann_folder, name, cfg, sample_transforms, batch_transforms, batch_size):
+        self.data_dir = data_dir
+        self.json_file = json_file
+        self.ann_folder = ann_folder
+        self.name = name
+
+        # 训练集
+        train_path = os.path.join(self.data_dir, self.ann_folder, self.json_file)
+        train_pre_path = os.path.join(self.data_dir, self.name)
+
+        # 种类id
+        _catid2clsid = {}
+        _clsid2catid = {}
+        _clsid2cname = {}
+        with open(train_path, 'r', encoding='utf-8') as f2:
+            dataset_text = ''
+            for line in f2:
+                line = line.strip()
+                dataset_text += line
+            eval_dataset = json.loads(dataset_text)
+            categories = eval_dataset['categories']
+            for clsid, cate_dic in enumerate(categories):
+                catid = cate_dic['id']
+                cname = cate_dic['name']
+                _catid2clsid[catid] = clsid
+                _clsid2catid[clsid] = catid
+                _clsid2cname[clsid] = cname
+        class_names = []
+        num_classes = len(_clsid2cname.keys())
+        for clsid in range(num_classes):
+            class_names.append(_clsid2cname[clsid])
+
+        train_dataset = COCO(train_path)
+        train_img_ids = train_dataset.getImgIds()
+        train_records = data_clean(train_dataset, train_img_ids, _catid2clsid, train_pre_path, 'train')
+
+        self.coco = train_dataset
+        self.records = train_records
+        self.context = cfg.context
+        self.sample_transforms = sample_transforms
+        self.batch_transforms = batch_transforms
+        self.catid2clsid = _catid2clsid
+        self.clsid2catid = _clsid2catid
+        self.num_record = len(train_records)
+        self.with_mixup = cfg.decodeImage.get('with_mixup', False)
+        self.with_cutmix = cfg.decodeImage.get('with_cutmix', False)
+        self.with_mosaic = cfg.decodeImage.get('with_mosaic', False)
+        self.batch_size = batch_size
+
+
+        # 一轮的步数。丢弃最后几个样本。
+        self.train_steps = self.num_record // batch_size
+
+        # 一轮的样本数。丢弃最后几个样本。
+        train_samples = self.train_steps * batch_size
+
+        # 训练多少轮
+        self.max_epoch = cfg.max_epoch
+        # 总共训练多少步
+        self.max_iters = self.train_steps * self.max_epoch
+
+
+        # 训练样本
+        indexes = [i for i in range(self.num_record)]
+        self.indexes = []
+        while len(self.indexes) < self.max_iters * batch_size:
+            indexes2 = copy.deepcopy(indexes)
+            # 每个epoch之前洗乱
+            np.random.shuffle(indexes2)
+            indexes2 = indexes2[:train_samples]
+            self.indexes += indexes2
+        self.indexes = self.indexes[:self.max_iters * batch_size]
+
+        # 多尺度训练
+        sizes = cfg.randomShape['sizes']
+        self.shapes = []
+        while len(self.shapes) < self.max_iters:
+            shape = np.random.choice(sizes)
+            self.shapes.append(shape)
+        self.shapes = self.shapes[:self.max_iters]
+
+        self.init_iter_id = 0
+
+
+    def __len__(self):
+        return len(self.indexes)
+
+    def __getitem__(self, idx):
+        iter_id = idx // self.batch_size
+        if iter_id < self.init_iter_id:   # 恢复训练时跳过。
+            return np.zeros((1, ), np.float32)
+
+        img_idx = self.indexes[idx]
+        shape = self.shapes[iter_id]
+        sample = copy.deepcopy(self.records[img_idx])
+        sample["curr_iter"] = iter_id
+
+        # 为mixup数据增强做准备
+        # if self.with_mixup and iter_id <= self.mixup_steps:
+        if self.with_mixup:
+            num = len(self.records)
+            mix_idx = np.random.randint(0, num)
+            while mix_idx == img_idx:   # 为了不选到自己
+                mix_idx = np.random.randint(0, num)
+            sample['mixup'] = copy.deepcopy(self.records[mix_idx])
+            # sample['mixup']["curr_iter"] = iter_id
+
+        # 为cutmix数据增强做准备
+        # if self.with_cutmix and iter_id <= self.cutmix_steps:
+        if self.with_cutmix:
+            num = len(self.records)
+            mix_idx = np.random.randint(0, num)
+            while mix_idx == img_idx:   # 为了不选到自己
+                mix_idx = np.random.randint(0, num)
+            sample['cutmix'] = copy.deepcopy(self.records[mix_idx])
+            # sample['cutmix']["curr_iter"] = iter_id
+
+        # 为mosaic数据增强做准备
+        # if self.with_mosaic and iter_id <= self.mosaic_steps:
+        if self.with_mosaic:
+            num = len(self.records)
+            mix_idx = np.random.randint(0, num)
+            while mix_idx == img_idx:   # 为了不选到自己
+                mix_idx = np.random.randint(0, num)
+            sample['mosaic1'] = copy.deepcopy(self.records[mix_idx])
+            # sample['mosaic1']["curr_iter"] = iter_id
+
+            mix_idx2 = np.random.randint(0, num)
+            while mix_idx2 in [img_idx, mix_idx]:   # 为了不重复
+                mix_idx2 = np.random.randint(0, num)
+            sample['mosaic2'] = copy.deepcopy(self.records[mix_idx2])
+            # sample['mosaic2']["curr_iter"] = iter_id
+
+            mix_idx3 = np.random.randint(0, num)
+            while mix_idx3 in [img_idx, mix_idx, mix_idx2]:   # 为了不重复
+                mix_idx3 = np.random.randint(0, num)
+            sample['mosaic3'] = copy.deepcopy(self.records[mix_idx3])
+            # sample['mosaic3']["curr_iter"] = iter_id
+
+        # sample_transforms
+        for sample_transform in self.sample_transforms:
+            sample = sample_transform(sample, self.context)
+
+        # batch_transforms
+        for batch_transform in self.batch_transforms:
+            if isinstance(batch_transform, RandomShapeSingle):
+                sample = batch_transform(shape, sample, self.context)
+            else:
+                sample = batch_transform(sample, self.context)
+
+        # 取出感兴趣的项
+        image = sample['image'].astype(np.float32)
+        gt_bbox = sample['gt_bbox'].astype(np.float32)
+        gt_score = sample['gt_score'].astype(np.float32)
+        gt_class = sample['gt_class'].astype(np.int32)
+        target0 = sample['target0'].astype(np.float32)
+        target1 = sample['target1'].astype(np.float32)
+        # if self.n_layers > 2:
+        #     target2 = sample['target2'].astype(np.float32)
+        #     return image, gt_bbox, gt_score, gt_class, target0, target1, target2
+        # return image, gt_bbox, gt_score, gt_class, target0, target1
+        target2 = sample['target2'].astype(np.float32)
+        return image, gt_bbox, gt_score, gt_class, target0, target1, target2
 
 

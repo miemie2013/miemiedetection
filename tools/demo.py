@@ -460,7 +460,7 @@ if __name__ == "__main__":
     if isDebug:
         print('Debug Mode.')
         args.exp_file = '../' + args.exp_file
-        args.ckpt = '../' + args.ckpt
+        args.ckpt = '../' + args.ckpt   # 如果是绝对路径，把这一行注释掉
         args.path = '../' + args.path   # 如果是绝对路径，把这一行注释掉
     exp = get_exp(args.exp_file, args.name)
 

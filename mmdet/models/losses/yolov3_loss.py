@@ -8,6 +8,7 @@
 #
 # ================================================================
 import torch
+import torch.nn as nn
 import torch as T
 import numpy as np
 
@@ -22,7 +23,7 @@ except Exception:
 
 
 
-class YOLOv3Loss(object):
+class YOLOv3Loss(nn.Module):
     """
     Combined loss for YOLOv3 network
 
@@ -43,6 +44,7 @@ class YOLOv3Loss(object):
                  downsample=[32, 16, 8],
                  scale_x_y=1.,
                  match_score=False):
+        super(YOLOv3Loss, self).__init__()
         self._ignore_thresh = ignore_thresh
         self._label_smooth = label_smooth
         self._use_fine_grained_loss = use_fine_grained_loss
@@ -168,6 +170,7 @@ class YOLOv3Loss(object):
             loss_objs += (loss_obj_pos + loss_obj_neg).mean()
             loss_clss += loss_cls.mean()
 
+        total_loss = loss_xys + loss_whs + loss_objs + loss_clss
         losses_all = {
             "loss_xy": loss_xys,
             "loss_wh": loss_whs,
@@ -176,8 +179,11 @@ class YOLOv3Loss(object):
         }
         if self._iou_loss is not None:
             losses_all["loss_iou"] = loss_ious
+            total_loss += loss_ious
         if self._iou_aware_loss is not None:
             losses_all["loss_iou_aware"] = loss_iou_awares
+            total_loss += loss_iou_awares
+        losses_all["total_loss"] = total_loss
         return losses_all
 
     def _split_ioup(self, output, an_num, num_classes):

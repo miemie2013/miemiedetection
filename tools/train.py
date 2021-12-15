@@ -112,6 +112,13 @@ def main(exp, args):
 
 if __name__ == "__main__":
     args = make_parser().parse_args()
+    # 判断是否是调试状态
+    isDebug = True if sys.gettrace() else False
+    if isDebug:
+        print('Debug Mode.')
+        args.exp_file = '../' + args.exp_file
+        if args.ckpt is not None:
+            args.ckpt = '../' + args.ckpt   # 如果是绝对路径，把这一行注释掉
     exp = get_exp(args.exp_file, args.name)
     exp.merge(args.opts)
 

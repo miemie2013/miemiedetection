@@ -4,6 +4,7 @@
 
 import datetime
 import os
+import math
 import time
 import numpy as np
 from loguru import logger
@@ -12,7 +13,7 @@ import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 
-from mmdet.data import DataPrefetcher
+from mmdet.data import DataPrefetcher, PPYOLODataPrefetcher
 from mmdet.utils import (
     MeterBuffer,
     ModelEMA,
@@ -36,6 +37,8 @@ class Trainer:
         # init function only defines some basic attr, other attrs like model, optimizer are built in
         # before_train methods.
         self.exp = exp
+        # 算法名字
+        self.archi_name = self.exp.archi_name
         self.args = args
 
         # training related attr
@@ -50,7 +53,14 @@ class Trainer:
 
         # data/dataloader related attr
         self.data_type = torch.float16 if args.fp16 else torch.float32
-        self.input_size = exp.input_size
+
+        # YOLOX多尺度训练，初始尺度。
+        if self.archi_name == 'YOLOX':
+            self.input_size = exp.input_size
+        elif self.archi_name == 'PPYOLO':
+            pass
+        else:
+            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
         self.best_ap = 0
 
         # metric record
@@ -77,29 +87,69 @@ class Trainer:
             self.after_train()
 
     def train_in_epoch(self):
-        for self.epoch in range(self.start_epoch, self.max_epoch):
-            self.before_epoch()
-            self.train_in_iter()
-            self.after_epoch()
+        if self.archi_name == 'YOLOX':
+            for self.epoch in range(self.start_epoch, self.max_epoch):
+                self.before_epoch()
+                self.train_in_iter()
+                self.after_epoch()
+        elif self.archi_name == 'PPYOLO':
+            self.train_in_all_iter()   # 所有的epoch被合并成1个大的epoch
+        else:
+            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 
     def train_in_iter(self):
         for self.iter in range(self.max_iter):
             self.before_iter()
             self.train_one_iter()
-            self.after_iter()
+            self.after_iter_yolox()
+
+    def train_in_all_iter(self):   # 所有的epoch被合并成1个大的epoch
+        for self.iter in range(self.max_iter):
+            # if self.iter < self.init_iter_id:  # 恢复训练时跳过。
+            #     continue
+            self.before_iter()
+            self.train_one_iter()
+            self.after_iter_mmdet()
+            if (self.iter + 1) % self.epoch_steps == 0:
+                self.epoch = self.iter // self.epoch_steps
+                self.after_epoch()
 
     def train_one_iter(self):
         iter_start_time = time.time()
 
-        inps, targets = self.prefetcher.next()
-        inps = inps.to(self.data_type)
-        targets = targets.to(self.data_type)
-        targets.requires_grad = False
-        inps, targets = self.exp.preprocess(inps, targets, self.input_size)
-        data_end_time = time.time()
+        if self.archi_name == 'YOLOX':
+            inps, targets = self.prefetcher.next()
+            inps = inps.to(self.data_type)
+            targets = targets.to(self.data_type)
+            targets.requires_grad = False
+            inps, targets = self.exp.preprocess(inps, targets, self.input_size)
+            data_end_time = time.time()
 
-        with torch.cuda.amp.autocast(enabled=self.amp_training):
-            outputs = self.model(inps, targets)
+            with torch.cuda.amp.autocast(enabled=self.amp_training):
+                outputs = self.model(inps, targets)
+        elif self.archi_name == 'PPYOLO':
+            inps, gt_bbox, gt_score, gt_class, target0, target1, target2 = self.prefetcher.next()
+            inps = inps.to(self.data_type)
+            gt_bbox = gt_bbox.to(self.data_type)
+            gt_score = gt_score.to(self.data_type)
+            gt_class = gt_class.to(self.data_type)
+            target0 = target0.to(self.data_type)
+            target1 = target1.to(self.data_type)
+            target2 = target2.to(self.data_type)
+            gt_bbox.requires_grad = False
+            gt_score.requires_grad = False
+            gt_class.requires_grad = False
+            target0.requires_grad = False
+            target1.requires_grad = False
+            target2.requires_grad = False
+            data_end_time = time.time()
+
+            with torch.cuda.amp.autocast(enabled=self.amp_training):
+                targets = [target0, target1, target2]
+                outputs = self.model.train_model(inps, gt_bbox, gt_class, gt_score, targets)
+        else:
+            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
+
 
         loss = outputs["total_loss"]
 
@@ -111,9 +161,17 @@ class Trainer:
         if self.use_model_ema:
             self.ema_model.update(self.model)
 
-        lr = self.lr_scheduler.update_lr(self.progress_in_iter + 1)
-        for param_group in self.optimizer.param_groups:
-            param_group["lr"] = lr
+        # 修改学习率
+        if self.archi_name == 'YOLOX':
+            lr = self.lr_scheduler.update_lr(self.progress_in_iter + 1)
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = lr
+        elif self.archi_name == 'PPYOLO':
+            lr = self.calc_lr(self.iter, self.epoch_steps, self.max_iters, self.exp)
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = lr
+        else:
+            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 
         iter_end_time = time.time()
         self.meter.update(
@@ -123,6 +181,61 @@ class Trainer:
             **outputs,
         )
 
+    def calc_lr(self, iter_id, train_steps, max_iters, cfg):
+        base_lr = cfg.learningRate['base_lr']
+        piecewiseDecay = cfg.learningRate.get('PiecewiseDecay', None)
+        cosineDecay = cfg.learningRate.get('CosineDecay', None)
+        linearWarmup = cfg.learningRate.get('LinearWarmup', None)
+
+        cur_lr = base_lr
+
+        linearWarmup_end_iter_id = 0
+        skip = False
+        if linearWarmup is not None:
+            start_factor = linearWarmup['start_factor']
+            steps = linearWarmup.get('steps', -1)
+            epochs = linearWarmup.get('epochs', -1)
+
+            if steps <= 0 and epochs <= 0:
+                raise ValueError(
+                    "\'steps\' or \'epochs\' should be positive in {}.learningRate[\'LinearWarmup\']".format(cfg))
+            if steps > 0 and epochs > 0:
+                steps = -1  # steps和epochs都设置为正整数时，优先选择epochs
+            if steps <= 0 and epochs > 0:
+                steps = epochs * train_steps
+
+            linearWarmup_end_iter_id = steps
+            if iter_id < steps:
+                k = (1.0 - start_factor) / steps
+                factor = start_factor + k * iter_id
+                cur_lr = base_lr * factor
+                skip = True
+
+        if skip:
+            return cur_lr
+
+        if piecewiseDecay is not None:
+            gamma = piecewiseDecay['gamma']
+            milestones = piecewiseDecay.get('milestones', None)
+            milestones_epoch = piecewiseDecay.get('milestones_epoch', None)
+
+            if milestones is not None:
+                pass
+            elif milestones_epoch is not None:
+                milestones = [f * train_steps for f in milestones_epoch]
+            n = len(milestones)
+            cur_lr = base_lr
+            for i in range(n, 0, -1):
+                if iter_id >= milestones[i - 1]:
+                    cur_lr = base_lr * gamma ** i
+                    break
+
+        if cosineDecay is not None:
+            start_iter_id = linearWarmup_end_iter_id
+            dx = (iter_id - start_iter_id) / (max_iters - start_iter_id) * math.pi
+            cur_lr = base_lr * (1.0 + np.cos(dx)) * 0.5
+        return cur_lr
+
     def before_train(self):
         logger.info("args: {}".format(self.args))
         logger.info("exp value:\n{}".format(self.exp))
@@ -130,8 +243,6 @@ class Trainer:
         # model related init
         torch.cuda.set_device(self.local_rank)
         model = self.exp.get_model()
-        # 算法名字
-        self.archi_name = self.exp.archi_name
         logger.info("Model Summary: {}".format(get_model_info(self.archi_name, model, self.exp.test_size)))
         model.to(self.device)
 
@@ -175,19 +286,19 @@ class Trainer:
                 batch_size=self.args.eval_batch_size, is_distributed=self.is_distributed
             )
         elif self.archi_name == 'PPYOLO':
-            self.train_loader = self.exp.get_data_loader(
+            self.train_loader, self.epoch_steps, self.max_iters = self.exp.get_data_loader(
                 batch_size=self.args.batch_size,
                 is_distributed=self.is_distributed,
                 cache_img=self.args.cache,
             )
             logger.info("init prefetcher, this might take one minute or less...")
-            self.prefetcher = DataPrefetcher(self.train_loader)
+            self.prefetcher = PPYOLODataPrefetcher(self.train_loader)
             # max_iter means iters per epoch
             self.max_iter = len(self.train_loader)
 
-            self.lr_scheduler = self.exp.get_lr_scheduler(
-                self.exp.basic_lr_per_img * self.args.batch_size, self.max_iter
-            )
+            # self.lr_scheduler = self.exp.get_lr_scheduler(
+            #     self.exp.basic_lr_per_img * self.args.batch_size, self.max_iter
+            # )
             if self.args.occupy:
                 occupy_mem(self.local_rank)
 
@@ -255,9 +366,9 @@ class Trainer:
     def before_iter(self):
         pass
 
-    def after_iter(self):
+    def after_iter_yolox(self):
         """
-        `after_iter` contains two parts of logic:
+        `after_iter_yolox` contains two parts of logic:
             * log information
             * reset setting of resize
         """
@@ -298,6 +409,47 @@ class Trainer:
             self.input_size = self.exp.random_resize(
                 self.train_loader, self.epoch, self.rank, self.is_distributed
             )
+
+
+    def after_iter_mmdet(self):
+        """
+        `after_iter_mmdet` contains two parts of logic:
+            * log information
+            * reset setting of resize
+        """
+        # log needed information
+        if (self.iter + 1) % self.exp.print_interval == 0:
+            # TODO check ETA logic
+            left_iters = self.max_iters - (self.iter + 1)
+            eta_seconds = self.meter["iter_time"].global_avg * left_iters
+            eta_str = "ETA: {}".format(datetime.timedelta(seconds=int(eta_seconds)))
+
+            self.epoch = self.iter // self.epoch_steps
+            it_ = self.iter % self.epoch_steps
+            progress_str = "epoch: {}/{}, iter: {}/{}".format(
+                self.epoch + 1, self.max_epoch, it_ + 1, self.epoch_steps
+            )
+            loss_meter = self.meter.get_filtered_meter("loss")
+            loss_str = ", ".join(
+                ["{}: {:.1f}".format(k, v.latest) for k, v in loss_meter.items()]
+            )
+
+            time_meter = self.meter.get_filtered_meter("time")
+            time_str = ", ".join(
+                ["{}: {:.3f}s".format(k, v.avg) for k, v in time_meter.items()]
+            )
+
+            logger.info(
+                "{}, mem: {:.0f}Mb, {}, {}, lr: {:.6f}".format(
+                    progress_str,
+                    gpu_mem_usage(),
+                    time_str,
+                    loss_str,
+                    self.meter["lr"].latest,
+                )
+                + (", {}".format(eta_str))
+            )
+            self.meter.clear_meters()
 
     @property
     def progress_in_iter(self):

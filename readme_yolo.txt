@@ -79,17 +79,15 @@ Average forward time: 17.06 ms, Average NMS time: 0.00 ms, Average inference tim
 python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 --fp16
 
 
-python train2.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 2 --fp16 -o
-
 
 
 
 ----------------------- 迁移学习，带上-c（--ckpt）参数读取预训练模型。 -----------------------
-复现paddle版yolox迁移学习:（可以加--fp16， -eb表示验证时的批大小）
-python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 2 --fp16 -c ppyolo_2x.pth
+复现paddle版ppyolo2x迁移学习:（可以加--fp16， -eb表示验证时的批大小）
+python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 2 -c ppyolo_2x.pth
 
 
-实测yolox_m的AP(0.50:0.95)可以到达0.62+、AP(small)可以到达0.25+。
+实测ppyolo_r50vd_2x的AP(0.50:0.95)可以到达0.xx+、AP(small)可以到达0.xx+。
 
 
 
