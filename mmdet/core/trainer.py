@@ -246,14 +246,13 @@ class Trainer:
         logger.info("Model Summary: {}".format(get_model_info(self.archi_name, model, self.exp.test_size)))
         model.to(self.device)
 
-        # solver related init
-        self.optimizer = self.exp.get_optimizer(self.args.batch_size)
-
-        # value of epoch will be set in `resume_train`
-        model = self.resume_train(model)
-
-        # data related init
         if self.archi_name == 'YOLOX':
+            # solver related init
+            self.optimizer = self.exp.get_optimizer(self.args.batch_size)
+
+            # value of epoch will be set in `resume_train`
+            model = self.resume_train(model)
+
             self.no_aug = self.start_epoch >= self.max_epoch - self.exp.no_aug_epochs
             self.train_loader = self.exp.get_data_loader(
                 batch_size=self.args.batch_size,
@@ -286,6 +285,20 @@ class Trainer:
                 batch_size=self.args.eval_batch_size, is_distributed=self.is_distributed
             )
         elif self.archi_name == 'PPYOLO':
+            # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
+            param_groups = []
+            base_lr = self.exp.learningRate['base_lr']
+            base_wd = self.exp.weight_decay
+            momentum = self.exp.momentum
+            model.add_param_group(param_groups, base_lr, base_wd)
+
+            # solver related init
+            self.optimizer = self.exp.get_optimizer(param_groups, lr=base_lr, momentum=momentum, weight_decay=base_wd)
+
+            # value of epoch will be set in `resume_train`
+            model = self.resume_train(model)
+
+
             self.train_loader, self.epoch_steps, self.max_iters = self.exp.get_data_loader(
                 batch_size=self.args.batch_size,
                 is_distributed=self.is_distributed,

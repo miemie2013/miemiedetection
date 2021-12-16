@@ -84,7 +84,7 @@ python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 --fp16
 
 ----------------------- 迁移学习，带上-c（--ckpt）参数读取预训练模型。 -----------------------
 复现paddle版ppyolo2x迁移学习:（可以加--fp16， -eb表示验证时的批大小）
-python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 2 -c ppyolo_2x.pth
+python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 4 -c ppyolo_2x.pth
 
 
 实测ppyolo_r50vd_2x的AP(0.50:0.95)可以到达0.xx+、AP(small)可以到达0.xx+。

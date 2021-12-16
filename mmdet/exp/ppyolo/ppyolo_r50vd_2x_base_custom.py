@@ -320,30 +320,11 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
             targets[..., 2::2] = targets[..., 2::2] * scale_y
         return inputs, targets
 
-    def get_optimizer(self, batch_size):
+    def get_optimizer(self, param_groups, lr, momentum, weight_decay):
         if "optimizer" not in self.__dict__:
-            lr = self.learningRate['LinearWarmup']['start_factor']
-
-            pg0, pg1, pg2 = [], [], []  # optimizer parameter groups
-
-            for k, v in self.model.named_modules():
-                if hasattr(v, "bias") and isinstance(v.bias, nn.Parameter):
-                    if v.bias.requires_grad:
-                        pg2.append(v.bias)  # biases
-                if isinstance(v, nn.BatchNorm2d) or "bn" in k:
-                    if v.weight.requires_grad:
-                        pg0.append(v.weight)  # no decay
-                elif hasattr(v, "weight") and isinstance(v.weight, nn.Parameter):
-                    if v.weight.requires_grad:
-                        pg1.append(v.weight)  # apply decay
-
             optimizer = torch.optim.SGD(
-                pg0, lr=lr, momentum=self.momentum
+                param_groups, lr=lr, momentum=momentum, weight_decay=weight_decay
             )
-            optimizer.add_param_group(
-                {"params": pg1, "weight_decay": self.weight_decay}
-            )  # add pg1 with weight_decay
-            optimizer.add_param_group({"params": pg2})
             self.optimizer = optimizer
 
         return self.optimizer
