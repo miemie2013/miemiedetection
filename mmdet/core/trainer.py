@@ -169,7 +169,7 @@ class Trainer:
         elif self.archi_name == 'PPYOLO':
             lr = self.calc_lr(self.iter, self.epoch_steps, self.max_iters, self.exp)
             for param_group in self.optimizer.param_groups:
-                param_group["lr"] = lr
+                param_group['lr'] = lr * param_group['base_lr'] / self.base_lr
         else:
             raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 
@@ -285,9 +285,14 @@ class Trainer:
                 batch_size=self.args.eval_batch_size, is_distributed=self.is_distributed
             )
         elif self.archi_name == 'PPYOLO':
+            # 修改基础学习率
+            base_lr = self.exp.learningRate['base_lr']
+            base_lr *= self.args.batch_size
+            self.exp.learningRate['base_lr'] = base_lr
+            self.base_lr = base_lr
+
             # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
             param_groups = []
-            base_lr = self.exp.learningRate['base_lr']
             base_wd = self.exp.weight_decay
             momentum = self.exp.momentum
             model.add_param_group(param_groups, base_lr, base_wd)

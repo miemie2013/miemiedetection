@@ -33,8 +33,7 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
         self.learningRate = dict(
-            # base_lr=0.01 * self.train_cfg['batch_size'] / 192,
-            base_lr=0.01 * 8.0 / 192,
+            base_lr=0.01 / 192,   # 最初base_lr表示的是每一张图片的学习率。代码中会自动修改为乘以批大小。
             PiecewiseDecay=dict(
                 gamma=0.1,
                 milestones_epoch=[649, 730],
