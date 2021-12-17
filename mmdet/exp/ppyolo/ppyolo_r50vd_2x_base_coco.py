@@ -230,10 +230,10 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
         return self.model
 
     def get_data_loader(
-        self, batch_size, is_distributed, cache_img=False
+        self, batch_size, start_epoch, is_distributed, cache_img=False
     ):
         from mmdet.data import (
-            MieMieCOCOTrainDataset,
+            PPYOLO_COCOTrainDataset,
             InfiniteSampler,
             worker_init_reset_seed,
         )
@@ -249,7 +249,7 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
             sample_transforms = get_sample_transforms(self)
             batch_transforms = get_batch_transforms(self)
 
-            train_dataset = MieMieCOCOTrainDataset(
+            train_dataset = PPYOLO_COCOTrainDataset(
                 data_dir=self.data_dir,
                 json_file=self.train_ann,
                 ann_folder=self.ann_folder,
@@ -258,6 +258,7 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
                 sample_transforms=sample_transforms,
                 batch_transforms=batch_transforms,
                 batch_size=batch_size,
+                start_epoch=start_epoch,
             )
 
         self.dataset = train_dataset
@@ -332,7 +333,7 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
         return 1
 
     def get_eval_loader(self, batch_size, is_distributed, testdev=False):
-        from mmdet.data import MieMieCOCOEvalDataset
+        from mmdet.data import PPYOLO_COCOEvalDataset
 
         # 预测时的数据预处理
         decodeImage = DecodeImage(**self.decodeImage)
@@ -340,7 +341,7 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
         normalizeImage = NormalizeImage(**self.normalizeImage)
         permute = Permute(**self.permute)
         transforms = [decodeImage, resizeImage, normalizeImage, permute]
-        val_dataset = MieMieCOCOEvalDataset(
+        val_dataset = PPYOLO_COCOEvalDataset(
             data_dir=self.data_dir,
             json_file=self.val_ann if not testdev else "image_info_test-dev2017.json",
             ann_folder=self.ann_folder,

@@ -105,18 +105,18 @@ class Trainer:
 
     def train_in_all_iter(self):   # 所有的epoch被合并成1个大的epoch
         for self.iter in range(self.max_iter):
-            # if self.iter < self.init_iter_id:  # 恢复训练时跳过。
-            #     continue
             self.before_iter()
-            self.train_one_iter()
-            self.after_iter_mmdet()
-            if (self.iter + 1) % self.epoch_steps == 0:
-                self.epoch = self.iter // self.epoch_steps
-                self.after_epoch()
+            train_iter = self.train_one_iter()
+            if train_iter:
+                self.after_iter_mmdet()
+                if (self.iter + 1) % self.epoch_steps == 0:
+                    self.epoch = self.iter // self.epoch_steps
+                    self.after_epoch()
 
     def train_one_iter(self):
         iter_start_time = time.time()
 
+        train_iter = True
         if self.archi_name == 'YOLOX':
             inps, targets = self.prefetcher.next()
             inps = inps.to(self.data_type)
@@ -127,8 +127,26 @@ class Trainer:
 
             with torch.cuda.amp.autocast(enabled=self.amp_training):
                 outputs = self.model(inps, targets)
+
+            loss = outputs["total_loss"]
+
+            self.optimizer.zero_grad()
+            self.scaler.scale(loss).backward()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+
+            if self.use_model_ema:
+                self.ema_model.update(self.model)
+
+            # 修改学习率
+            lr = self.lr_scheduler.update_lr(self.progress_in_iter + 1)
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = lr
         elif self.archi_name == 'PPYOLO':
             inps, gt_bbox, gt_score, gt_class, target0, target1, target2 = self.prefetcher.next()
+            if self.iter < self.init_iter_id:  # 恢复训练时跳过。
+                train_iter = False
+                return train_iter
             inps = inps.to(self.data_type)
             gt_bbox = gt_bbox.to(self.data_type)
             gt_score = gt_score.to(self.data_type)
@@ -147,29 +165,21 @@ class Trainer:
             with torch.cuda.amp.autocast(enabled=self.amp_training):
                 targets = [target0, target1, target2]
                 outputs = self.model.train_model(inps, gt_bbox, gt_class, gt_score, targets)
-        else:
-            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 
+            loss = outputs["total_loss"]
 
-        loss = outputs["total_loss"]
-
-        self.optimizer.zero_grad()
-        self.scaler.scale(loss).backward()
-        self.scaler.step(self.optimizer)
-        self.scaler.update()
-
-        if self.use_model_ema:
-            self.ema_model.update(self.model)
-
-        # 修改学习率
-        if self.archi_name == 'YOLOX':
-            lr = self.lr_scheduler.update_lr(self.progress_in_iter + 1)
-            for param_group in self.optimizer.param_groups:
-                param_group["lr"] = lr
-        elif self.archi_name == 'PPYOLO':
+            # 修改学习率
             lr = self.calc_lr(self.iter, self.epoch_steps, self.max_iters, self.exp)
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] = lr * param_group['base_lr'] / self.base_lr
+
+            self.optimizer.zero_grad()
+            self.scaler.scale(loss).backward()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+
+            if self.use_model_ema:
+                self.ema_model.update(self.model)
         else:
             raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 
@@ -180,6 +190,7 @@ class Trainer:
             lr=lr,
             **outputs,
         )
+        return train_iter
 
     def calc_lr(self, iter_id, train_steps, max_iters, cfg):
         base_lr = cfg.learningRate['base_lr']
@@ -306,9 +317,13 @@ class Trainer:
 
             self.train_loader, self.epoch_steps, self.max_iters = self.exp.get_data_loader(
                 batch_size=self.args.batch_size,
+                start_epoch=self.start_epoch,
                 is_distributed=self.is_distributed,
                 cache_img=self.args.cache,
             )
+            # 初始化开始的迭代id
+            self.init_iter_id = self.start_epoch * self.epoch_steps
+
             logger.info("init prefetcher, this might take one minute or less...")
             self.prefetcher = PPYOLODataPrefetcher(self.train_loader)
             # max_iter means iters per epoch
@@ -340,7 +355,7 @@ class Trainer:
             self.tblogger = SummaryWriter(self.file_name)
 
         logger.info("Training start...")
-        logger.info("\n{}".format(model))
+        # logger.info("\n{}".format(model))
         trainable_params = 0
         nontrainable_params = 0
         for name_, param_ in model.named_parameters():

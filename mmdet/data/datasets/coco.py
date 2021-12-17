@@ -284,15 +284,14 @@ def data_clean(coco, img_ids, catid2clsid, image_dir, type):
             'gt_poly': gt_poly,
         }
 
-        logger.debug('Load file: {}, im_id: {}, h: {}, w: {}.'.format(
-            im_fname, img_id, im_h, im_w))
+        # logger.debug('Load file: {}, im_id: {}, h: {}, w: {}.'.format(im_fname, img_id, im_h, im_w))
         records.append(coco_rec)   # 注解文件。
         ct += 1
     logger.info('{} samples in {} set.'.format(ct, type))
     return records
 
 
-class MieMieCOCOEvalDataset(torch.utils.data.Dataset):
+class PPYOLO_COCOEvalDataset(torch.utils.data.Dataset):
     def __init__(self, data_dir, json_file, ann_folder, name, cfg, transforms):
         self.data_dir = data_dir
         self.json_file = json_file
@@ -369,8 +368,8 @@ class MieMieCOCOEvalDataset(torch.utils.data.Dataset):
         return pimage, im_size, id
 
 
-class MieMieCOCOTrainDataset(torch.utils.data.Dataset):
-    def __init__(self, data_dir, json_file, ann_folder, name, cfg, sample_transforms, batch_transforms, batch_size):
+class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
+    def __init__(self, data_dir, json_file, ann_folder, name, cfg, sample_transforms, batch_transforms, batch_size, start_epoch):
         self.data_dir = data_dir
         self.json_file = json_file
         self.ann_folder = ann_folder
@@ -451,7 +450,8 @@ class MieMieCOCOTrainDataset(torch.utils.data.Dataset):
             self.shapes.append(shape)
         self.shapes = self.shapes[:self.max_iters]
 
-        self.init_iter_id = 0
+        # 初始化开始的迭代id
+        self.init_iter_id = start_epoch * self.train_steps
 
 
     def __len__(self):
@@ -460,7 +460,14 @@ class MieMieCOCOTrainDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         iter_id = idx // self.batch_size
         if iter_id < self.init_iter_id:   # 恢复训练时跳过。
-            return np.zeros((1, ), np.float32)
+            image = np.zeros((1, ), np.float32)
+            gt_bbox = np.zeros((1, ), np.float32)
+            gt_score = np.zeros((1, ), np.float32)
+            gt_class = np.zeros((1, ), np.float32)
+            target0 = np.zeros((1, ), np.float32)
+            target1 = np.zeros((1, ), np.float32)
+            target2 = np.zeros((1, ), np.float32)
+            return image, gt_bbox, gt_score, gt_class, target0, target1, target2
 
         img_idx = self.indexes[idx]
         shape = self.shapes[iter_id]
