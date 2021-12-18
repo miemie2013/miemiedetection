@@ -16,7 +16,7 @@ class PPYOLO(torch.nn.Module):
         self.backbone = backbone
         self.head = head
 
-    def forward(self, x, im_size):
+    def forward(self, x, im_size=None):
         body_feats = self.backbone(x)
         out = self.head.get_prediction(body_feats, im_size)
         return out

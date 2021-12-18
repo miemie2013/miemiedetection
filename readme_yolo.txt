@@ -9,10 +9,17 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 python tools/convert_weights.py -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo.pdparams -oc ppyolo_2x.pth -nc 80
 
 
+python tools/convert_weights.py -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pdparams -oc ppyolo_r18vd.pth -nc 80
+
+
 
 
 ----------------------- 预测 -----------------------
 python tools/demo.py image -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo_2x.pth --path assets/dog.jpg --conf 0.15 --tsize 608 --save_result --device gpu
+
+
+python tools/demo.py image -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pth --path assets/dog.jpg --conf 0.15 --tsize 608 --save_result --device gpu
+
 
 
 
@@ -72,6 +79,23 @@ Average forward time: 17.06 ms, Average NMS time: 0.00 ms, Average inference tim
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.766
 
 
+python tools/eval.py -f exps/ppyolo/ppyolo_r18vd.py -d 1 -b 8 -c ppyolo_r18vd.pth --conf 0.01 --tsize 416
+
+
+Average forward time: 8.06 ms, Average NMS time: 0.00 ms, Average inference time: 8.06 ms
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.286
+Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.470
+Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.303
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.125
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.307
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.428
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.255
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.421
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.449
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.222
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.482
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.649
+
 
 
 
@@ -104,16 +128,18 @@ python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 4 -c PPYOL
 见demo/ONNXRuntime/README.md
 
 会设置model.head.decode_in_inference = False，此时只对置信位和各类别概率进行sigmoid()激活。xywh没有进行解码，更没有进行nms。
-python tools/export_onnx.py --output-name yolox_s.onnx -f exps/ppyolo/yolox_s.py -c ppyolo_2x.pth
+python tools/export_onnx.py --output-name ppyolo_2x.onnx -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo_2x.pth
+
+
+python tools/export_onnx.py --output-name ppyolo_r18vd.onnx -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pth
 
 
 
 ONNX预测，命令改动为（用numpy对xywh进行解码，进行nms。）
-python tools/onnx_inference.py -m yolox_s.onnx -i assets/dog.jpg -o ONNX_YOLOX_outputs -s 0.3 --input_shape 640,640 -cn ./class_names/coco_classes.txt
 
 
-ONNX预测（调试）
-python tools/onnx_inference.py -m ../yolox_s.onnx -i ../assets/dog.jpg -o ../ONNX_YOLOX_outputs -s 0.3 --input_shape 640,640 -cn ../class_names/coco_classes.txt
+python tools/onnx_inference.py -an PPYOLO -acn ppyolo_r18vd -m ppyolo_r18vd.onnx -i assets/dog.jpg -o ONNX_PPYOLO_R18VD_outputs -s 0.15 --input_shape 416,416 -cn class_names/coco_classes.txt
+
 
 
 

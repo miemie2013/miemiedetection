@@ -218,6 +218,7 @@ class YOLOv3Head(torch.nn.Module):
         self.nms_cfg = nms_cfg
         self.focalloss_on_obj = focalloss_on_obj
         self.prior_prob = prior_prob
+        self.export_onnx = False
 
         _anchors = copy.deepcopy(anchors)
         _anchors = np.array(_anchors)
@@ -366,9 +367,11 @@ class YOLOv3Head(torch.nn.Module):
                                          conf_thresh=self.nms_cfg['score_threshold'])
             boxes.append(box)
             scores.append(score)
-        yolo_boxes = torch.cat(boxes, 1)
-        yolo_scores = torch.cat(scores, 1)
-
+        yolo_boxes = torch.cat(boxes, 1)     # [N, A,  4]
+        yolo_scores = torch.cat(scores, 1)   # [N, A, 80]
+        if self.export_onnx:
+            decode_output = torch.cat([yolo_boxes, yolo_scores], 2)   # [N, A, 4+80]
+            return decode_output
 
         # nms
         preds = []

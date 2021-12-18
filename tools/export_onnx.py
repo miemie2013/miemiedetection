@@ -61,6 +61,13 @@ def make_parser():
 @logger.catch
 def main():
     args = make_parser().parse_args()
+    # 判断是否是调试状态
+    isDebug = True if sys.gettrace() else False
+    if isDebug:
+        print('Debug Mode.')
+        args.exp_file = '../' + args.exp_file
+        args.ckpt = '../' + args.ckpt
+        args.output_name = '../' + args.output_name
     logger.info("args value: {}".format(args))
     exp = get_exp(args.exp_file, args.name)
     exp.merge(args.opts)
@@ -83,40 +90,82 @@ def main():
         ckpt = ckpt["model"]
     model.load_state_dict(ckpt)
 
-    # 把 nn.SiLU激活层 替换为 对导出友好的自定义的SiLU激活层
-    model = replace_module(model, nn.SiLU, SiLU)
-    model.head.decode_in_inference = False
+    if exp.archi_name == 'YOLOX':
+        # 把 nn.SiLU激活层 替换为 对导出友好的自定义的SiLU激活层
+        model = replace_module(model, nn.SiLU, SiLU)
+        model.head.decode_in_inference = False
 
-    logger.info("loading checkpoint done.")
-    dummy_input = torch.randn(args.batch_size, 3, exp.test_size[0], exp.test_size[1])
+        logger.info("loading checkpoint done.")
+        dummy_input = torch.randn(args.batch_size, 3, exp.test_size[0], exp.test_size[1])
 
-    torch.onnx._export(
-        model,
-        dummy_input,
-        args.output_name,
-        input_names=[args.input],
-        output_names=[args.output],
-        dynamic_axes={args.input: {0: 'batch'},
-                      args.output: {0: 'batch'}} if args.dynamic else None,
-        opset_version=args.opset,
-    )
-    logger.info("generated onnx model named {}".format(args.output_name))
+        torch.onnx._export(
+            model,
+            dummy_input,
+            args.output_name,
+            input_names=[args.input],
+            output_names=[args.output],
+            dynamic_axes={args.input: {0: 'batch'},
+                          args.output: {0: 'batch'}} if args.dynamic else None,
+            opset_version=args.opset,
+        )
+        logger.info("generated onnx model named {}".format(args.output_name))
 
-    if not args.no_onnxsim:
-        import onnx
+        if not args.no_onnxsim:
+            import onnx
 
-        from onnxsim import simplify
+            from onnxsim import simplify
 
-        input_shapes = {args.input: list(dummy_input.shape)} if args.dynamic else None
+            input_shapes = {args.input: list(dummy_input.shape)} if args.dynamic else None
 
-        # use onnxsimplify to reduce reduent model.
-        onnx_model = onnx.load(args.output_name)
-        model_simp, check = simplify(onnx_model,
-                                     dynamic_input_shape=args.dynamic,
-                                     input_shapes=input_shapes)
-        assert check, "Simplified ONNX model could not be validated"
-        onnx.save(model_simp, args.output_name)
-        logger.info("generated simplified onnx model named {}".format(args.output_name))
+            # use onnxsimplify to reduce reduent model.
+            onnx_model = onnx.load(args.output_name)
+            model_simp, check = simplify(onnx_model,
+                                         dynamic_input_shape=args.dynamic,
+                                         input_shapes=input_shapes)
+            assert check, "Simplified ONNX model could not be validated"
+            onnx.save(model_simp, args.output_name)
+            logger.info("generated simplified onnx model named {}".format(args.output_name))
+    elif exp.archi_name == 'PPYOLO':
+        # 把 nn.SiLU激活层 替换为 对导出友好的自定义的SiLU激活层
+        model = replace_module(model, nn.SiLU, SiLU)
+        model.head.export_onnx = True
+
+        logger.info("loading checkpoint done.")
+
+        # 导出时不需要第二个输入im_size
+        dummy_input = torch.randn(args.batch_size, 3, exp.test_size[0], exp.test_size[1])
+        im_size = torch.randn(args.batch_size, 2)
+
+        torch.onnx._export(
+            model,
+            (dummy_input, im_size),
+            # dummy_input,
+            args.output_name,
+            input_names=[args.input],
+            output_names=[args.output],
+            dynamic_axes={args.input: {0: 'batch'},
+                          args.output: {0: 'batch'}} if args.dynamic else None,
+            opset_version=args.opset,
+        )
+        logger.info("generated onnx model named {}".format(args.output_name))
+
+        if not args.no_onnxsim:
+            import onnx
+
+            from onnxsim import simplify
+
+            input_shapes = {args.input: list(dummy_input.shape)} if args.dynamic else None
+
+            # use onnxsimplify to reduce reduent model.
+            onnx_model = onnx.load(args.output_name)
+            model_simp, check = simplify(onnx_model,
+                                         dynamic_input_shape=args.dynamic,
+                                         input_shapes=input_shapes)
+            assert check, "Simplified ONNX model could not be validated"
+            onnx.save(model_simp, args.output_name)
+            logger.info("generated simplified onnx model named {}".format(args.output_name))
+    else:
+        raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 
 
 if __name__ == "__main__":

@@ -167,6 +167,39 @@ def preproc(img, input_size, swap=(2, 0, 1)):
     return padded_img, r
 
 
+def preproc_ppyolo(img, input_size):
+    im = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    # resizeImage
+    im_shape = im.shape
+    selected_size = input_size[0]
+    im_scale_x = float(selected_size) / float(im_shape[1])
+    im_scale_y = float(selected_size) / float(im_shape[0])
+    im = cv2.resize(
+        im,
+        None,
+        None,
+        fx=im_scale_x,
+        fy=im_scale_y,
+        interpolation=2)
+
+    # normalizeImage
+    im = im.astype(np.float32, copy=False)
+    mean = np.array([0.485, 0.456, 0.406])[np.newaxis, np.newaxis, :]
+    std = np.array([0.229, 0.224, 0.225])[np.newaxis, np.newaxis, :]
+    im = im / 255.0
+    im -= mean
+    im /= std
+
+    # permute
+    im = np.swapaxes(im, 1, 2)
+    im = np.swapaxes(im, 1, 0)
+
+    pimage = np.expand_dims(im, axis=0)
+    im_size = np.array([[im_shape[0], im_shape[1]]]).astype(np.float32)
+    return pimage, im_size
+
+
 class TrainTransform:
     def __init__(self, max_labels=50, flip_prob=0.5, hsv_prob=1.0):
         self.max_labels = max_labels
