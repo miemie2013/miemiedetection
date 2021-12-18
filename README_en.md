@@ -1,4 +1,4 @@
-English | [简体中文](README_cn.md)
+English | [简体中文](README.md)
 
 <div align="center"><img src="assets/logo.png" width="350"></div>
 <img src="assets/demo.png" >
