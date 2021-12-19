@@ -130,7 +130,7 @@ if __name__ == '__main__':
         img, im_size = preproc_ppyolo(origin_img, input_shape)
 
         session = onnxruntime.InferenceSession(args.model)
-        aaaaaaaaa = session.get_inputs()
+        # aaaaaaaaa = session.get_inputs()
 
         ort_inputs = {session.get_inputs()[0].name: img, session.get_inputs()[1].name: im_size}
         outputs = session.run(None, ort_inputs)
@@ -154,7 +154,7 @@ if __name__ == '__main__':
             pred = numpy_matrix_nms(yolo_boxes[i, :, :], yolo_scores[i, :, :], **nms_cfg)
             preds.append(pred)
         dets = preds[0]
-        if dets[0][0] > 0.0:
+        if dets[0][0] > -0.5:
             final_boxes, final_scores, final_cls_inds = dets[:, 2:], dets[:, 1], dets[:, 0]
             origin_img = vis(origin_img, final_boxes, final_scores, final_cls_inds,
                              conf=args.score_thr, class_names=class_names)

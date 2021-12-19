@@ -219,6 +219,7 @@ events.out.tfevents*
 
 log*.txt
 *.log
+*.json
 *.pdparams
 *.pdopt
 *.pdmodel
