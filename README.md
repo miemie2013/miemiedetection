@@ -10,6 +10,7 @@ miemiedetection是女装大佬[咩酱](https://github.com/miemie2013)基于[YOLO
 ```
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
+pytorch版本建议1.9.1或者更高。
 
 ## 支持的算法
 

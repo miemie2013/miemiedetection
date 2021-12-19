@@ -1,6 +1,6 @@
 # TODO: Update with exact module version
 numpy
-torch>=1.7
+torch>=1.9.1
 opencv_python
 loguru
 scikit-image
