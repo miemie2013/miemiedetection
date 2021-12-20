@@ -65,7 +65,11 @@ Average forward time: 43.35 ms, Average NMS time: 0.01 ms, Average inference tim
  Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.665
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.773
 
-( --tsize 320)
+
+
+python tools/eval.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 2 -c ppyolo_2x.pth --conf 0.01 --tsize 320
+
+
 Average forward time: 17.06 ms, Average NMS time: 0.00 ms, Average inference time: 17.06 ms
  Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.389
  Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.585
