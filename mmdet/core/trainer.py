@@ -143,7 +143,10 @@ class Trainer:
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = lr
         elif self.archi_name == 'PPYOLO':
-            inps, gt_bbox, gt_score, gt_class, target0, target1, target2 = self.prefetcher.next()
+            if self.n_heads == 3:
+                inps, gt_bbox, gt_score, gt_class, target0, target1, target2 = self.prefetcher.next()
+            elif self.n_heads == 2:
+                inps, gt_bbox, gt_score, gt_class, target0, target1 = self.prefetcher.next()
             if self.iter < self.init_iter_id:  # 恢复训练时跳过。
                 train_iter = False
                 return train_iter
@@ -153,17 +156,21 @@ class Trainer:
             gt_class = gt_class.to(self.data_type)
             target0 = target0.to(self.data_type)
             target1 = target1.to(self.data_type)
-            target2 = target2.to(self.data_type)
+            if self.n_heads == 3:
+                target2 = target2.to(self.data_type)
+                target2.requires_grad = False
             gt_bbox.requires_grad = False
             gt_score.requires_grad = False
             gt_class.requires_grad = False
             target0.requires_grad = False
             target1.requires_grad = False
-            target2.requires_grad = False
             data_end_time = time.time()
 
             with torch.cuda.amp.autocast(enabled=self.amp_training):
-                targets = [target0, target1, target2]
+                if self.n_heads == 3:
+                    targets = [target0, target1, target2]
+                elif self.n_heads == 2:
+                    targets = [target0, target1]
                 outputs = self.model.train_model(inps, gt_bbox, gt_class, gt_score, targets)
 
             loss = outputs["total_loss"]
@@ -315,17 +322,21 @@ class Trainer:
             model = self.resume_train(model)
 
 
-            self.train_loader, self.epoch_steps, self.max_iters = self.exp.get_data_loader(
+            self.train_loader = self.exp.get_data_loader(
                 batch_size=self.args.batch_size,
                 start_epoch=self.start_epoch,
                 is_distributed=self.is_distributed,
                 cache_img=self.args.cache,
             )
+            self.epoch_steps = self.exp.epoch_steps
+            self.max_iters = self.exp.max_iters
+            self.n_heads = self.exp.n_heads
+
             # 初始化开始的迭代id
             self.init_iter_id = self.start_epoch * self.epoch_steps
 
             logger.info("init prefetcher, this might take one minute or less...")
-            self.prefetcher = PPYOLODataPrefetcher(self.train_loader)
+            self.prefetcher = PPYOLODataPrefetcher(self.train_loader, self.n_heads)
             # max_iter means iters per epoch
             self.max_iter = len(self.train_loader)
 

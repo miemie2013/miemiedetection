@@ -102,16 +102,16 @@ class Resnet50Vd(torch.nn.Module):
                  feature_maps=[3, 4, 5],
                  dcn_v2_stages=[5],
                  downsample_in3x3=True,
-                 freeze_at=-1,
-                 fix_bn_mean_var_at=-1,
+                 freeze_at=0,
+                 fix_bn_mean_var_at=0,
                  freeze_norm=False,
                  norm_decay=0.,
                  lr_mult_list=[1., 1., 1., 1.]):
         super(Resnet50Vd, self).__init__()
         self.norm_type = norm_type
         self.feature_maps = feature_maps
-        assert freeze_at in [-1, 0, 1, 2, 3, 4]
-        assert fix_bn_mean_var_at in [-1, 0, 1, 2, 3, 4]
+        assert freeze_at in [0, 1, 2, 3, 4, 5]
+        assert fix_bn_mean_var_at in [0, 1, 2, 3, 4, 5]
         assert len(lr_mult_list) == 4, "lr_mult_list length must be 4 but got {}".format(len(lr_mult_list))
         self.lr_mult_list = lr_mult_list
         self.freeze_at = freeze_at
@@ -192,54 +192,54 @@ class Resnet50Vd(torch.nn.Module):
 
     def freeze(self):
         freeze_at = self.freeze_at
-        if freeze_at >= 0:
+        if freeze_at >= 1:
             self.stage1_conv1_1.freeze()
             self.stage1_conv1_2.freeze()
             self.stage1_conv1_3.freeze()
-        if freeze_at >= 1:
+        if freeze_at >= 2:
             self.stage2_0.freeze()
             self.stage2_1.freeze()
             self.stage2_2.freeze()
-        if freeze_at >= 2:
+        if freeze_at >= 3:
             self.stage3_0.freeze()
             self.stage3_1.freeze()
             self.stage3_2.freeze()
             self.stage3_3.freeze()
-        if freeze_at >= 3:
+        if freeze_at >= 4:
             self.stage4_0.freeze()
             self.stage4_1.freeze()
             self.stage4_2.freeze()
             self.stage4_3.freeze()
             self.stage4_4.freeze()
             self.stage4_5.freeze()
-        if freeze_at >= 4:
+        if freeze_at >= 5:
             self.stage5_0.freeze()
             self.stage5_1.freeze()
             self.stage5_2.freeze()
 
     def fix_bn(self):
         fix_bn_mean_var_at = self.fix_bn_mean_var_at
-        if fix_bn_mean_var_at >= 0:
+        if fix_bn_mean_var_at >= 1:
             self.stage1_conv1_1.fix_bn()
             self.stage1_conv1_2.fix_bn()
             self.stage1_conv1_3.fix_bn()
-        if fix_bn_mean_var_at >= 1:
+        if fix_bn_mean_var_at >= 2:
             self.stage2_0.fix_bn()
             self.stage2_1.fix_bn()
             self.stage2_2.fix_bn()
-        if fix_bn_mean_var_at >= 2:
+        if fix_bn_mean_var_at >= 3:
             self.stage3_0.fix_bn()
             self.stage3_1.fix_bn()
             self.stage3_2.fix_bn()
             self.stage3_3.fix_bn()
-        if fix_bn_mean_var_at >= 3:
+        if fix_bn_mean_var_at >= 4:
             self.stage4_0.fix_bn()
             self.stage4_1.fix_bn()
             self.stage4_2.fix_bn()
             self.stage4_3.fix_bn()
             self.stage4_4.fix_bn()
             self.stage4_5.fix_bn()
-        if fix_bn_mean_var_at >= 4:
+        if fix_bn_mean_var_at >= 5:
             self.stage5_0.fix_bn()
             self.stage5_1.fix_bn()
             self.stage5_2.fix_bn()
@@ -323,16 +323,16 @@ class Resnet18Vd(torch.nn.Module):
     def __init__(self, norm_type='bn',
                  feature_maps=[4, 5],
                  dcn_v2_stages=[],
-                 freeze_at=-1,
-                 fix_bn_mean_var_at=-1,
+                 freeze_at=0,
+                 fix_bn_mean_var_at=0,
                  freeze_norm=False,
                  norm_decay=0.,
                  lr_mult_list=[1., 1., 1., 1.]):
         super(Resnet18Vd, self).__init__()
         self.norm_type = norm_type
         self.feature_maps = feature_maps
-        assert freeze_at in [-1, 0, 1, 2, 3, 4]
-        assert fix_bn_mean_var_at in [-1, 0, 1, 2, 3, 4]
+        assert freeze_at in [0, 1, 2, 3, 4, 5]
+        assert fix_bn_mean_var_at in [0, 1, 2, 3, 4, 5]
         assert len(lr_mult_list) == 4, "lr_mult_list length must be 4 but got {}".format(len(lr_mult_list))
         self.lr_mult_list = lr_mult_list
         self.freeze_at = freeze_at
@@ -394,39 +394,39 @@ class Resnet18Vd(torch.nn.Module):
 
     def freeze(self):
         freeze_at = self.freeze_at
-        if freeze_at >= 0:
+        if freeze_at >= 1:
             self.stage1_conv1_1.freeze()
             self.stage1_conv1_2.freeze()
             self.stage1_conv1_3.freeze()
-        if freeze_at >= 1:
+        if freeze_at >= 2:
             self.stage2_0.freeze()
             self.stage2_1.freeze()
-        if freeze_at >= 2:
+        if freeze_at >= 3:
             self.stage3_0.freeze()
             self.stage3_1.freeze()
-        if freeze_at >= 3:
+        if freeze_at >= 4:
             self.stage4_0.freeze()
             self.stage4_1.freeze()
-        if freeze_at >= 4:
+        if freeze_at >= 5:
             self.stage5_0.freeze()
             self.stage5_1.freeze()
 
     def fix_bn(self):
         fix_bn_mean_var_at = self.fix_bn_mean_var_at
-        if fix_bn_mean_var_at >= 0:
+        if fix_bn_mean_var_at >= 1:
             self.stage1_conv1_1.fix_bn()
             self.stage1_conv1_2.fix_bn()
             self.stage1_conv1_3.fix_bn()
-        if fix_bn_mean_var_at >= 1:
+        if fix_bn_mean_var_at >= 2:
             self.stage2_0.fix_bn()
             self.stage2_1.fix_bn()
-        if fix_bn_mean_var_at >= 2:
+        if fix_bn_mean_var_at >= 3:
             self.stage3_0.fix_bn()
             self.stage3_1.fix_bn()
-        if fix_bn_mean_var_at >= 3:
+        if fix_bn_mean_var_at >= 4:
             self.stage4_0.fix_bn()
             self.stage4_1.fix_bn()
-        if fix_bn_mean_var_at >= 4:
+        if fix_bn_mean_var_at >= 5:
             self.stage5_0.fix_bn()
             self.stage5_1.fix_bn()
 

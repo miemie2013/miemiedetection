@@ -58,7 +58,7 @@ class YOLOXExp(COCOBaseExp):
         self.min_lr_ratio = 0.05
         self.ema = True
         self.ema_decay = 0.9998
-        self.freeze_at = 4
+        self.freeze_at = 5
 
         self.weight_decay = 5e-4
         self.momentum = 0.9

@@ -157,8 +157,9 @@ if __name__ == '__main__':
     images = []   # 只跑有gt的图片，跟随PaddleDetection
     for img_id in val_img_ids:
         ins_anno_ids = val_dataset.getAnnIds(imgIds=img_id, iscrowd=False)   # 读取这张图片所有标注anno的id
-        if len(ins_anno_ids) == 0:
-            continue
+        if args.archi_name != 'YOLOX':
+            if len(ins_anno_ids) == 0:
+                continue
         img_anno = val_dataset.loadImgs(img_id)[0]
         images.append(img_anno)
     val_count = len(images)
@@ -189,29 +190,69 @@ if __name__ == '__main__':
     input_shape = tuple(map(int, args.input_shape.split(',')))
 
     if args.archi_name == 'YOLOX':
-        # 预处理代码
-        img, ratio = preproc(origin_img, input_shape)
-
         session = onnxruntime.InferenceSession(args.model)
+        bbox_data = []
+        print('Eval Start!')
+        start_time = time.time()
+        for k, dic in enumerate(images):
+            # 预处理代码
+            origin_img = cv2.imread(os.path.join(args.val_image_path, dic['file_name']))
+            img, ratio = preproc(origin_img, input_shape)
 
-        ort_inputs = {session.get_inputs()[0].name: img[None, :, :, :]}
-        output = session.run(None, ort_inputs)
-        predictions = demo_postprocess(output[0], input_shape, p6=args.with_p6)[0]
+            ort_inputs = {session.get_inputs()[0].name: img[None, :, :, :]}
+            output = session.run(None, ort_inputs)
+            predictions = demo_postprocess(output[0], input_shape, p6=args.with_p6)[0]
 
-        boxes = predictions[:, :4]
-        scores = predictions[:, 4:5] * predictions[:, 5:]
+            boxes = predictions[:, :4]
+            scores = predictions[:, 4:5] * predictions[:, 5:]
 
-        boxes_xyxy = np.ones_like(boxes)
-        boxes_xyxy[:, 0] = boxes[:, 0] - boxes[:, 2] / 2.
-        boxes_xyxy[:, 1] = boxes[:, 1] - boxes[:, 3] / 2.
-        boxes_xyxy[:, 2] = boxes[:, 0] + boxes[:, 2] / 2.
-        boxes_xyxy[:, 3] = boxes[:, 1] + boxes[:, 3] / 2.
-        boxes_xyxy /= ratio
-        dets = multiclass_nms(boxes_xyxy, scores, nms_thr=0.45, score_thr=0.1)
-        if dets is not None:
-            final_boxes, final_scores, final_cls_inds = dets[:, :4], dets[:, 4], dets[:, 5]
-            origin_img = vis(origin_img, final_boxes, final_scores, final_cls_inds,
-                             conf=args.score_thr, class_names=class_names)
+            boxes_xyxy = np.ones_like(boxes)
+            boxes_xyxy[:, 0] = boxes[:, 0] - boxes[:, 2] / 2.
+            boxes_xyxy[:, 1] = boxes[:, 1] - boxes[:, 3] / 2.
+            boxes_xyxy[:, 2] = boxes[:, 0] + boxes[:, 2] / 2.
+            boxes_xyxy[:, 3] = boxes[:, 1] + boxes[:, 3] / 2.
+            boxes_xyxy /= ratio
+            dets = multiclass_nms(boxes_xyxy, scores, nms_thr=0.65, score_thr=args.score_thr)
+            if dets is not None:
+                final_boxes, final_scores, final_cls_inds = dets[:, :4], dets[:, 4], dets[:, 5]
+                # 写入json文件
+                im_id = dic['id']
+                im_name = dic['file_name']
+                n = len(final_boxes)
+                for p in range(n):
+                    clsid = final_cls_inds[p]
+                    score = final_scores[p]
+                    xmin, ymin, xmax, ymax = final_boxes[p]
+                    catid = (_clsid2catid[int(clsid)])
+                    # YOLOX不需要+1
+                    w = xmax - xmin
+                    h = ymax - ymin
+
+                    bbox = [xmin, ymin, w, h]
+                    # Round to the nearest 10th to avoid huge file sizes, as COCO suggests
+                    bbox = [round(float(x) * 10) / 10 for x in bbox]
+                    bbox_res = {
+                        'image_id': im_id,
+                        'category_id': catid,
+                        'bbox': bbox,
+                        'score': float(score)
+                    }
+                    bbox_data.append(bbox_res)
+            if (k + 1) % 100 == 0:
+                print('process %d/%d'%((k + 1), val_count))
+        cost = time.time() - start_time
+        print('total time: {0:.6f}s'.format(cost))
+        print('Speed: %.6fs per image,  %.1f FPS.' % ((cost / val_count), (val_count / cost)))
+
+        # cal mAP
+        bbox_path = 'result_bbox.json'
+        with open(bbox_path, 'w') as f:
+            json.dump(bbox_data, f)
+        if args.eval_type == 'eval':
+            # 开始评测
+            box_ap_stats = bbox_eval(anno_file, bbox_path)
+        elif args.eval_type == 'test_dev':
+            print('Done.')
     elif args.archi_name == 'PPYOLO':
         session = onnxruntime.InferenceSession(args.model)
         nms_cfg = dict(
@@ -249,6 +290,7 @@ if __name__ == '__main__':
                     score = final_scores[p]
                     xmin, ymin, xmax, ymax = final_boxes[p]
                     catid = (_clsid2catid[int(clsid)])
+                    # PPYOLO需要+1
                     w = xmax - xmin + 1
                     h = ymax - ymin + 1
 

@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-# Copyright (c) 2014-2021 Megvii Inc. All rights reserved.
+# @miemie2013
 
 import os
 import sys
-import random
 
-import torch
-import torch.distributed as dist
-import torch.nn as nn
-
-from mmdet.data import *
-from mmdet.exp.datasets.coco_base import COCOBaseExp
+from mmdet.exp.ppyolo.ppyolo_method_base import PPYOLO_Method_Exp
 
 
-class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
+class PPYOLO_R50VD_2x_Exp(PPYOLO_Method_Exp):
     def __init__(self):
         super().__init__()
         # ---------------- architecture name(算法名) ---------------- #
@@ -49,13 +43,14 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
 
         # ---------------- model config ---------------- #
         self.output_dir = "PPYOLO_outputs"
+        self.backbone_type = 'Resnet50Vd'
         self.backbone = dict(
             norm_type='bn',
             feature_maps=[3, 4, 5],
             dcn_v2_stages=[5],
             downsample_in3x3=True,   # 注意这个细节，是在3x3卷积层下采样的。
-            freeze_at=-1,
-            fix_bn_mean_var_at=-1,
+            freeze_at=0,
+            fix_bn_mean_var_at=0,
             freeze_norm=False,
             norm_decay=0.,
         )
@@ -212,176 +207,3 @@ class PPYOLO_R50VD_2x_Exp(COCOBaseExp):
             self.data_dir = '../' + self.data_dir
             self.cls_names = '../' + self.cls_names
             self.output_dir = '../' + self.output_dir
-
-    def get_model(self):
-        from mmdet.models import Resnet50Vd, IouLoss, IouAwareLoss, YOLOv3Loss, YOLOv3Head, PPYOLO
-        if getattr(self, "model", None) is None:
-            backbone = Resnet50Vd(**self.backbone)
-            # 冻结骨干网络
-            backbone.freeze()
-            backbone.fix_bn()
-            iou_loss = IouLoss(**self.iou_loss)
-            iou_aware_loss = None
-            if self.head['iou_aware']:
-                iou_aware_loss = IouAwareLoss(**self.iou_aware_loss)
-            yolo_loss = YOLOv3Loss(iou_loss=iou_loss, iou_aware_loss=iou_aware_loss, **self.yolo_loss)
-            head = YOLOv3Head(yolo_loss=yolo_loss, nms_cfg=self.nms_cfg, **self.head)
-            self.model = PPYOLO(backbone, head)
-        return self.model
-
-    def get_data_loader(
-        self, batch_size, start_epoch, is_distributed, cache_img=False
-    ):
-        from mmdet.data import (
-            PPYOLO_COCOTrainDataset,
-            InfiniteSampler,
-            worker_init_reset_seed,
-        )
-        from mmdet.utils import (
-            wait_for_the_master,
-            get_local_rank,
-        )
-
-        local_rank = get_local_rank()
-
-        with wait_for_the_master(local_rank):
-            # 训练时的数据预处理
-            sample_transforms = get_sample_transforms(self)
-            batch_transforms = get_batch_transforms(self)
-
-            train_dataset = PPYOLO_COCOTrainDataset(
-                data_dir=self.data_dir,
-                json_file=self.train_ann,
-                ann_folder=self.ann_folder,
-                name=self.train_image_folder,
-                cfg=self,
-                sample_transforms=sample_transforms,
-                batch_transforms=batch_transforms,
-                batch_size=batch_size,
-                start_epoch=start_epoch,
-            )
-
-        self.dataset = train_dataset
-        self.epoch_steps = train_dataset.train_steps
-        self.max_iters = train_dataset.max_iters
-
-        if is_distributed:
-            batch_size = batch_size // dist.get_world_size()
-
-        sampler = InfiniteSampler(len(self.dataset), shuffle=False, seed=self.seed if self.seed else 0)
-
-        batch_sampler = torch.utils.data.sampler.BatchSampler(
-            sampler=sampler,
-            batch_size=batch_size,
-            drop_last=True,
-        )
-
-        dataloader_kwargs = {"num_workers": self.data_num_workers, "pin_memory": True}
-        dataloader_kwargs["batch_sampler"] = batch_sampler
-
-        # Make sure each process has different random seed, especially for 'fork' method.
-        # Check https://github.com/pytorch/pytorch/issues/63311 for more details.
-        dataloader_kwargs["worker_init_fn"] = worker_init_reset_seed
-        dataloader_kwargs["shuffle"] = False
-
-        train_loader = torch.utils.data.DataLoader(self.dataset, **dataloader_kwargs)
-
-        return train_loader, self.epoch_steps, self.max_iters
-
-    def random_resize(self, data_loader, epoch, rank, is_distributed):
-        tensor = torch.LongTensor(2).cuda()
-
-        if rank == 0:
-            size_factor = self.input_size[1] * 1.0 / self.input_size[0]
-            if not hasattr(self, 'random_size'):
-                min_size = int(self.input_size[0] / 32) - self.multiscale_range
-                max_size = int(self.input_size[0] / 32) + self.multiscale_range
-                self.random_size = (min_size, max_size)
-            size = random.randint(*self.random_size)
-            size = (int(32 * size), 32 * int(size * size_factor))
-            tensor[0] = size[0]
-            tensor[1] = size[1]
-
-        if is_distributed:
-            dist.barrier()
-            dist.broadcast(tensor, 0)
-
-        input_size = (tensor[0].item(), tensor[1].item())
-        return input_size
-
-    def preprocess(self, inputs, targets, tsize):
-        scale_y = tsize[0] / self.input_size[0]
-        scale_x = tsize[1] / self.input_size[1]
-        if scale_x != 1 or scale_y != 1:
-            inputs = nn.functional.interpolate(
-                inputs, size=tsize, mode="bilinear", align_corners=False
-            )
-            targets[..., 1::2] = targets[..., 1::2] * scale_x
-            targets[..., 2::2] = targets[..., 2::2] * scale_y
-        return inputs, targets
-
-    def get_optimizer(self, param_groups, lr, momentum, weight_decay):
-        if "optimizer" not in self.__dict__:
-            optimizer = torch.optim.SGD(
-                param_groups, lr=lr, momentum=momentum, weight_decay=weight_decay
-            )
-            self.optimizer = optimizer
-
-        return self.optimizer
-
-    def get_lr_scheduler(self, lr, iters_per_epoch):
-        return 1
-
-    def get_eval_loader(self, batch_size, is_distributed, testdev=False):
-        from mmdet.data import PPYOLO_COCOEvalDataset
-
-        # 预测时的数据预处理
-        decodeImage = DecodeImage(**self.decodeImage)
-        resizeImage = ResizeImage(target_size=self.test_size[0], interp=self.resizeImage['interp'])
-        normalizeImage = NormalizeImage(**self.normalizeImage)
-        permute = Permute(**self.permute)
-        transforms = [decodeImage, resizeImage, normalizeImage, permute]
-        val_dataset = PPYOLO_COCOEvalDataset(
-            data_dir=self.data_dir,
-            json_file=self.val_ann if not testdev else "image_info_test-dev2017.json",
-            ann_folder=self.ann_folder,
-            name=self.val_image_folder if not testdev else "test2017",
-            cfg=self,
-            transforms=transforms,
-        )
-
-        if is_distributed:
-            batch_size = batch_size // dist.get_world_size()
-            sampler = torch.utils.data.distributed.DistributedSampler(
-                val_dataset, shuffle=False
-            )
-        else:
-            sampler = torch.utils.data.SequentialSampler(val_dataset)
-
-        dataloader_kwargs = {
-            "num_workers": self.data_num_workers,
-            "pin_memory": True,
-            "sampler": sampler,
-        }
-        dataloader_kwargs["batch_size"] = batch_size
-        val_loader = torch.utils.data.DataLoader(val_dataset, **dataloader_kwargs)
-
-        return val_loader
-
-    def get_evaluator(self, batch_size, is_distributed, testdev=False):
-        from mmdet.evaluators import COCOEvaluator
-
-        val_loader = self.get_eval_loader(batch_size, is_distributed, testdev)
-        evaluator = COCOEvaluator(
-            dataloader=val_loader,
-            img_size=self.test_size,
-            confthre=-99.0,
-            nmsthre=-99.0,
-            num_classes=self.num_classes,
-            archi_name=self.archi_name,
-            testdev=testdev,
-        )
-        return evaluator
-
-    def eval(self, model, evaluator, is_distributed, half=False):
-        return evaluator.evaluate_ppyolo(model, is_distributed, half)

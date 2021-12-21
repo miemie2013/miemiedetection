@@ -4,11 +4,17 @@
 
 import os
 import sys
+import random
 
-from mmdet.exp.ppyolo.ppyolo_method_base import PPYOLO_Method_Exp
+import torch
+import torch.distributed as dist
+import torch.nn as nn
+
+from mmdet.data import *
+from mmdet.exp.datasets.coco_base import COCOBaseExp
 
 
-class PPYOLO_R50VD_2x_Exp(PPYOLO_Method_Exp):
+class PPYOLO_Method_Exp(COCOBaseExp):
     def __init__(self):
         super().__init__()
         # ---------------- architecture name(算法名) ---------------- #
@@ -200,10 +206,155 @@ class PPYOLO_R50VD_2x_Exp(PPYOLO_Method_Exp):
         # 默认是4。如果报错“OSError: [WinError 1455] 页面文件太小,无法完成操作”，设置为2或0解决。
         self.data_num_workers = 2
 
-        # 判断是否是调试状态
-        isDebug = True if sys.gettrace() else False
-        if isDebug:
-            print('Debug Mode.')
-            self.data_dir = '../' + self.data_dir
-            self.cls_names = '../' + self.cls_names
-            self.output_dir = '../' + self.output_dir
+    def get_model(self):
+        from mmdet.models import Resnet50Vd, Resnet18Vd, IouLoss, IouAwareLoss, YOLOv3Loss, YOLOv3Head, PPYOLO
+        if getattr(self, "model", None) is None:
+            Backbone = None
+            if self.backbone_type == 'Resnet50Vd':
+                Backbone = Resnet50Vd
+            elif self.backbone_type == 'Resnet18Vd':
+                Backbone = Resnet18Vd
+            backbone = Backbone(**self.backbone)
+            # 冻结骨干网络
+            backbone.freeze()
+            backbone.fix_bn()
+            iou_loss = IouLoss(**self.iou_loss)
+            iou_aware_loss = None
+            if self.head['iou_aware']:
+                iou_aware_loss = IouAwareLoss(**self.iou_aware_loss)
+            yolo_loss = YOLOv3Loss(iou_loss=iou_loss, iou_aware_loss=iou_aware_loss, **self.yolo_loss)
+            head = YOLOv3Head(yolo_loss=yolo_loss, nms_cfg=self.nms_cfg, **self.head)
+            self.model = PPYOLO(backbone, head)
+        return self.model
+
+    def get_data_loader(
+        self, batch_size, start_epoch, is_distributed, cache_img=False
+    ):
+        from mmdet.data import (
+            PPYOLO_COCOTrainDataset,
+            InfiniteSampler,
+            worker_init_reset_seed,
+        )
+        from mmdet.utils import (
+            wait_for_the_master,
+            get_local_rank,
+        )
+
+        local_rank = get_local_rank()
+
+        with wait_for_the_master(local_rank):
+            # 训练时的数据预处理
+            sample_transforms = get_sample_transforms(self)
+            batch_transforms = get_batch_transforms(self)
+
+            train_dataset = PPYOLO_COCOTrainDataset(
+                data_dir=self.data_dir,
+                json_file=self.train_ann,
+                ann_folder=self.ann_folder,
+                name=self.train_image_folder,
+                cfg=self,
+                sample_transforms=sample_transforms,
+                batch_transforms=batch_transforms,
+                batch_size=batch_size,
+                start_epoch=start_epoch,
+            )
+
+        self.dataset = train_dataset
+        self.epoch_steps = train_dataset.train_steps
+        self.max_iters = train_dataset.max_iters
+        self.n_heads = train_dataset.n_heads
+
+        if is_distributed:
+            batch_size = batch_size // dist.get_world_size()
+
+        sampler = InfiniteSampler(len(self.dataset), shuffle=False, seed=self.seed if self.seed else 0)
+
+        batch_sampler = torch.utils.data.sampler.BatchSampler(
+            sampler=sampler,
+            batch_size=batch_size,
+            drop_last=True,
+        )
+
+        dataloader_kwargs = {"num_workers": self.data_num_workers, "pin_memory": True}
+        dataloader_kwargs["batch_sampler"] = batch_sampler
+
+        # Make sure each process has different random seed, especially for 'fork' method.
+        # Check https://github.com/pytorch/pytorch/issues/63311 for more details.
+        dataloader_kwargs["worker_init_fn"] = worker_init_reset_seed
+        dataloader_kwargs["shuffle"] = False
+
+        train_loader = torch.utils.data.DataLoader(self.dataset, **dataloader_kwargs)
+
+        return train_loader
+
+    def random_resize(self, data_loader, epoch, rank, is_distributed):
+        return 1
+
+    def preprocess(self, inputs, targets, tsize):
+        return 1
+
+    def get_optimizer(self, param_groups, lr, momentum, weight_decay):
+        if "optimizer" not in self.__dict__:
+            optimizer = torch.optim.SGD(
+                param_groups, lr=lr, momentum=momentum, weight_decay=weight_decay
+            )
+            self.optimizer = optimizer
+
+        return self.optimizer
+
+    def get_lr_scheduler(self, lr, iters_per_epoch):
+        return 1
+
+    def get_eval_loader(self, batch_size, is_distributed, testdev=False):
+        from mmdet.data import PPYOLO_COCOEvalDataset
+
+        # 预测时的数据预处理
+        decodeImage = DecodeImage(**self.decodeImage)
+        resizeImage = ResizeImage(target_size=self.test_size[0], interp=self.resizeImage['interp'])
+        normalizeImage = NormalizeImage(**self.normalizeImage)
+        permute = Permute(**self.permute)
+        transforms = [decodeImage, resizeImage, normalizeImage, permute]
+        val_dataset = PPYOLO_COCOEvalDataset(
+            data_dir=self.data_dir,
+            json_file=self.val_ann if not testdev else "image_info_test-dev2017.json",
+            ann_folder=self.ann_folder,
+            name=self.val_image_folder if not testdev else "test2017",
+            cfg=self,
+            transforms=transforms,
+        )
+
+        if is_distributed:
+            batch_size = batch_size // dist.get_world_size()
+            sampler = torch.utils.data.distributed.DistributedSampler(
+                val_dataset, shuffle=False
+            )
+        else:
+            sampler = torch.utils.data.SequentialSampler(val_dataset)
+
+        dataloader_kwargs = {
+            "num_workers": self.data_num_workers,
+            "pin_memory": True,
+            "sampler": sampler,
+        }
+        dataloader_kwargs["batch_size"] = batch_size
+        val_loader = torch.utils.data.DataLoader(val_dataset, **dataloader_kwargs)
+
+        return val_loader
+
+    def get_evaluator(self, batch_size, is_distributed, testdev=False):
+        from mmdet.evaluators import COCOEvaluator
+
+        val_loader = self.get_eval_loader(batch_size, is_distributed, testdev)
+        evaluator = COCOEvaluator(
+            dataloader=val_loader,
+            img_size=self.test_size,
+            confthre=-99.0,
+            nmsthre=-99.0,
+            num_classes=self.num_classes,
+            archi_name=self.archi_name,
+            testdev=testdev,
+        )
+        return evaluator
+
+    def eval(self, model, evaluator, is_distributed, half=False):
+        return evaluator.evaluate_ppyolo(model, is_distributed, half)

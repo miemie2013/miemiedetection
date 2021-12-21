@@ -8,47 +8,46 @@ import sys
 from mmdet.exp.ppyolo.ppyolo_method_base import PPYOLO_Method_Exp
 
 
-class PPYOLO_R50VD_2x_Exp(PPYOLO_Method_Exp):
+class PPYOLO_R18VD_Exp(PPYOLO_Method_Exp):
     def __init__(self):
         super().__init__()
         # ---------------- architecture name(算法名) ---------------- #
         self.archi_name = 'PPYOLO'
 
         # --------------  training config --------------------- #
-        self.max_epoch = 811
-        self.aug_epochs = 811  # 前几轮进行mixup、cutmix、mosaic
+        self.max_epoch = 16
+        self.aug_epochs = 16  # 前几轮进行mixup、cutmix、mosaic
 
         self.ema = True
         self.ema_decay = 0.9998
         self.weight_decay = 5e-4
         self.momentum = 0.9
         self.print_interval = 20
-        self.eval_interval = 10
+        self.eval_interval = 2
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
         self.learningRate = dict(
-            base_lr=0.01 / 192,   # 最初base_lr表示的是每一张图片的学习率。代码中会自动修改为乘以批大小。
+            base_lr=0.004 / 128,   # 最初base_lr表示的是每一张图片的学习率。代码中会自动修改为乘以批大小。
             PiecewiseDecay=dict(
                 gamma=0.1,
-                milestones_epoch=[649, 730],
+                milestones_epoch=[12, 14],
             ),
             LinearWarmup=dict(
                 start_factor=0.,
-                steps=4000,
+                steps=300,
             ),
         )
 
         # -----------------  testing config ------------------ #
-        self.test_size = (608, 608)
+        self.test_size = (416, 416)
 
         # ---------------- model config ---------------- #
         self.output_dir = "PPYOLO_outputs"
-        self.backbone_type = 'Resnet50Vd'
+        self.backbone_type = 'Resnet18Vd'
         self.backbone = dict(
             norm_type='bn',
-            feature_maps=[3, 4, 5],
-            dcn_v2_stages=[5],
-            downsample_in3x3=True,   # 注意这个细节，是在3x3卷积层下采样的。
+            feature_maps=[4, 5],
+            dcn_v2_stages=[],
             freeze_at=0,
             fix_bn_mean_var_at=0,
             freeze_norm=False,
@@ -56,31 +55,26 @@ class PPYOLO_R50VD_2x_Exp(PPYOLO_Method_Exp):
         )
         self.head = dict(
             num_classes=self.num_classes,
+            conv_block_num=0,
             norm_type='bn',
-            anchor_masks=[[6, 7, 8], [3, 4, 5], [0, 1, 2]],
-            anchors=[[10, 13], [16, 30], [33, 23],
-                     [30, 61], [62, 45], [59, 119],
-                     [116, 90], [156, 198], [373, 326]],
-            coord_conv=True,
-            iou_aware=True,
+            anchor_masks=[[3, 4, 5], [0, 1, 2]],
+            anchors=[[10, 14], [23, 27], [37, 58],
+                     [81, 82], [135, 169], [344, 319]],
+            coord_conv=False,
+            iou_aware=False,
             iou_aware_factor=0.4,
             scale_x_y=1.05,
-            spp=True,
+            spp=False,
             drop_block=True,
             keep_prob=0.9,
-            downsample=[32, 16, 8],
-            in_channels=[2048, 1024, 512],
+            downsample=[32, 16],
+            in_channels=[512, 256],
         )
         self.iou_loss = dict(
             loss_weight=2.5,
             max_height=608,
             max_width=608,
             ciou_term=False,
-        )
-        self.iou_aware_loss = dict(
-            loss_weight=1.0,
-            max_height=608,
-            max_width=608,
         )
         self.yolo_loss = dict(
             ignore_thresh=0.7,
@@ -161,11 +155,10 @@ class PPYOLO_R50VD_2x_Exp(PPYOLO_Method_Exp):
         )
         # Gt2YoloTarget
         self.gt2YoloTarget = dict(
-            anchor_masks=[[6, 7, 8], [3, 4, 5], [0, 1, 2]],
-            anchors=[[10, 13], [16, 30], [33, 23],
-                     [30, 61], [62, 45], [59, 119],
-                     [116, 90], [156, 198], [373, 326]],
-            downsample_ratios=[32, 16, 8],
+            anchor_masks=[[3, 4, 5], [0, 1, 2]],
+            anchors=[[10, 14], [23, 27], [37, 58],
+                     [81, 82], [135, 169], [344, 319]],
+            downsample_ratios=[32, 16],
             num_classes=self.num_classes,
         )
         # ResizeImage

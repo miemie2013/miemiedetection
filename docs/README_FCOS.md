@@ -1,4 +1,4 @@
-简体中文 | [English](README_en.md)
+简体中文 | [English](README_FCOS_en.md)
 
 # miemiedetection
 
@@ -14,9 +14,8 @@ pytorch版本建议1.9.1或者更高。
 
 ## 支持的算法
 
-- [YOLOX](docs/README_YOLOX.md)
-- [PPYOLO](docs/README_PPYOLO.md)
-- [FCOS](docs/README_FCOS.md)
+- [YOLOX](mmdet/exp/yolox/README.md)
+- [PPYOLO](mmdet/exp/ppyolo/README.md)
 
 ## 传送门
 cv算法交流q群：645796480

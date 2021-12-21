@@ -26,8 +26,13 @@ def get_model_info(archi_name, model, tsize):
     elif archi_name == 'PPYOLO':
         stride = 64
         img = torch.zeros((1, 3, stride, stride), device=next(model.parameters()).device)
-        im_size = torch.zeros((1, 2), device=next(model.parameters()).device)
+        im_size = torch.ones((1, 2), device=next(model.parameters()).device)
         flops, params = profile(deepcopy(model), inputs=(img, im_size), verbose=False)
+    elif archi_name == 'FCOS':
+        stride = 64
+        img = torch.zeros((1, 3, stride, stride), device=next(model.parameters()).device)
+        im_scale = torch.ones((1, 1), device=next(model.parameters()).device)
+        flops, params = profile(deepcopy(model), inputs=(img, im_scale), verbose=False)
     else:
         raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
     params /= 1e6

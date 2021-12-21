@@ -291,6 +291,30 @@ def data_clean(coco, img_ids, catid2clsid, image_dir, type):
     return records
 
 
+def get_class_msg(anno_path):
+    _catid2clsid = {}
+    _clsid2catid = {}
+    _clsid2cname = {}
+    with open(anno_path, 'r', encoding='utf-8') as f2:
+        dataset_text = ''
+        for line in f2:
+            line = line.strip()
+            dataset_text += line
+        eval_dataset = json.loads(dataset_text)
+        categories = eval_dataset['categories']
+        for clsid, cate_dic in enumerate(categories):
+            catid = cate_dic['id']
+            cname = cate_dic['name']
+            _catid2clsid[catid] = clsid
+            _clsid2catid[clsid] = catid
+            _clsid2cname[clsid] = cname
+    class_names = []
+    num_classes = len(_clsid2cname.keys())
+    for clsid in range(num_classes):
+        class_names.append(_clsid2cname[clsid])
+    return _catid2clsid, _clsid2catid, _clsid2cname, class_names
+
+
 class PPYOLO_COCOEvalDataset(torch.utils.data.Dataset):
     def __init__(self, data_dir, json_file, ann_folder, name, cfg, transforms):
         self.data_dir = data_dir
@@ -303,26 +327,7 @@ class PPYOLO_COCOEvalDataset(torch.utils.data.Dataset):
         val_pre_path = os.path.join(self.data_dir, self.name)
 
         # 种类id
-        _catid2clsid = {}
-        _clsid2catid = {}
-        _clsid2cname = {}
-        with open(val_path, 'r', encoding='utf-8') as f2:
-            dataset_text = ''
-            for line in f2:
-                line = line.strip()
-                dataset_text += line
-            eval_dataset = json.loads(dataset_text)
-            categories = eval_dataset['categories']
-            for clsid, cate_dic in enumerate(categories):
-                catid = cate_dic['id']
-                cname = cate_dic['name']
-                _catid2clsid[catid] = clsid
-                _clsid2catid[clsid] = catid
-                _clsid2cname[clsid] = cname
-        class_names = []
-        num_classes = len(_clsid2cname.keys())
-        for clsid in range(num_classes):
-            class_names.append(_clsid2cname[clsid])
+        _catid2clsid, _clsid2catid, _clsid2cname, class_names = get_class_msg(val_path)
 
         val_dataset = COCO(val_path)
         val_img_ids = val_dataset.getImgIds()
@@ -355,10 +360,6 @@ class PPYOLO_COCOEvalDataset(torch.utils.data.Dataset):
 
         # transforms
         for transform in self.transforms:
-            # if isinstance(transform, YOLOXResizeImage):
-            #     sample = transform(sample, shape, self.context)
-            # else:
-            #     sample = transform(sample, self.context)
             sample = transform(sample, self.context)
 
         # 取出感兴趣的项
@@ -380,26 +381,7 @@ class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
         train_pre_path = os.path.join(self.data_dir, self.name)
 
         # 种类id
-        _catid2clsid = {}
-        _clsid2catid = {}
-        _clsid2cname = {}
-        with open(train_path, 'r', encoding='utf-8') as f2:
-            dataset_text = ''
-            for line in f2:
-                line = line.strip()
-                dataset_text += line
-            eval_dataset = json.loads(dataset_text)
-            categories = eval_dataset['categories']
-            for clsid, cate_dic in enumerate(categories):
-                catid = cate_dic['id']
-                cname = cate_dic['name']
-                _catid2clsid[catid] = clsid
-                _clsid2catid[clsid] = catid
-                _clsid2cname[clsid] = cname
-        class_names = []
-        num_classes = len(_clsid2cname.keys())
-        for clsid in range(num_classes):
-            class_names.append(_clsid2cname[clsid])
+        _catid2clsid, _clsid2catid, _clsid2cname, class_names = get_class_msg(train_path)
 
         train_dataset = COCO(train_path)
         train_img_ids = train_dataset.getImgIds()
@@ -421,6 +403,9 @@ class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
 
         # 一轮的步数。丢弃最后几个样本。
         self.train_steps = self.num_record // batch_size
+
+        # mixup、cutmix、mosaic数据增强的步数
+        self.aug_steps = self.train_steps * cfg.aug_epochs
 
         # 一轮的样本数。丢弃最后几个样本。
         train_samples = self.train_steps * batch_size
@@ -453,6 +438,9 @@ class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
         # 初始化开始的迭代id
         self.init_iter_id = start_epoch * self.train_steps
 
+        # 检测头数量
+        self.n_heads = len(cfg.head['downsample'])
+
 
     def __len__(self):
         return len(self.indexes)
@@ -467,7 +455,10 @@ class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
             target0 = np.zeros((1, ), np.float32)
             target1 = np.zeros((1, ), np.float32)
             target2 = np.zeros((1, ), np.float32)
-            return image, gt_bbox, gt_score, gt_class, target0, target1, target2
+            if self.n_heads == 3:
+                return image, gt_bbox, gt_score, gt_class, target0, target1, target2
+            elif self.n_heads == 2:
+                return image, gt_bbox, gt_score, gt_class, target0, target1
 
         img_idx = self.indexes[idx]
         shape = self.shapes[iter_id]
@@ -475,46 +466,43 @@ class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
         sample["curr_iter"] = iter_id
 
         # 为mixup数据增强做准备
-        # if self.with_mixup and iter_id <= self.mixup_steps:
-        if self.with_mixup:
+        if self.with_mixup and iter_id <= self.aug_steps:
             num = len(self.records)
             mix_idx = np.random.randint(0, num)
             while mix_idx == img_idx:   # 为了不选到自己
                 mix_idx = np.random.randint(0, num)
             sample['mixup'] = copy.deepcopy(self.records[mix_idx])
-            # sample['mixup']["curr_iter"] = iter_id
+            sample['mixup']["curr_iter"] = iter_id
 
         # 为cutmix数据增强做准备
-        # if self.with_cutmix and iter_id <= self.cutmix_steps:
-        if self.with_cutmix:
+        if self.with_cutmix and iter_id <= self.aug_steps:
             num = len(self.records)
             mix_idx = np.random.randint(0, num)
             while mix_idx == img_idx:   # 为了不选到自己
                 mix_idx = np.random.randint(0, num)
             sample['cutmix'] = copy.deepcopy(self.records[mix_idx])
-            # sample['cutmix']["curr_iter"] = iter_id
+            sample['cutmix']["curr_iter"] = iter_id
 
         # 为mosaic数据增强做准备
-        # if self.with_mosaic and iter_id <= self.mosaic_steps:
-        if self.with_mosaic:
+        if self.with_mosaic and iter_id <= self.aug_steps:
             num = len(self.records)
             mix_idx = np.random.randint(0, num)
             while mix_idx == img_idx:   # 为了不选到自己
                 mix_idx = np.random.randint(0, num)
             sample['mosaic1'] = copy.deepcopy(self.records[mix_idx])
-            # sample['mosaic1']["curr_iter"] = iter_id
+            sample['mosaic1']["curr_iter"] = iter_id
 
             mix_idx2 = np.random.randint(0, num)
             while mix_idx2 in [img_idx, mix_idx]:   # 为了不重复
                 mix_idx2 = np.random.randint(0, num)
             sample['mosaic2'] = copy.deepcopy(self.records[mix_idx2])
-            # sample['mosaic2']["curr_iter"] = iter_id
+            sample['mosaic2']["curr_iter"] = iter_id
 
             mix_idx3 = np.random.randint(0, num)
             while mix_idx3 in [img_idx, mix_idx, mix_idx2]:   # 为了不重复
                 mix_idx3 = np.random.randint(0, num)
             sample['mosaic3'] = copy.deepcopy(self.records[mix_idx3])
-            # sample['mosaic3']["curr_iter"] = iter_id
+            sample['mosaic3']["curr_iter"] = iter_id
 
         # sample_transforms
         for sample_transform in self.sample_transforms:
@@ -534,11 +522,9 @@ class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
         gt_class = sample['gt_class'].astype(np.int32)
         target0 = sample['target0'].astype(np.float32)
         target1 = sample['target1'].astype(np.float32)
-        # if self.n_layers > 2:
-        #     target2 = sample['target2'].astype(np.float32)
-        #     return image, gt_bbox, gt_score, gt_class, target0, target1, target2
-        # return image, gt_bbox, gt_score, gt_class, target0, target1
-        target2 = sample['target2'].astype(np.float32)
-        return image, gt_bbox, gt_score, gt_class, target0, target1, target2
+        if self.n_heads == 3:
+            target2 = sample['target2'].astype(np.float32)
+            return image, gt_bbox, gt_score, gt_class, target0, target1, target2
+        return image, gt_bbox, gt_score, gt_class, target0, target1
 
 

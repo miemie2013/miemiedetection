@@ -314,6 +314,37 @@ class PPYOLOValTransform:
         return pimage, im_size
 
 
+class FCOSValTransform:
+    def __init__(self, context, to_rgb, normalizeImage, resizeImage, permute, padBatch):
+        self.context = context
+        self.to_rgb = to_rgb
+        self.normalizeImage = normalizeImage
+        self.resizeImage = resizeImage
+        self.permute = permute
+        self.padBatch = padBatch
+
+    def __call__(self, img):
+        if self.to_rgb:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        context = self.context
+        sample = {}
+        sample['image'] = img
+        sample['h'] = img.shape[0]
+        sample['w'] = img.shape[1]
+
+        sample = self.normalizeImage(sample, context)
+        sample = self.resizeImage(sample, context)
+        sample = self.permute(sample, context)
+
+        # batch_transforms
+        samples = self.padBatch([sample], context)
+        sample = samples[0]
+
+        pimage = np.expand_dims(sample['image'], axis=0)
+        im_scale = np.expand_dims(sample['im_info'][2:3], axis=0)
+        return pimage, im_scale
+
+
 
 # ================================================================
 #

@@ -95,8 +95,22 @@ ONNX预测，命令改动为（用numpy对xywh进行解码，进行nms。）
 python tools/onnx_inference.py -m yolox_s.onnx -i assets/dog.jpg -o ONNX_YOLOX_outputs -s 0.3 --input_shape 640,640 -cn ./class_names/coco_classes.txt
 
 
-ONNX预测（调试）
-python tools/onnx_inference.py -m ../yolox_s.onnx -i ../assets/dog.jpg -o ../ONNX_YOLOX_outputs -s 0.3 --input_shape 640,640 -cn ../class_names/coco_classes.txt
 
+用onnx模型进行验证，
 
+python tools/onnx_eval.py -an YOLOX -m yolox_s.onnx -i ../COCO/val2017 -a ../COCO/annotations/instances_val2017.json -s 0.001 --input_shape 640,640 --eval_type eval
+
+(不是因为少预测了没有gt的图片)
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.394
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.578
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.426
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.217
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.437
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.525
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.311
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.497
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.535
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.327
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.588
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.670
 

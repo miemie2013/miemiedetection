@@ -22,10 +22,10 @@ class YOLOPAFPN(nn.Module):
         in_channels=[256, 512, 1024],
         depthwise=False,
         act="silu",
-        freeze_at=-1,
+        freeze_at=0,
     ):
         super().__init__()
-        assert freeze_at in [-1, 0, 1, 2, 3, 4]
+        assert freeze_at in [0, 1, 2, 3, 4, 5]
         self.backbone = CSPDarknet(depth, width, depthwise=depthwise, act=act, freeze_at=freeze_at)
         self.in_features = in_features
         self.in_channels = in_channels

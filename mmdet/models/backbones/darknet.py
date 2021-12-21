@@ -102,10 +102,10 @@ class CSPDarknet(nn.Module):
         out_features=("dark3", "dark4", "dark5"),
         depthwise=False,
         act="silu",
-        freeze_at=-1,
+        freeze_at=0,
     ):
         super().__init__()
-        assert freeze_at in [-1, 0, 1, 2, 3, 4]
+        assert freeze_at in [0, 1, 2, 3, 4, 5]
         assert out_features, "please provide output features of Darknet"
         self.freeze_at = freeze_at
         self.out_features = out_features
@@ -184,17 +184,17 @@ class CSPDarknet(nn.Module):
 
     def freeze(self):
         freeze_at = self.freeze_at
-        if freeze_at >= 0:
-            self.stem.freeze()
         if freeze_at >= 1:
+            self.stem.freeze()
+        if freeze_at >= 2:
             for layer in self.dark2:
                 layer.freeze()
-        if freeze_at >= 2:
+        if freeze_at >= 3:
             for layer in self.dark3:
                 layer.freeze()
-        if freeze_at >= 3:
+        if freeze_at >= 4:
             for layer in self.dark4:
                 layer.freeze()
-        if freeze_at >= 4:
+        if freeze_at >= 5:
             for layer in self.dark5:
                 layer.freeze()

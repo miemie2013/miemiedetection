@@ -15,7 +15,7 @@ python tools/convert_weights.py -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.p
 
 
 ----------------------- 预测 -----------------------
-python tools/demo.py image -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo_2x.pth --path assets/dog.jpg --conf 0.15 --tsize 608 --save_result --device gpu
+python tools/demo.py image -f exps/fcos/fcos_rt_r50_fpn_4x.py -c ppyolo_2x.pth --path assets/dog.jpg --conf 0.15 --tsize 512 --save_result --device gpu
 
 
 python tools/demo.py image -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pth --path assets/dog.jpg --conf 0.15 --tsize 416 --save_result --device gpu
