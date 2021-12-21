@@ -262,7 +262,7 @@ class PPYOLO_Method_Exp(COCOBaseExp):
         self.dataset = train_dataset
         self.epoch_steps = train_dataset.train_steps
         self.max_iters = train_dataset.max_iters
-        self.n_heads = train_dataset.n_heads
+        self.n_layers = train_dataset.n_layers
 
         if is_distributed:
             batch_size = batch_size // dist.get_world_size()

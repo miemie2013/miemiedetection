@@ -162,6 +162,17 @@ def main(exp, args, num_gpu):
         logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
         logger.info("Model Structure:\n{}".format(str(model)))
         evaluator = exp.get_evaluator(args.batch_size, is_distributed, args.test)
+    elif archi_name == 'FCOS':
+        # FCOS暂时使用的是matrix_nms，修改matrix_nms的配置。
+        if args.conf is not None:
+            exp.nms_cfg['score_threshold'] = args.conf
+            exp.nms_cfg['post_threshold'] = args.conf
+        if args.tsize is not None:
+            exp.test_size = (args.tsize, exp.test_size[1])
+        model = exp.get_model()
+        logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
+        logger.info("Model Structure:\n{}".format(str(model)))
+        evaluator = exp.get_evaluator(args.batch_size, is_distributed, args.test)
     else:
         raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
 
@@ -209,6 +220,10 @@ def main(exp, args, num_gpu):
         )
     elif archi_name == 'PPYOLO':
         *_, summary = evaluator.evaluate_ppyolo(
+            model, is_distributed, args.fp16, trt_file, exp.test_size
+        )
+    elif archi_name == 'FCOS':
+        *_, summary = evaluator.evaluate_fcos(
             model, is_distributed, args.fp16, trt_file, exp.test_size
         )
     else:

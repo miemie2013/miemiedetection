@@ -143,9 +143,9 @@ class Trainer:
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = lr
         elif self.archi_name == 'PPYOLO':
-            if self.n_heads == 3:
+            if self.n_layers == 3:
                 inps, gt_bbox, gt_score, gt_class, target0, target1, target2 = self.prefetcher.next()
-            elif self.n_heads == 2:
+            elif self.n_layers == 2:
                 inps, gt_bbox, gt_score, gt_class, target0, target1 = self.prefetcher.next()
             if self.iter < self.init_iter_id:  # 恢复训练时跳过。
                 train_iter = False
@@ -156,7 +156,7 @@ class Trainer:
             gt_class = gt_class.to(self.data_type)
             target0 = target0.to(self.data_type)
             target1 = target1.to(self.data_type)
-            if self.n_heads == 3:
+            if self.n_layers == 3:
                 target2 = target2.to(self.data_type)
                 target2.requires_grad = False
             gt_bbox.requires_grad = False
@@ -167,9 +167,9 @@ class Trainer:
             data_end_time = time.time()
 
             with torch.cuda.amp.autocast(enabled=self.amp_training):
-                if self.n_heads == 3:
+                if self.n_layers == 3:
                     targets = [target0, target1, target2]
-                elif self.n_heads == 2:
+                elif self.n_layers == 2:
                     targets = [target0, target1]
                 outputs = self.model.train_model(inps, gt_bbox, gt_class, gt_score, targets)
 
@@ -330,13 +330,13 @@ class Trainer:
             )
             self.epoch_steps = self.exp.epoch_steps
             self.max_iters = self.exp.max_iters
-            self.n_heads = self.exp.n_heads
+            self.n_layers = self.exp.n_layers
 
             # 初始化开始的迭代id
             self.init_iter_id = self.start_epoch * self.epoch_steps
 
             logger.info("init prefetcher, this might take one minute or less...")
-            self.prefetcher = PPYOLODataPrefetcher(self.train_loader, self.n_heads)
+            self.prefetcher = PPYOLODataPrefetcher(self.train_loader, self.n_layers)
             # max_iter means iters per epoch
             self.max_iter = len(self.train_loader)
 

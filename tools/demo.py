@@ -557,8 +557,8 @@ def main(exp, args):
             logger.info("loading checkpoint")
             ckpt = torch.load(ckpt_file, map_location="cpu")
             # load the model state dict
-            # model.load_state_dict(ckpt["model"])
-            # logger.info("loaded checkpoint done.")
+            model.load_state_dict(ckpt["model"])
+            logger.info("loaded checkpoint done.")
 
         # 卷积层和bn层合并为一个卷积层
         if args.fuse:

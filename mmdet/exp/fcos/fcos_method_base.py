@@ -292,21 +292,32 @@ class FCOS_Method_Exp(COCOBaseExp):
         return 1
 
     def get_eval_loader(self, batch_size, is_distributed, testdev=False):
-        from mmdet.data import PPYOLO_COCOEvalDataset
+        from mmdet.data import FCOS_COCOEvalDataset
 
         # 预测时的数据预处理
+
+        # sample_transforms
         decodeImage = DecodeImage(**self.decodeImage)
-        resizeImage = ResizeImage(target_size=self.test_size[0], interp=self.resizeImage['interp'])
         normalizeImage = NormalizeImage(**self.normalizeImage)
+        target_size = self.test_size[0]
+        max_size = self.test_size[1]
+        resizeImage = ResizeImage(target_size=target_size, resize_box=False, interp=self.resizeImage['interp'],
+                                  max_size=max_size, use_cv2=self.resizeImage['use_cv2'])
         permute = Permute(**self.permute)
-        transforms = [decodeImage, resizeImage, normalizeImage, permute]
-        val_dataset = PPYOLO_COCOEvalDataset(
+
+        # batch_transforms
+        padBatch = PadBatch(use_padded_im_info=True, pad_to_stride=self.padBatchSingle['pad_to_stride'])
+
+        sample_transforms = [decodeImage, normalizeImage, resizeImage, permute]
+        batch_transforms = [padBatch]
+        val_dataset = FCOS_COCOEvalDataset(
             data_dir=self.data_dir,
             json_file=self.val_ann if not testdev else "image_info_test-dev2017.json",
             ann_folder=self.ann_folder,
             name=self.val_image_folder if not testdev else "test2017",
             cfg=self,
-            transforms=transforms,
+            sample_transforms=sample_transforms,
+            batch_transforms=batch_transforms,
         )
 
         if is_distributed:

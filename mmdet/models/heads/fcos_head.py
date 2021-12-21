@@ -70,16 +70,14 @@ class FCOSHead(torch.nn.Module):
 
         # 类别分支最后的卷积。设置偏移的初始值使得各类别预测概率初始值为self.prior_prob (根据激活函数是sigmoid()时推导出，和RetinaNet中一样)
         bias_init_value = -math.log((1 - self.prior_prob) / self.prior_prob)
-        cls_last_conv_layer = Conv2dUnit(in_channel, self.num_classes, 3, stride=1, bias_attr=True, act=None, name="fcos_head_cls")
-        torch.nn.init.constant_(cls_last_conv_layer.conv.bias, bias_init_value)
+        self.cls_pred = Conv2dUnit(in_channel, self.num_classes, 3, stride=1, bias_attr=True, act=None, name="fcos_head_cls")
+        torch.nn.init.constant_(self.cls_pred.conv.bias, bias_init_value)
         # 坐标分支最后的卷积
-        reg_last_conv_layer = Conv2dUnit(in_channel, 4, 3, stride=1, bias_attr=True, act=None, name="fcos_head_reg")
-        self.cls_pred = cls_last_conv_layer
-        self.reg_pred = reg_last_conv_layer
+        self.reg_pred = Conv2dUnit(in_channel, 4, 3, stride=1, bias_attr=True, act=None, name="fcos_head_reg")
 
 
-        n = len(self.fpn_stride)      # 有n个输出层
-        for i in range(n):     # 遍历每个输出层
+        self.n_layers = len(self.fpn_stride)      # 有n个输出层
+        for i in range(self.n_layers):     # 遍历每个输出层
             scale = torch.nn.Parameter(torch.randn(1, ))
             torch.nn.init.constant_(scale, 1.0)
             self.scales_on_reg.append(scale)

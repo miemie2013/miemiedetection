@@ -6,7 +6,7 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 
 ----------------------- 转换权重 -----------------------
-python tools/convert_weights.py -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo.pdparams -oc ppyolo_2x.pth -nc 80
+python tools/convert_weights.py -f exps/fcos/fcos_rt_r50_fpn_4x.py -c FCOS_RT_MS_R_50_4x_syncbn.pth -oc fcos_rt_r50_syncbn_fpn_4x.pth -nc 80
 
 
 python tools/convert_weights.py -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pdparams -oc ppyolo_r18vd.pth -nc 80
@@ -15,7 +15,7 @@ python tools/convert_weights.py -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.p
 
 
 ----------------------- 预测 -----------------------
-python tools/demo.py image -f exps/fcos/fcos_rt_r50_fpn_4x.py -c ppyolo_2x.pth --path assets/dog.jpg --conf 0.15 --tsize 512 --save_result --device gpu
+python tools/demo.py image -f exps/fcos/fcos_rt_r50_fpn_4x.py -c fcos_rt_r50_syncbn_fpn_4x.pth --path assets/dog.jpg --conf 0.15 --tsize 512 --save_result --device gpu
 
 
 python tools/demo.py image -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pth --path assets/dog.jpg --conf 0.15 --tsize 416 --save_result --device gpu
@@ -48,7 +48,7 @@ python demo2.py image -f exps/ppyolo/ppyolo_r50vd_2x.py -c yolox_s.pth --path as
 
 
 ----------------------- 评估 -----------------------
-python tools/eval.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 2 -c ppyolo_2x.pth --conf 0.01 --tsize 608
+python tools/eval.py -f exps/fcos/fcos_rt_r50_fpn_4x.py -d 1 -b 1 -c fcos_rt_r50_syncbn_fpn_4x.pth --conf 0.01 --tsize 512
 
 
 Average forward time: 43.35 ms, Average NMS time: 0.01 ms, Average inference time: 43.36 ms

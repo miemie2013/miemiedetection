@@ -59,19 +59,19 @@ class PPYOLODataPrefetcher:
     https://github.com/NVIDIA/apex/issues/304#issuecomment-493562789.
     """
 
-    def __init__(self, loader, n_heads):
+    def __init__(self, loader, n_layers):
         self.loader = iter(loader)
         self.stream = torch.cuda.Stream()
-        self.n_heads = n_heads
+        self.n_layers = n_layers
         self.input_cuda = self._input_cuda_for_image
         self.record_stream = PPYOLODataPrefetcher._record_stream_for_image
         self.preload()
 
     def preload(self):
         try:
-            if self.n_heads == 3:
+            if self.n_layers == 3:
                 self.next_input, self.gt_bbox, self.gt_score, self.gt_class, self.target0, self.target1, self.target2 = next(self.loader)
-            elif self.n_heads == 2:
+            elif self.n_layers == 2:
                 self.next_input, self.gt_bbox, self.gt_score, self.gt_class, self.target0, self.target1 = next(self.loader)
         except StopIteration:
             self.next_input = None
@@ -90,7 +90,7 @@ class PPYOLODataPrefetcher:
             self.gt_class = self.gt_class.cuda(non_blocking=True)
             self.target0 = self.target0.cuda(non_blocking=True)
             self.target1 = self.target1.cuda(non_blocking=True)
-            if self.n_heads == 3:
+            if self.n_layers == 3:
                 self.target2 = self.target2.cuda(non_blocking=True)
 
     def next(self):
@@ -101,7 +101,7 @@ class PPYOLODataPrefetcher:
         gt_class = self.gt_class
         target0 = self.target0
         target1 = self.target1
-        if self.n_heads == 3:
+        if self.n_layers == 3:
             target2 = self.target2
         if input is not None:
             self.record_stream(input)
@@ -115,11 +115,11 @@ class PPYOLODataPrefetcher:
             target0.record_stream(torch.cuda.current_stream())
         if target1 is not None:
             target1.record_stream(torch.cuda.current_stream())
-        if self.n_heads == 3:
+        if self.n_layers == 3:
             if target2 is not None:
                 target2.record_stream(torch.cuda.current_stream())
         self.preload()
-        if self.n_heads == 3:
+        if self.n_layers == 3:
             return input, gt_bbox, gt_score, gt_class, target0, target1, target2
         return input, gt_bbox, gt_score, gt_class, target0, target1
 

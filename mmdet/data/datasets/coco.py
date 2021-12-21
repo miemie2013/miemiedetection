@@ -369,6 +369,67 @@ class PPYOLO_COCOEvalDataset(torch.utils.data.Dataset):
         return pimage, im_size, id
 
 
+class FCOS_COCOEvalDataset(torch.utils.data.Dataset):
+    def __init__(self, data_dir, json_file, ann_folder, name, cfg, sample_transforms, batch_transforms):
+        self.data_dir = data_dir
+        self.json_file = json_file
+        self.ann_folder = ann_folder
+        self.name = name
+
+        # 验证集
+        val_path = os.path.join(self.data_dir, self.ann_folder, self.json_file)
+        val_pre_path = os.path.join(self.data_dir, self.name)
+
+        # 种类id
+        _catid2clsid, _clsid2catid, _clsid2cname, class_names = get_class_msg(val_path)
+
+        val_dataset = COCO(val_path)
+        val_img_ids = val_dataset.getImgIds()
+
+        keep_img_ids = []  # 只跑有gt的图片，跟随PaddleDetection
+        for img_id in val_img_ids:
+            ins_anno_ids = val_dataset.getAnnIds(imgIds=img_id, iscrowd=False)  # 读取这张图片所有标注anno的id
+            if len(ins_anno_ids) == 0:
+                continue
+            keep_img_ids.append(img_id)
+        val_img_ids = keep_img_ids
+
+        val_records = data_clean(val_dataset, val_img_ids, _catid2clsid, val_pre_path, 'val')
+
+        self.coco = val_dataset
+        self.records = val_records
+        self.context = cfg.context
+        self.sample_transforms = sample_transforms
+        self.batch_transforms = batch_transforms
+        self.catid2clsid = _catid2clsid
+        self.clsid2catid = _clsid2catid
+        self.num_record = len(val_records)
+        self.indexes = [i for i in range(self.num_record)]
+
+    def __len__(self):
+        return len(self.indexes)
+
+    def __getitem__(self, idx):
+        img_idx = self.indexes[idx]
+        sample = copy.deepcopy(self.records[img_idx])
+
+        # sample_transforms
+        for sample_transform in self.sample_transforms:
+            sample = sample_transform(sample, self.context)
+
+        # batch_transforms
+        samples = [sample]
+        for batch_transform in self.batch_transforms:
+            samples = batch_transform(samples, self.context)
+        sample = samples[0]
+
+        # 取出感兴趣的项
+        pimage = sample['image']
+        im_scale = np.array([sample['im_info'][2]]).astype(np.float32)
+        id = sample['im_id']
+        return pimage, im_scale, id
+
+
 class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
     def __init__(self, data_dir, json_file, ann_folder, name, cfg, sample_transforms, batch_transforms, batch_size, start_epoch):
         self.data_dir = data_dir
@@ -438,8 +499,8 @@ class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
         # 初始化开始的迭代id
         self.init_iter_id = start_epoch * self.train_steps
 
-        # 检测头数量
-        self.n_heads = len(cfg.head['downsample'])
+        # 输出特征图数量
+        self.n_layers = len(cfg.head['downsample'])
 
 
     def __len__(self):
@@ -455,9 +516,9 @@ class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
             target0 = np.zeros((1, ), np.float32)
             target1 = np.zeros((1, ), np.float32)
             target2 = np.zeros((1, ), np.float32)
-            if self.n_heads == 3:
+            if self.n_layers == 3:
                 return image, gt_bbox, gt_score, gt_class, target0, target1, target2
-            elif self.n_heads == 2:
+            elif self.n_layers == 2:
                 return image, gt_bbox, gt_score, gt_class, target0, target1
 
         img_idx = self.indexes[idx]
@@ -522,7 +583,7 @@ class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
         gt_class = sample['gt_class'].astype(np.int32)
         target0 = sample['target0'].astype(np.float32)
         target1 = sample['target1'].astype(np.float32)
-        if self.n_heads == 3:
+        if self.n_layers == 3:
             target2 = sample['target2'].astype(np.float32)
             return image, gt_bbox, gt_score, gt_class, target0, target1, target2
         return image, gt_bbox, gt_score, gt_class, target0, target1
