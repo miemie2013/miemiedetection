@@ -99,7 +99,7 @@ def main(exp, args):
     model = exp.get_model()
     # 算法名字
     model_class_name = model.__class__.__name__
-    logger.info("Model Summary: {}".format(get_model_info(model_class_name, model, exp.test_size)))
+    # logger.info("Model Summary: {}".format(get_model_info(model_class_name, model, exp.test_size)))
 
     use_gpu = False
     if args.device == "gpu":
@@ -587,7 +587,11 @@ def main(exp, args):
         if isinstance(backbone, Resnet50Vb):
             resnet = backbone
 
+            # AdelaiDet里输入图片使用了BGR格式。这里做一下手脚使输入图片默认是RGB格式。
             w = backbone_dic['backbone.bottom_up.stem.conv1.weight']
+            cpw = np.copy(w)
+            w[:, 2, :, :] = cpw[:, 0, :, :]
+            w[:, 0, :, :] = cpw[:, 2, :, :]
             scale = backbone_dic['backbone.bottom_up.stem.conv1.norm.weight']
             offset = backbone_dic['backbone.bottom_up.stem.conv1.norm.bias']
             m = backbone_dic['backbone.bottom_up.stem.conv1.norm.running_mean']

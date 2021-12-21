@@ -15,7 +15,7 @@ python tools/convert_weights.py -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.p
 
 
 ----------------------- 预测 -----------------------
-python tools/demo.py image -f exps/fcos/fcos_rt_r50_fpn_4x.py -c fcos_rt_r50_syncbn_fpn_4x.pth --path assets/dog.jpg --conf 0.15 --tsize 512 --save_result --device gpu
+python tools/demo.py image -f exps/fcos/fcos_rt_r50_fpn_4x.py -c fcos_rt_r50_syncbn_fpn_4x.pth --path assets/000000000019.jpg --conf 0.15 --tsize 512 --save_result --device gpu
 
 
 python tools/demo.py image -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pth --path assets/dog.jpg --conf 0.15 --tsize 416 --save_result --device gpu
@@ -51,19 +51,20 @@ python demo2.py image -f exps/ppyolo/ppyolo_r50vd_2x.py -c yolox_s.pth --path as
 python tools/eval.py -f exps/fcos/fcos_rt_r50_fpn_4x.py -d 1 -b 1 -c fcos_rt_r50_syncbn_fpn_4x.pth --conf 0.01 --tsize 512
 
 
-Average forward time: 43.35 ms, Average NMS time: 0.01 ms, Average inference time: 43.36 ms
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.448
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.649
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.492
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.265
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.483
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.593
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.337
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.571
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.624
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.420
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.665
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.773
+Average forward time: 40.01 ms, Average NMS time: 0.01 ms, Average inference time: 40.02 ms
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.393
+Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.584
+Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.424
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.220
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.435
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.550
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.324
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.527
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.573
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.335
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.633
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.769
+
 
 
 
