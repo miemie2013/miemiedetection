@@ -58,6 +58,29 @@ class FCOSTrainCollater():
         self.n_layers = n_layers
 
     def __call__(self, batch):
+        # 恢复训练时跳过。
+        image_shape = batch[0][0].shape
+        if len(image_shape) == 1:
+            images = torch.zeros((1, ), dtype=torch.float32)
+            labels0 = torch.zeros((1, ), dtype=torch.float32)
+            reg_target0 = torch.zeros((1, ), dtype=torch.float32)
+            centerness0 = torch.zeros((1, ), dtype=torch.float32)
+            labels1 = torch.zeros((1, ), dtype=torch.float32)
+            reg_target1 = torch.zeros((1, ), dtype=torch.float32)
+            centerness1 = torch.zeros((1, ), dtype=torch.float32)
+            labels2 = torch.zeros((1, ), dtype=torch.float32)
+            reg_target2 = torch.zeros((1, ), dtype=torch.float32)
+            centerness2 = torch.zeros((1, ), dtype=torch.float32)
+            if self.n_layers == 5:
+                labels3 = torch.zeros((1, ), dtype=torch.float32)
+                reg_target3 = torch.zeros((1, ), dtype=torch.float32)
+                centerness3 = torch.zeros((1, ), dtype=torch.float32)
+                labels4 = torch.zeros((1, ), dtype=torch.float32)
+                reg_target4 = torch.zeros((1, ), dtype=torch.float32)
+                centerness4 = torch.zeros((1, ), dtype=torch.float32)
+                return images, labels0, reg_target0, centerness0, labels1, reg_target1, centerness1, labels2, reg_target2, centerness2, labels3, reg_target3, centerness3, labels4, reg_target4, centerness4
+            return images, labels0, reg_target0, centerness0, labels1, reg_target1, centerness1, labels2, reg_target2, centerness2
+
         # 重组samples
         samples = []
         for i, item in enumerate(batch):

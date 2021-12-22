@@ -653,17 +653,16 @@ class FCOS_COCOTrainDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         iter_id = idx // self.batch_size
         if iter_id < self.init_iter_id:   # 恢复训练时跳过。
-            image = np.zeros((1, ), np.float32)
+            pimage = np.zeros((1, ), np.float32)
+            im_info = np.zeros((1, ), np.float32)
+            im_id = np.zeros((1, ), np.float32)
+            h = np.zeros((1, ), np.float32)
+            w = np.zeros((1, ), np.float32)
+            is_crowd = np.zeros((1, ), np.float32)
+            gt_class = np.zeros((1, ), np.float32)
             gt_bbox = np.zeros((1, ), np.float32)
             gt_score = np.zeros((1, ), np.float32)
-            gt_class = np.zeros((1, ), np.float32)
-            target0 = np.zeros((1, ), np.float32)
-            target1 = np.zeros((1, ), np.float32)
-            target2 = np.zeros((1, ), np.float32)
-            if self.n_layers == 3:
-                return image, gt_bbox, gt_score, gt_class, target0, target1, target2
-            elif self.n_layers == 2:
-                return image, gt_bbox, gt_score, gt_class, target0, target1
+            return pimage, im_info, im_id, h, w, is_crowd, gt_class, gt_bbox, gt_score
 
         img_idx = self.indexes[idx]
         sample = copy.deepcopy(self.records[img_idx])

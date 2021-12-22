@@ -117,7 +117,7 @@ python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 --fp16
 
 ----------------------- 迁移学习，带上-c（--ckpt）参数读取预训练模型。 -----------------------
 复现paddle版ppyolo2x迁移学习:（可以加--fp16， -eb表示验证时的批大小）
-python tools/train.py -f exps/fcos/fcos_rt_r50_fpn_4x.py -d 1 -b 8 -eb 1 -c fcos_rt_r50_syncbn_fpn_4x.pth
+python tools/train.py -f exps/fcos/fcos_rt_r50_fpn_4x.py -d 1 -b 6 -eb 1 -c fcos_rt_r50_syncbn_fpn_4x.pth
 
 
 实测fcos_rt_r50_fpn_4x的AP(0.50:0.95)可以到达0.xx+、AP(0.50)可以到达0.xx+、AP(small)可以到达0.xx+。
@@ -129,10 +129,7 @@ python tools/train.py -f exps/fcos/fcos_rt_r50_fpn_4x.py -d 1 -b 8 -eb 1 -c fcos
 
 
 ----------------------- 恢复训练（加上参数--resume） -----------------------
-python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 4 -c PPYOLO_outputs/ppyolo_r50vd_2x/13.pth --resume
-
-
-python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 1 -b 16 -eb 8 -c PPYOLO_outputs/ppyolo_r18vd/7.pth --resume
+python tools/train.py -f exps/fcos/fcos_rt_r50_fpn_4x.py -d 1 -b 6 -eb 1 -c FCOS_outputs/fcos_rt_r50_fpn_4x/3.pth --resume
 
 
 
