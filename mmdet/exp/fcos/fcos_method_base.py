@@ -463,8 +463,10 @@ class FCOS_Method_Exp(COCOBaseExp):
         else:
             sampler = torch.utils.data.SequentialSampler(val_dataset)
 
+        # FCOS训练完指定epoch后开始验证时，若报错BrokenPipeError: [Errno 32] Broken pipe，则设置num_workers为0
         dataloader_kwargs = {
-            "num_workers": self.data_num_workers,
+            # "num_workers": self.data_num_workers,
+            "num_workers": 0,
             "pin_memory": True,
             "sampler": sampler,
         }
