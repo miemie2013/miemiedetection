@@ -15,26 +15,26 @@ class FCOS_RT_R50_FPN_4x_Exp(FCOS_Method_Exp):
         self.archi_name = 'FCOS'
 
         # --------------  training config --------------------- #
-        self.max_epoch = 48
-        self.aug_epochs = 48  # 前几轮进行mixup、cutmix、mosaic
+        self.max_epoch = 4
+        self.aug_epochs = 4  # 前几轮进行mixup、cutmix、mosaic
 
         self.ema = True
         self.ema_decay = 0.9998
         self.weight_decay = 1e-4
         self.momentum = 0.9
         self.print_interval = 20
-        self.eval_interval = 2
+        self.eval_interval = 1
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
         self.learningRate = dict(
             base_lr=0.01 / 16,  # 最初base_lr表示的是每一张图片的学习率。代码中会自动修改为乘以批大小。
             PiecewiseDecay=dict(
                 gamma=0.1,
-                milestones_epoch=[32, 44],
+                milestones_epoch=[2, 3],
             ),
             LinearWarmup=dict(
                 start_factor=0.3333333333333333,
-                steps=500,
+                steps=200,
             ),
         )
 
@@ -49,7 +49,7 @@ class FCOS_RT_R50_FPN_4x_Exp(FCOS_Method_Exp):
             feature_maps=[3, 4, 5],
             dcn_v2_stages=[],
             downsample_in3x3=False,  # 注意这个细节，是在1x1卷积层下采样的。即Resnet50Va。
-            freeze_at=2,
+            freeze_at=5,
             fix_bn_mean_var_at=0,
             freeze_norm=False,
             norm_decay=0.,
