@@ -9,18 +9,7 @@
 # ================================================================
 import torch
 import torch.nn as nn
-import torch as T
-import numpy as np
-
-from mmdet.models.custom_layers import paddle_yolo_box
-from mmdet.models.matrix_nms import jaccard
-
-try:
-    from collections.abc import Sequence
-except Exception:
-    from collections import Sequence
-
-
+import torch.nn.functional as F
 
 
 class FCOSLoss(nn.Module):
@@ -55,51 +44,70 @@ class FCOSLoss(nn.Module):
             input_channel_last (Variables): The flattened Tensor in channel_last style
         """
         if channel_first:
-            input_channel_last = fluid.layers.transpose(
-                input, perm=[0, 2, 3, 1])
+            input_channel_last = input.permute(0, 2, 3, 1)  # [N, H, W, C]
         else:
             input_channel_last = input
-        input_channel_last = fluid.layers.flatten(input_channel_last, axis=3)
+        input_channel_last = torch.reshape(input_channel_last, (-1, input_channel_last.shape[3]))  # [N*H*W, C]
         return input_channel_last
+
+    def sigmoid_focal_loss(self, logits, labels, alpha=0.25, gamma=2.0, eps=1e-9):
+        p = torch.sigmoid(logits)
+        pos_loss = labels * (0 - torch.log(p + eps)) * torch.pow(1 - p, gamma) * alpha
+        neg_loss = (1.0 - labels) * (0 - torch.log(1 - p + eps)) * torch.pow(p, gamma) * (1 - alpha)
+        focal_loss = pos_loss + neg_loss
+        focal_loss = focal_loss.sum()
+        focal_loss = focal_loss.reshape((1, ))
+        return focal_loss
+
+    def sigmoid_cross_entropy_with_logits(self, logits, labels, eps=1e-9):
+        p = torch.sigmoid(logits)
+        pos_loss = labels * (0 - torch.log(p + eps))
+        neg_loss = (1.0 - labels) * (0 - torch.log(1 - p + eps))
+        bce_loss = pos_loss + neg_loss
+        return bce_loss
 
     def __iou_loss(self, pred, targets, positive_mask, weights=None):
         """
         Calculate the loss for location prediction
         Args:
-            pred          (Variables): bounding boxes prediction
-            targets       (Variables): targets for positive samples
-            positive_mask (Variables): mask of positive samples
-            weights       (Variables): weights for each positive samples
+            pred (Tensor): bounding boxes prediction
+            targets (Tensor): targets for positive samples
+            positive_mask (Tensor): mask of positive samples
+            weights (Tensor): weights for each positive samples
         Return:
-            loss (Varialbes): location loss
+            loss (Tensor): location loss
         """
-        positive_mask = fluid.layers.reshape(positive_mask, (-1, ))   # [批大小*所有格子数, ]
-        plw = pred[:, 0] * positive_mask   # [批大小*所有格子数, ]， 预测的l
-        pth = pred[:, 1] * positive_mask   # [批大小*所有格子数, ]， 预测的t
-        prw = pred[:, 2] * positive_mask   # [批大小*所有格子数, ]， 预测的r
-        pbh = pred[:, 3] * positive_mask   # [批大小*所有格子数, ]， 预测的b
-        tlw = targets[:, 0] * positive_mask   # [批大小*所有格子数, ]， 真实的l
-        tth = targets[:, 1] * positive_mask   # [批大小*所有格子数, ]， 真实的t
-        trw = targets[:, 2] * positive_mask   # [批大小*所有格子数, ]， 真实的r
-        tbh = targets[:, 3] * positive_mask   # [批大小*所有格子数, ]， 真实的b
-        tlw.stop_gradient = True
-        trw.stop_gradient = True
-        tth.stop_gradient = True
-        tbh.stop_gradient = True
-        area_target = (tlw + trw) * (tth + tbh)      # [批大小*所有格子数, ]， 真实的面积
-        area_predict = (plw + prw) * (pth + pbh)     # [批大小*所有格子数, ]， 预测的面积
-        ilw = fluid.layers.elementwise_min(plw, tlw)   # [批大小*所有格子数, ]， 相交矩形的l
-        irw = fluid.layers.elementwise_min(prw, trw)   # [批大小*所有格子数, ]， 相交矩形的r
-        ith = fluid.layers.elementwise_min(pth, tth)   # [批大小*所有格子数, ]， 相交矩形的t
-        ibh = fluid.layers.elementwise_min(pbh, tbh)   # [批大小*所有格子数, ]， 相交矩形的b
-        clw = fluid.layers.elementwise_max(plw, tlw)   # [批大小*所有格子数, ]， 包围矩形的l
-        crw = fluid.layers.elementwise_max(prw, trw)   # [批大小*所有格子数, ]， 包围矩形的r
-        cth = fluid.layers.elementwise_max(pth, tth)   # [批大小*所有格子数, ]， 包围矩形的t
-        cbh = fluid.layers.elementwise_max(pbh, tbh)   # [批大小*所有格子数, ]， 包围矩形的b
-        area_inter = (ilw + irw) * (ith + ibh)   # [批大小*所有格子数, ]， 相交矩形的面积
+        plw = pred[:, 0] * positive_mask
+        pth = pred[:, 1] * positive_mask
+        prw = pred[:, 2] * positive_mask
+        pbh = pred[:, 3] * positive_mask
+
+        tlw = targets[:, 0] * positive_mask
+        tth = targets[:, 1] * positive_mask
+        trw = targets[:, 2] * positive_mask
+        tbh = targets[:, 3] * positive_mask
+        tlw.requires_grad = False
+        trw.requires_grad = False
+        tth.requires_grad = False
+        tbh.requires_grad = False
+
+        ilw = torch.minimum(plw, tlw)
+        irw = torch.minimum(prw, trw)
+        ith = torch.minimum(pth, tth)
+        ibh = torch.minimum(pbh, tbh)
+
+        clw = torch.maximum(plw, tlw)
+        crw = torch.maximum(prw, trw)
+        cth = torch.maximum(pth, tth)
+        cbh = torch.maximum(pbh, tbh)
+
+        area_predict = (plw + prw) * (pth + pbh)
+        area_target = (tlw + trw) * (tth + tbh)
+        area_inter = (ilw + irw) * (ith + ibh)
         ious = (area_inter + 1.0) / (
             area_predict + area_target - area_inter + 1.0)
         ious = ious * positive_mask
+
         if self.iou_loss_type.lower() == "linear_iou":
             loss = 1.0 - ious
         elif self.iou_loss_type.lower() == "giou":
@@ -108,103 +116,14 @@ class FCOSLoss(nn.Module):
             giou = ious - (area_circum - area_uniou) / area_circum
             loss = 1.0 - giou
         elif self.iou_loss_type.lower() == "iou":
-            loss = 0.0 - fluid.layers.log(ious)
-        elif self.iou_loss_type.lower() == "ciou":
-            # 预测的矩形。cx_cy_w_h格式，以格子中心点为坐标原点。
-            pred_cx = (prw - plw) * 0.5
-            pred_cy = (pbh - pth) * 0.5
-            pred_w = (plw + prw)
-            pred_h = (pth + pbh)
-            pred_cx = L.reshape(pred_cx, (-1, 1))
-            pred_cy = L.reshape(pred_cy, (-1, 1))
-            pred_w = L.reshape(pred_w, (-1, 1))
-            pred_h = L.reshape(pred_h, (-1, 1))
-            pred_cx_cy_w_h = L.concat([pred_cx, pred_cy, pred_w, pred_h], -1)   # [批大小*所有格子数, 4]
-
-            # 真实的矩形。cx_cy_w_h格式，以格子中心点为坐标原点。
-            true_cx = (trw - tlw) * 0.5
-            true_cy = (tbh - tth) * 0.5
-            true_w = (tlw + trw)
-            true_h = (tth + tbh)
-            true_cx = L.reshape(true_cx, (-1, 1))
-            true_cy = L.reshape(true_cy, (-1, 1))
-            true_w = L.reshape(true_w, (-1, 1))
-            true_h = L.reshape(true_h, (-1, 1))
-            true_cx_cy_w_h = L.concat([true_cx, true_cy, true_w, true_h], -1)   # [批大小*所有格子数, 4]
-
-            # 预测的矩形。x0y0x1y1格式，以格子中心点为坐标原点。
-            boxes1_x0y0x1y1 = L.concat([pred_cx_cy_w_h[:, :2] - pred_cx_cy_w_h[:, 2:] * 0.5,
-                                        pred_cx_cy_w_h[:, :2] + pred_cx_cy_w_h[:, 2:] * 0.5], axis=-1)
-
-            # 真实的矩形。x0y0x1y1格式，以格子中心点为坐标原点。
-            boxes2_x0y0x1y1 = L.concat([true_cx_cy_w_h[:, :2] - true_cx_cy_w_h[:, 2:] * 0.5,
-                                        true_cx_cy_w_h[:, :2] + true_cx_cy_w_h[:, 2:] * 0.5], axis=-1)
-
-            # 包围矩形的左上角坐标、右下角坐标，shape 都是 (批大小*所有格子数, 2)
-            enclose_left_up = L.elementwise_min(boxes1_x0y0x1y1[:, :2], boxes2_x0y0x1y1[:, :2])
-            enclose_right_down = L.elementwise_max(boxes1_x0y0x1y1[:, 2:], boxes2_x0y0x1y1[:, 2:])
-
-            # 包围矩形的对角线的平方
-            enclose_wh = enclose_right_down - enclose_left_up
-            enclose_c2 = L.pow(enclose_wh[:, 0], 2) + L.pow(enclose_wh[:, 1], 2)
-
-            # 两矩形中心点距离的平方
-            p2 = L.pow(pred_cx_cy_w_h[:, 0] - true_cx_cy_w_h[:, 0], 2) \
-                 + L.pow(pred_cx_cy_w_h[:, 1] - true_cx_cy_w_h[:, 1], 2)
-
-            # 增加av。加上除0保护防止nan。
-            atan1 = L.atan(pred_cx_cy_w_h[:, 2] / (pred_cx_cy_w_h[:, 3] + 1e-9))
-            atan2 = L.atan(true_cx_cy_w_h[:, 2] / (true_cx_cy_w_h[:, 3] + 1e-9))
-            v = 4.0 * L.pow(atan1 - atan2, 2) / (math.pi ** 2)
-            a = v / (1 - ious + v)
-            ciou = ious - 1.0 * p2 / (enclose_c2 + 1e-9) - 1.0 * a * v
-            loss = 1.0 - ciou
+            loss = 0.0 - torch.log(ious)
         else:
             raise KeyError
-        loss = fluid.layers.reshape(loss, (-1, 1))   # [批大小*所有格子数, 1]
         if weights is not None:
             loss = loss * weights
         return loss
 
-    def __iou(self, pred, targets, positive_mask, weights=None):
-        """
-        Calculate the loss for location prediction
-        Args:
-            pred          (Variables): bounding boxes prediction
-            targets       (Variables): targets for positive samples
-            positive_mask (Variables): mask of positive samples
-            weights       (Variables): weights for each positive samples
-        Return:
-            loss (Varialbes): location loss
-        """
-        positive_mask = fluid.layers.reshape(positive_mask, (-1, ))   # [批大小*所有格子数, ]
-        plw = pred[:, 0] * positive_mask   # [批大小*所有格子数, ]， 预测的l
-        pth = pred[:, 1] * positive_mask   # [批大小*所有格子数, ]， 预测的t
-        prw = pred[:, 2] * positive_mask   # [批大小*所有格子数, ]， 预测的r
-        pbh = pred[:, 3] * positive_mask   # [批大小*所有格子数, ]， 预测的b
-        tlw = targets[:, 0] * positive_mask   # [批大小*所有格子数, ]， 真实的l
-        tth = targets[:, 1] * positive_mask   # [批大小*所有格子数, ]， 真实的t
-        trw = targets[:, 2] * positive_mask   # [批大小*所有格子数, ]， 真实的r
-        tbh = targets[:, 3] * positive_mask   # [批大小*所有格子数, ]， 真实的b
-        tlw.stop_gradient = True
-        trw.stop_gradient = True
-        tth.stop_gradient = True
-        tbh.stop_gradient = True
-        area_target = (tlw + trw) * (tth + tbh)      # [批大小*所有格子数, ]， 真实的面积
-        area_predict = (plw + prw) * (pth + pbh)     # [批大小*所有格子数, ]， 预测的面积
-        ilw = fluid.layers.elementwise_min(plw, tlw)   # [批大小*所有格子数, ]， 相交矩形的l
-        irw = fluid.layers.elementwise_min(prw, trw)   # [批大小*所有格子数, ]， 相交矩形的r
-        ith = fluid.layers.elementwise_min(pth, tth)   # [批大小*所有格子数, ]， 相交矩形的t
-        ibh = fluid.layers.elementwise_min(pbh, tbh)   # [批大小*所有格子数, ]， 相交矩形的b
-        area_inter = (ilw + irw) * (ith + ibh)   # [批大小*所有格子数, ]， 相交矩形的面积
-        ious = (area_inter + 1.0) / (
-            area_predict + area_target - area_inter + 1.0)
-        ious = ious * positive_mask
-        ious = fluid.layers.reshape(ious, (-1, 1))   # [批大小*所有格子数, 1]
-        return ious
-
-    def __call__(self, cls_logits, bboxes_reg, centerness, iou_awares, tag_labels,
-                 tag_bboxes, tag_center):
+    def forward(self, cls_logits, bboxes_reg, centerness, tag_labels, tag_bboxes, tag_center):
         """
         Calculate the loss for classification, location and centerness
         Args:
@@ -220,85 +139,80 @@ class FCOSLoss(nn.Module):
         cls_logits_flatten_list = []
         bboxes_reg_flatten_list = []
         centerness_flatten_list = []
-        iou_awares_flatten_list = []
-        self.use_iou_aware = iou_awares[0] is not None
         tag_labels_flatten_list = []
         tag_bboxes_flatten_list = []
         tag_center_flatten_list = []
         num_lvl = len(cls_logits)
         for lvl in range(num_lvl):
-            cls_logits_flatten_list.append(
-                self.__flatten_tensor(cls_logits[num_lvl - 1 - lvl], True))   # 从 小感受野 到 大感受野 遍历cls_logits
-            bboxes_reg_flatten_list.append(
-                self.__flatten_tensor(bboxes_reg[num_lvl - 1 - lvl], True))
-            centerness_flatten_list.append(
-                self.__flatten_tensor(centerness[num_lvl - 1 - lvl], True))
-            if self.use_iou_aware:
-                iou_awares_flatten_list.append(
-                    self.__flatten_tensor(iou_awares[num_lvl - 1 - lvl], True))
-            tag_labels_flatten_list.append(
-                self.__flatten_tensor(tag_labels[lvl], False))   # 从 小感受野 到 大感受野 遍历tag_labels
-            tag_bboxes_flatten_list.append(
-                self.__flatten_tensor(tag_bboxes[lvl], False))
-            tag_center_flatten_list.append(
-                self.__flatten_tensor(tag_center[lvl], False))
+            cls_logits_flatten_list.append(self.__flatten_tensor(cls_logits[num_lvl - 1 - lvl], True))   # 从 小感受野 到 大感受野 遍历cls_logits
+            bboxes_reg_flatten_list.append(self.__flatten_tensor(bboxes_reg[num_lvl - 1 - lvl], True))
+            centerness_flatten_list.append(self.__flatten_tensor(centerness[num_lvl - 1 - lvl], True))
+            tag_labels_flatten_list.append(self.__flatten_tensor(tag_labels[lvl], False))   # 从 小感受野 到 大感受野 遍历tag_labels
+            tag_bboxes_flatten_list.append(self.__flatten_tensor(tag_bboxes[lvl], False))
+            tag_center_flatten_list.append(self.__flatten_tensor(tag_center[lvl], False))
 
         # 顺序都是从 小感受野 到 大感受野
-        cls_logits_flatten = fluid.layers.concat(   # [批大小*所有格子数, 80]， 预测的类别
-            cls_logits_flatten_list, axis=0)
-        bboxes_reg_flatten = fluid.layers.concat(   # [批大小*所有格子数,  4]， 预测的lrtb
-            bboxes_reg_flatten_list, axis=0)
-        centerness_flatten = fluid.layers.concat(   # [批大小*所有格子数,  1]， 预测的centerness
-            centerness_flatten_list, axis=0)
-        iou_awares_flatten = None
-        if self.use_iou_aware:
-            iou_awares_flatten = fluid.layers.concat(   # [批大小*所有格子数,  1]， 预测的iou_aware
-                iou_awares_flatten_list, axis=0)
-        tag_labels_flatten = fluid.layers.concat(   # [批大小*所有格子数,  1]， 真实的类别id
-            tag_labels_flatten_list, axis=0)
-        tag_bboxes_flatten = fluid.layers.concat(   # [批大小*所有格子数,  4]， 真实的lrtb
-            tag_bboxes_flatten_list, axis=0)
-        tag_center_flatten = fluid.layers.concat(   # [批大小*所有格子数,  1]， 真实的centerness
-            tag_center_flatten_list, axis=0)
+        cls_logits_flatten = torch.cat(cls_logits_flatten_list, 0)   # [批大小*所有格子数, 80]， 预测的类别
+        bboxes_reg_flatten = torch.cat(bboxes_reg_flatten_list, 0)   # [批大小*所有格子数,  4]， 预测的lrtb
+        centerness_flatten = torch.cat(centerness_flatten_list, 0)   # [批大小*所有格子数,  1]， 预测的centerness
 
-        mask_positive = tag_labels_flatten > 0        # [批大小*所有格子数,  1]， 正样本处为True
-        mask_positive.stop_gradient = True
-        mask_positive_float = fluid.layers.cast(mask_positive, dtype="float32")   # [批大小*所有格子数,  1]， 正样本处为1
-        mask_positive_float.stop_gradient = True
-        num_positive_fp32 = fluid.layers.reduce_sum(mask_positive_float)   # 这一批的正样本数
-        num_positive_int32 = fluid.layers.cast(num_positive_fp32, dtype="int32")
+        tag_labels_flatten = torch.cat(tag_labels_flatten_list, 0)   # [批大小*所有格子数,  1]， 真实的类别id
+        tag_bboxes_flatten = torch.cat(tag_bboxes_flatten_list, 0)   # [批大小*所有格子数,  4]， 真实的lrtb
+        tag_center_flatten = torch.cat(tag_center_flatten_list, 0)   # [批大小*所有格子数,  1]， 真实的centerness
+        tag_labels_flatten.requires_grad = False
+        tag_bboxes_flatten.requires_grad = False
+        tag_center_flatten.requires_grad = False
+
+        mask_positive_bool = tag_labels_flatten > 0
+        mask_positive_bool.requires_grad = False
+        mask_positive_float = mask_positive_bool.float()
+        mask_positive_float.requires_grad = False
+
+        num_positive_fp32 = mask_positive_float.sum()
+        num_positive_fp32.requires_grad = False
+        num_positive_int32 = num_positive_fp32.int()
         num_positive_int32 = num_positive_int32 * 0 + 1
-        num_positive_fp32.stop_gradient = True
-        num_positive_int32.stop_gradient = True
-        normalize_sum = fluid.layers.sum(tag_center_flatten)
-        normalize_sum.stop_gradient = True
-        normalize_sum = fluid.layers.reduce_sum(mask_positive_float * normalize_sum)   # 正样本的centerness求和
-        normalize_sum.stop_gradient = True
+        num_positive_int32.requires_grad = False
 
-        cls_loss = fluid.layers.sigmoid_focal_loss(
-            cls_logits_flatten, tag_labels_flatten,
-            num_positive_int32) / fluid.layers.elementwise_max(fluid.layers.ones((1, ), dtype='float32'), num_positive_fp32)   # 当没有gt时，即num_positive_fp32==0时，focal_loss什么都不除。
+        normalize_sum = (tag_center_flatten * mask_positive_float).sum()
+        normalize_sum.requires_grad = False
+
+        # 1. cls_logits: sigmoid_focal_loss
+        # expand onehot labels
+        num_classes = cls_logits_flatten.shape[-1]
+        tag_labels_flatten = tag_labels_flatten.squeeze(-1)
+        tag_labels_flatten = tag_labels_flatten.long()
+        tag_labels_flatten_bin = F.one_hot(
+            tag_labels_flatten, num_classes=1 + num_classes)
+        tag_labels_flatten_bin = tag_labels_flatten_bin[:, 1:]
+        # sigmoid_focal_loss
+        cls_loss = self.sigmoid_focal_loss(cls_logits_flatten, tag_labels_flatten_bin, self.loss_alpha, self.loss_gamma) / num_positive_fp32
+
+        # 2. bboxes_reg: giou_loss
+        mask_positive_float = mask_positive_float.squeeze(-1)
+        tag_center_flatten = tag_center_flatten.squeeze(-1)
         reg_loss = self.__iou_loss(
-            bboxes_reg_flatten, tag_bboxes_flatten, mask_positive_float,
-            tag_center_flatten) * mask_positive_float / (normalize_sum + 1e-9)
-        ctn_loss = fluid.layers.sigmoid_cross_entropy_with_logits(
-            x=centerness_flatten,
-            label=tag_center_flatten) * mask_positive_float / (num_positive_fp32 + 1e-9)
+            bboxes_reg_flatten,
+            tag_bboxes_flatten,
+            mask_positive_float,
+            weights=tag_center_flatten)
+        reg_loss = reg_loss * mask_positive_float / normalize_sum
 
+        # 3. centerness: sigmoid_cross_entropy_with_logits_loss
+        centerness_flatten = centerness_flatten.squeeze(-1)
+        ctn_loss = self.sigmoid_cross_entropy_with_logits(centerness_flatten, tag_center_flatten)
+        ctn_loss = ctn_loss * mask_positive_float / num_positive_fp32
+
+        ctn_loss = ctn_loss.sum()
+        cls_loss = cls_loss.sum()
+        reg_loss = reg_loss.sum()
+        total_loss = ctn_loss + cls_loss + reg_loss
         loss_all = {
-            "loss_centerness": fluid.layers.reduce_sum(ctn_loss),
-            "loss_cls": fluid.layers.reduce_sum(cls_loss),
-            "loss_box": fluid.layers.reduce_sum(reg_loss)
+            "total_loss": total_loss,
+            "loss_centerness": ctn_loss,
+            "loss_cls": cls_loss,
+            "loss_box": reg_loss
         }
-
-        iouk = self.__iou(bboxes_reg_flatten, tag_bboxes_flatten, mask_positive_float,
-                          tag_center_flatten)
-        if self.use_iou_aware:
-            ioup = L.sigmoid(iou_awares_flatten)
-            iouk.stop_gradient = True
-            loss_iou_aware = fluid.layers.cross_entropy(ioup, iouk, soft_label=True)
-            loss_iou_aware = loss_iou_aware * mask_positive_float
-            loss_all["loss_iou_aware"] = fluid.layers.reduce_sum(loss_iou_aware)
         return loss_all
 
 

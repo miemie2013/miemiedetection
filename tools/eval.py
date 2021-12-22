@@ -148,8 +148,8 @@ def main(exp, args, num_gpu):
         if args.tsize is not None:
             exp.test_size = (args.tsize, args.tsize)
         model = exp.get_model()
-        logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
-        logger.info("Model Structure:\n{}".format(str(model)))
+        # logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
+        # logger.info("Model Structure:\n{}".format(str(model)))
         evaluator = exp.get_evaluator(args.batch_size, is_distributed, args.test, args.legacy)
     elif archi_name == 'PPYOLO':
         # PPYOLO使用的是matrix_nms，修改matrix_nms的配置。
@@ -159,8 +159,8 @@ def main(exp, args, num_gpu):
         if args.tsize is not None:
             exp.test_size = (args.tsize, args.tsize)
         model = exp.get_model()
-        logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
-        logger.info("Model Structure:\n{}".format(str(model)))
+        # logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
+        # logger.info("Model Structure:\n{}".format(str(model)))
         evaluator = exp.get_evaluator(args.batch_size, is_distributed, args.test)
     elif archi_name == 'FCOS':
         # FCOS暂时使用的是matrix_nms，修改matrix_nms的配置。
@@ -170,8 +170,8 @@ def main(exp, args, num_gpu):
         if args.tsize is not None:
             exp.test_size = (args.tsize, exp.test_size[1])
         model = exp.get_model()
-        logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
-        logger.info("Model Structure:\n{}".format(str(model)))
+        # logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
+        # logger.info("Model Structure:\n{}".format(str(model)))
         evaluator = exp.get_evaluator(args.batch_size, is_distributed, args.test)
     else:
         raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))

@@ -84,6 +84,21 @@ class FCOSHead(torch.nn.Module):
 
         self.relu = torch.nn.ReLU(inplace=True)
 
+    def add_param_group(self, param_groups, base_lr, base_wd):
+        for lvl in range(0, self.num_convs):
+            self.cls_convs[lvl].add_param_group(param_groups, base_lr, base_wd)
+            self.reg_convs[lvl].add_param_group(param_groups, base_lr, base_wd)
+        self.ctn_pred.add_param_group(param_groups, base_lr, base_wd)
+        self.cls_pred.add_param_group(param_groups, base_lr, base_wd)
+        self.reg_pred.add_param_group(param_groups, base_lr, base_wd)
+
+        for i in range(self.n_layers):     # 遍历每个输出层
+            param_group_scale = {'params': [self.scales_on_reg[i]]}
+            param_group_scale['lr'] = base_lr * 1.0
+            param_group_scale['base_lr'] = base_lr * 1.0
+            param_group_scale['weight_decay'] = 0.0
+            param_groups.append(param_group_scale)
+
     def _fcos_head(self, fpn_feat, fpn_stride, i, is_training=False):
         """
         Args:
@@ -232,9 +247,9 @@ class FCOSHead(torch.nn.Module):
         # 训练状态的话，bbox_reg不会乘以下采样倍率，这样得到的坐标单位1表示当前层的1个格子边长。
         # 因为在Gt2FCOSTarget中设置了norm_reg_targets=True对回归的lrtb进行了归一化，归一化方式是除以格子边长（即下采样倍率），
         # 所以网络预测的lrtb的单位1实际上代表了当前层的1个格子边长。
-        cls_logits, bboxes_reg, centerness, iou_awares = self._get_output(
+        cls_logits, bboxes_reg, centerness = self._get_output(
             input, is_training=True)
-        loss = self.fcos_loss(cls_logits, bboxes_reg, centerness, iou_awares, tag_labels,
+        loss = self.fcos_loss(cls_logits, bboxes_reg, centerness, tag_labels,
                               tag_bboxes, tag_centerness)
         return loss
 

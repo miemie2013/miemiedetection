@@ -2225,9 +2225,7 @@ class YOLOXResizeImage(BaseOperator):
         self.use_cv2 = use_cv2
         self.resize_box = resize_box
         if not (isinstance(target_size, int) or isinstance(target_size, list)):
-            raise TypeError(
-                "Type of target_size is invalid. Must be Integer or List, now is {}".
-                    format(type(target_size)))
+            raise TypeError("Type of target_size is invalid. Must be Integer or List, now is {}".format(type(target_size)))
         self.target_size = target_size
 
     def __call__(self, sample, target_size, context=None):
@@ -2279,8 +2277,7 @@ class YOLOXResizeImage(BaseOperator):
             im = np.array(im)
         sample['image'] = im
         sample['scale_factor'] = [im_scale_x, im_scale_y] * 2
-        if 'gt_bbox' in sample and self.resize_box and len(sample[
-                                                               'gt_bbox']) > 0:
+        if 'gt_bbox' in sample and self.resize_box and len(sample['gt_bbox']) > 0:
             bboxes = sample['gt_bbox'] * sample['scale_factor']
             bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, resize_w - 1)
             bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, resize_h - 1)

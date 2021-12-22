@@ -12,7 +12,7 @@ import torch
 import numpy as np
 from pycocotools.coco import COCO
 
-from .. import RandomShapeSingle
+from .. import RandomShapeSingle, YOLOXResizeImage
 from ..dataloading import get_yolox_datadir
 from .datasets_wrapper import Dataset
 
@@ -370,7 +370,7 @@ class PPYOLO_COCOEvalDataset(torch.utils.data.Dataset):
 
 
 class FCOS_COCOEvalDataset(torch.utils.data.Dataset):
-    def __init__(self, data_dir, json_file, ann_folder, name, cfg, sample_transforms, batch_transforms):
+    def __init__(self, data_dir, json_file, ann_folder, name, cfg, sample_transforms):
         self.data_dir = data_dir
         self.json_file = json_file
         self.ann_folder = ann_folder
@@ -400,7 +400,6 @@ class FCOS_COCOEvalDataset(torch.utils.data.Dataset):
         self.records = val_records
         self.context = cfg.context
         self.sample_transforms = sample_transforms
-        self.batch_transforms = batch_transforms
         self.catid2clsid = _catid2clsid
         self.clsid2catid = _clsid2catid
         self.num_record = len(val_records)
@@ -417,17 +416,11 @@ class FCOS_COCOEvalDataset(torch.utils.data.Dataset):
         for sample_transform in self.sample_transforms:
             sample = sample_transform(sample, self.context)
 
-        # batch_transforms
-        samples = [sample]
-        for batch_transform in self.batch_transforms:
-            samples = batch_transform(samples, self.context)
-        sample = samples[0]
-
         # 取出感兴趣的项
         pimage = sample['image']
-        im_scale = np.array([sample['im_info'][2]]).astype(np.float32)
-        id = sample['im_id']
-        return pimage, im_scale, id
+        im_info = sample['im_info']
+        im_id = sample['im_id']
+        return pimage, im_info, im_id
 
 
 class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
@@ -587,5 +580,174 @@ class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
             target2 = sample['target2'].astype(np.float32)
             return image, gt_bbox, gt_score, gt_class, target0, target1, target2
         return image, gt_bbox, gt_score, gt_class, target0, target1
+
+
+
+class FCOS_COCOTrainDataset(torch.utils.data.Dataset):
+    def __init__(self, data_dir, json_file, ann_folder, name, cfg, sample_transforms, batch_transforms, batch_size, start_epoch):
+        self.data_dir = data_dir
+        self.json_file = json_file
+        self.ann_folder = ann_folder
+        self.name = name
+
+        # 训练集
+        train_path = os.path.join(self.data_dir, self.ann_folder, self.json_file)
+        train_pre_path = os.path.join(self.data_dir, self.name)
+
+        # 种类id
+        _catid2clsid, _clsid2catid, _clsid2cname, class_names = get_class_msg(train_path)
+
+        train_dataset = COCO(train_path)
+        train_img_ids = train_dataset.getImgIds()
+        train_records = data_clean(train_dataset, train_img_ids, _catid2clsid, train_pre_path, 'train')
+
+        self.coco = train_dataset
+        self.records = train_records
+        self.context = cfg.context
+        self.sample_transforms = sample_transforms
+        self.batch_transforms = batch_transforms
+        self.catid2clsid = _catid2clsid
+        self.clsid2catid = _clsid2catid
+        self.num_record = len(train_records)
+        self.with_mixup = cfg.decodeImage.get('with_mixup', False)
+        self.with_cutmix = cfg.decodeImage.get('with_cutmix', False)
+        self.with_mosaic = cfg.decodeImage.get('with_mosaic', False)
+        self.batch_size = batch_size
+
+
+        # 一轮的步数。丢弃最后几个样本。
+        self.train_steps = self.num_record // batch_size
+
+        # mixup、cutmix、mosaic数据增强的步数
+        self.aug_steps = self.train_steps * cfg.aug_epochs
+
+        # 一轮的样本数。丢弃最后几个样本。
+        train_samples = self.train_steps * batch_size
+
+        # 训练多少轮
+        self.max_epoch = cfg.max_epoch
+        # 总共训练多少步
+        self.max_iters = self.train_steps * self.max_epoch
+
+
+        # 训练样本
+        indexes = [i for i in range(self.num_record)]
+        self.indexes = []
+        while len(self.indexes) < self.max_iters * batch_size:
+            indexes2 = copy.deepcopy(indexes)
+            # 每个epoch之前洗乱
+            np.random.shuffle(indexes2)
+            indexes2 = indexes2[:train_samples]
+            self.indexes += indexes2
+        self.indexes = self.indexes[:self.max_iters * batch_size]
+
+        # 多尺度训练
+        sizes = cfg.yOLOXResizeImage['target_size']
+        self.shapes = []
+        while len(self.shapes) < self.max_iters:
+            shape = np.random.choice(sizes)
+            self.shapes.append(shape)
+        self.shapes = self.shapes[:self.max_iters]
+
+        # 初始化开始的迭代id
+        self.init_iter_id = start_epoch * self.train_steps
+
+        # 输出特征图数量
+        self.n_layers = len(cfg.head['fpn_stride'])
+
+
+    def __len__(self):
+        return len(self.indexes)
+
+    def __getitem__(self, idx):
+        iter_id = idx // self.batch_size
+        if iter_id < self.init_iter_id:   # 恢复训练时跳过。
+            image = np.zeros((1, ), np.float32)
+            gt_bbox = np.zeros((1, ), np.float32)
+            gt_score = np.zeros((1, ), np.float32)
+            gt_class = np.zeros((1, ), np.float32)
+            target0 = np.zeros((1, ), np.float32)
+            target1 = np.zeros((1, ), np.float32)
+            target2 = np.zeros((1, ), np.float32)
+            if self.n_layers == 3:
+                return image, gt_bbox, gt_score, gt_class, target0, target1, target2
+            elif self.n_layers == 2:
+                return image, gt_bbox, gt_score, gt_class, target0, target1
+
+        img_idx = self.indexes[idx]
+        shape = self.shapes[iter_id]
+        sample = copy.deepcopy(self.records[img_idx])
+        sample["curr_iter"] = iter_id
+
+        # 为mixup数据增强做准备
+        if self.with_mixup and iter_id <= self.aug_steps:
+            num = len(self.records)
+            mix_idx = np.random.randint(0, num)
+            while mix_idx == img_idx:   # 为了不选到自己
+                mix_idx = np.random.randint(0, num)
+            sample['mixup'] = copy.deepcopy(self.records[mix_idx])
+            sample['mixup']["curr_iter"] = iter_id
+
+        # 为cutmix数据增强做准备
+        if self.with_cutmix and iter_id <= self.aug_steps:
+            num = len(self.records)
+            mix_idx = np.random.randint(0, num)
+            while mix_idx == img_idx:   # 为了不选到自己
+                mix_idx = np.random.randint(0, num)
+            sample['cutmix'] = copy.deepcopy(self.records[mix_idx])
+            sample['cutmix']["curr_iter"] = iter_id
+
+        # 为mosaic数据增强做准备
+        if self.with_mosaic and iter_id <= self.aug_steps:
+            num = len(self.records)
+            mix_idx = np.random.randint(0, num)
+            while mix_idx == img_idx:   # 为了不选到自己
+                mix_idx = np.random.randint(0, num)
+            sample['mosaic1'] = copy.deepcopy(self.records[mix_idx])
+            sample['mosaic1']["curr_iter"] = iter_id
+
+            mix_idx2 = np.random.randint(0, num)
+            while mix_idx2 in [img_idx, mix_idx]:   # 为了不重复
+                mix_idx2 = np.random.randint(0, num)
+            sample['mosaic2'] = copy.deepcopy(self.records[mix_idx2])
+            sample['mosaic2']["curr_iter"] = iter_id
+
+            mix_idx3 = np.random.randint(0, num)
+            while mix_idx3 in [img_idx, mix_idx, mix_idx2]:   # 为了不重复
+                mix_idx3 = np.random.randint(0, num)
+            sample['mosaic3'] = copy.deepcopy(self.records[mix_idx3])
+            sample['mosaic3']["curr_iter"] = iter_id
+
+        # sample_transforms
+        for sample_transform in self.sample_transforms:
+            if isinstance(sample_transform, YOLOXResizeImage):
+                sample = sample_transform(sample, shape, self.context)
+            else:
+                sample = sample_transform(sample, self.context)
+
+        # batch_transforms
+        for batch_transform in self.batch_transforms:
+            sample = batch_transform(sample, self.context)
+
+        # 取出感兴趣的项
+        image = sample['image'].astype(np.float32)
+        labels0 = sample['labels0'].astype(np.int32)
+        reg_target0 = sample['reg_target0'].astype(np.float32)
+        centerness0 = sample['centerness0'].astype(np.float32)
+        labels1 = sample['labels1'].astype(np.int32)
+        reg_target1 = sample['reg_target1'].astype(np.float32)
+        centerness1 = sample['centerness1'].astype(np.float32)
+        labels2 = sample['labels2'].astype(np.int32)
+        reg_target2 = sample['reg_target2'].astype(np.float32)
+        centerness2 = sample['centerness2'].astype(np.float32)
+        if self.n_layers == 5:
+            labels3 = sample['labels3'].astype(np.int32)
+            reg_target3 = sample['reg_target3'].astype(np.float32)
+            centerness3 = sample['centerness3'].astype(np.float32)
+            labels4 = sample['labels4'].astype(np.int32)
+            reg_target4 = sample['reg_target4'].astype(np.float32)
+            centerness4 = sample['centerness4'].astype(np.float32)
+            return image, labels0, reg_target0, centerness0, labels1, reg_target1, centerness1, labels2, reg_target2, centerness2, labels3, reg_target3, centerness3, labels4, reg_target4, centerness4
+        return image, labels0, reg_target0, centerness0, labels1, reg_target1, centerness1, labels2, reg_target2, centerness2
 
 

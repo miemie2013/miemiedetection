@@ -277,7 +277,7 @@ class COCOEvaluator:
                     nms_end = time_synchronized()
                     nms_time += nms_end - infer_end
 
-            data_list.extend(self.convert_to_coco_format2(preds, ids))
+            data_list.extend(self.convert_to_coco_format3(preds, ids))
 
         statistics = torch.cuda.FloatTensor([inference_time, nms_time, n_samples])
         if distributed:
@@ -348,6 +348,48 @@ class COCOEvaluator:
                 h = ymax - ymin + 1
                 # w = xmax - xmin
                 # h = ymax - ymin
+                bbox = [xmin, ymin, w, h]
+                # Round to the nearest 10th to avoid huge file sizes, as COCO suggests
+                bbox = [round(float(x) * 10) / 10 for x in bbox]
+
+                pred_data = {
+                    "image_id": int(img_id),
+                    "category_id": label,
+                    # "bbox": bboxes[ind].numpy().tolist(),
+                    "bbox": bbox,
+                    "score": scores[ind].numpy().item(),
+                    "segmentation": [],
+                }  # COCO json format
+                data_list.append(pred_data)
+        return data_list
+
+    def convert_to_coco_format3(self, preds, ids):
+        data_list = []
+        for (pred, img_id) in zip(
+            preds, ids
+        ):
+            if pred is None:
+                continue
+            if pred[0][0] < 0.0:
+                continue
+            output = pred.cpu()
+
+            bboxes = output[:, 2:6]  # xyxy
+            # 这里开始YOLOX和PPYOLO的评测代码不同
+            # bboxes = xyxy2xywh(bboxes)
+
+            cls = output[:, 0]
+            scores = output[:, 1]
+            for ind in range(bboxes.shape[0]):
+                label = self.dataloader.dataset.clsid2catid[int(cls[ind])]
+
+                # YOLOX和PPYOLO的评测代码不同
+                xmin, ymin, xmax, ymax = bboxes[ind].numpy().tolist()
+                # 不需要+1
+                # w = xmax - xmin + 1
+                # h = ymax - ymin + 1
+                w = xmax - xmin
+                h = ymax - ymin
                 bbox = [xmin, ymin, w, h]
                 # Round to the nearest 10th to avoid huge file sizes, as COCO suggests
                 bbox = [round(float(x) * 10) / 10 for x in bbox]

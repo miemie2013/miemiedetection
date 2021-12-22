@@ -14,6 +14,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 
 from mmdet.data import DataPrefetcher, PPYOLODataPrefetcher
+from mmdet.data.data_prefetcher import FCOSDataPrefetcher
 from mmdet.utils import (
     MeterBuffer,
     ModelEMA,
@@ -59,6 +60,8 @@ class Trainer:
             self.input_size = exp.input_size
         elif self.archi_name == 'PPYOLO':
             pass
+        elif self.archi_name == 'FCOS':
+            pass
         else:
             raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
         self.best_ap = 0
@@ -93,6 +96,8 @@ class Trainer:
                 self.train_in_iter()
                 self.after_epoch()
         elif self.archi_name == 'PPYOLO':
+            self.train_in_all_iter()   # 所有的epoch被合并成1个大的epoch
+        elif self.archi_name == 'FCOS':
             self.train_in_all_iter()   # 所有的epoch被合并成1个大的epoch
         else:
             raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
@@ -172,6 +177,73 @@ class Trainer:
                 elif self.n_layers == 2:
                     targets = [target0, target1]
                 outputs = self.model.train_model(inps, gt_bbox, gt_class, gt_score, targets)
+
+            loss = outputs["total_loss"]
+
+            # 修改学习率
+            lr = self.calc_lr(self.iter, self.epoch_steps, self.max_iters, self.exp)
+            for param_group in self.optimizer.param_groups:
+                param_group['lr'] = lr * param_group['base_lr'] / self.base_lr
+
+            self.optimizer.zero_grad()
+            self.scaler.scale(loss).backward()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+
+            if self.use_model_ema:
+                self.ema_model.update(self.model)
+        elif self.archi_name == 'FCOS':
+            if self.n_layers == 5:
+                inps, labels0, reg_target0, centerness0, labels1, reg_target1, centerness1, labels2, reg_target2, centerness2, labels3, reg_target3, centerness3, labels4, reg_target4, centerness4 = self.prefetcher.next()
+            elif self.n_layers == 3:
+                inps, labels0, reg_target0, centerness0, labels1, reg_target1, centerness1, labels2, reg_target2, centerness2 = self.prefetcher.next()
+            if self.iter < self.init_iter_id:  # 恢复训练时跳过。
+                train_iter = False
+                return train_iter
+            inps = inps.to(self.data_type)
+            labels0 = labels0.to(self.data_type)
+            reg_target0 = reg_target0.to(self.data_type)
+            centerness0 = centerness0.to(self.data_type)
+            labels1 = labels1.to(self.data_type)
+            reg_target1 = reg_target1.to(self.data_type)
+            centerness1 = centerness1.to(self.data_type)
+            labels2 = labels2.to(self.data_type)
+            reg_target2 = reg_target2.to(self.data_type)
+            centerness2 = centerness2.to(self.data_type)
+            if self.n_layers == 5:
+                labels3 = labels3.to(self.data_type)
+                reg_target3 = reg_target3.to(self.data_type)
+                centerness3 = centerness3.to(self.data_type)
+                labels4 = labels4.to(self.data_type)
+                reg_target4 = reg_target4.to(self.data_type)
+                centerness4 = centerness4.to(self.data_type)
+                labels3.requires_grad = False
+                reg_target3.requires_grad = False
+                centerness3.requires_grad = False
+                labels4.requires_grad = False
+                reg_target4.requires_grad = False
+                centerness4.requires_grad = False
+            labels0.requires_grad = False
+            reg_target0.requires_grad = False
+            centerness0.requires_grad = False
+            labels1.requires_grad = False
+            reg_target1.requires_grad = False
+            centerness1.requires_grad = False
+            labels2.requires_grad = False
+            reg_target2.requires_grad = False
+            centerness2.requires_grad = False
+            data_end_time = time.time()
+
+            with torch.cuda.amp.autocast(enabled=self.amp_training):
+                if self.n_layers == 5:
+                    tag_labels = [labels0, labels1, labels2, labels3, labels4]
+                    tag_bboxes = [reg_target0, reg_target1, reg_target2, reg_target3, reg_target4]
+                    tag_center = [centerness0, centerness1, centerness2, centerness3, centerness4]
+                elif self.n_layers == 3:
+                    tag_labels = [labels0, labels1, labels2]
+                    tag_bboxes = [reg_target0, reg_target1, reg_target2]
+                    tag_center = [centerness0, centerness1, centerness2]
+                outputs = self.model.train_model(inps, tag_labels, tag_bboxes, tag_center)
 
             loss = outputs["total_loss"]
 
@@ -337,6 +409,63 @@ class Trainer:
 
             logger.info("init prefetcher, this might take one minute or less...")
             self.prefetcher = PPYOLODataPrefetcher(self.train_loader, self.n_layers)
+            # max_iter means iters per epoch
+            self.max_iter = len(self.train_loader)
+
+            # self.lr_scheduler = self.exp.get_lr_scheduler(
+            #     self.exp.basic_lr_per_img * self.args.batch_size, self.max_iter
+            # )
+            if self.args.occupy:
+                occupy_mem(self.local_rank)
+
+            if self.is_distributed:
+                model = DDP(model, device_ids=[self.local_rank], broadcast_buffers=False)
+
+            if self.use_model_ema:
+                self.ema_model = ModelEMA(model, self.exp.ema_decay)
+                self.ema_model.updates = self.max_iter * self.start_epoch
+
+            self.model = model
+            self.model.train()
+
+            self.evaluator = self.exp.get_evaluator(
+                batch_size=self.args.eval_batch_size, is_distributed=self.is_distributed
+            )
+        elif self.archi_name == 'FCOS':
+            # 修改基础学习率
+            base_lr = self.exp.learningRate['base_lr']
+            base_lr *= self.args.batch_size
+            self.exp.learningRate['base_lr'] = base_lr
+            self.base_lr = base_lr
+
+            # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
+            param_groups = []
+            base_wd = self.exp.weight_decay
+            momentum = self.exp.momentum
+            model.add_param_group(param_groups, base_lr, base_wd)
+
+            # solver related init
+            self.optimizer = self.exp.get_optimizer(param_groups, lr=base_lr, momentum=momentum, weight_decay=base_wd)
+
+            # value of epoch will be set in `resume_train`
+            model = self.resume_train(model)
+
+
+            self.train_loader = self.exp.get_data_loader(
+                batch_size=self.args.batch_size,
+                start_epoch=self.start_epoch,
+                is_distributed=self.is_distributed,
+                cache_img=self.args.cache,
+            )
+            self.epoch_steps = self.exp.epoch_steps
+            self.max_iters = self.exp.max_iters
+            self.n_layers = self.exp.n_layers
+
+            # 初始化开始的迭代id
+            self.init_iter_id = self.start_epoch * self.epoch_steps
+
+            logger.info("init prefetcher, this might take one minute or less...")
+            self.prefetcher = FCOSDataPrefetcher(self.train_loader, self.n_layers)
             # max_iter means iters per epoch
             self.max_iter = len(self.train_loader)
 

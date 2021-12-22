@@ -14,6 +14,43 @@ from mmdet.data import *
 from mmdet.exp.datasets.coco_base import COCOBaseExp
 
 
+class FCOSEvalCollater():
+    def __init__(self, context, batch_transforms):
+        self.context = context
+        self.batch_transforms = batch_transforms
+
+    def __call__(self, batch):
+        # 重组samples
+        samples = []
+        for i, item in enumerate(batch):
+            sample = {}
+            sample['image'] = item[0]
+            sample['im_info'] = item[1]
+            sample['im_id'] = item[2]
+            samples.append(sample)
+
+        # batch_transforms
+        for batch_transform in self.batch_transforms:
+            samples = batch_transform(samples, self.context)
+
+        # 取出感兴趣的项
+        images = []
+        im_scales = []
+        im_ids = []
+        for i, sample in enumerate(samples):
+            images.append(sample['image'])
+            im_scales.append(sample['im_info'][2:3])
+            im_ids.append(sample['im_id'])
+        images = np.stack(images, axis=0)
+        im_scales = np.stack(im_scales, axis=0)
+        im_ids = np.stack(im_ids, axis=0)
+
+        images = torch.Tensor(images)
+        im_scales = torch.Tensor(im_scales)
+        im_ids = torch.Tensor(im_ids)
+        return images, im_scales, im_ids
+
+
 class FCOS_Method_Exp(COCOBaseExp):
     def __init__(self):
         super().__init__()
@@ -21,26 +58,26 @@ class FCOS_Method_Exp(COCOBaseExp):
         self.archi_name = 'FCOS'
 
         # --------------  training config --------------------- #
-        self.max_epoch = 811
-        self.aug_epochs = 811  # 前几轮进行mixup、cutmix、mosaic
+        self.max_epoch = 48
+        self.aug_epochs = 48  # 前几轮进行mixup、cutmix、mosaic
 
         self.ema = True
         self.ema_decay = 0.9998
-        self.weight_decay = 5e-4
+        self.weight_decay = 1e-4
         self.momentum = 0.9
         self.print_interval = 20
-        self.eval_interval = 10
+        self.eval_interval = 2
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
         self.learningRate = dict(
-            base_lr=0.01 / 192,   # 最初base_lr表示的是每一张图片的学习率。代码中会自动修改为乘以批大小。
+            base_lr=0.01 / 16,   # 最初base_lr表示的是每一张图片的学习率。代码中会自动修改为乘以批大小。
             PiecewiseDecay=dict(
                 gamma=0.1,
-                milestones_epoch=[649, 730],
+                milestones_epoch=[32, 44],
             ),
             LinearWarmup=dict(
-                start_factor=0.,
-                steps=4000,
+                start_factor=0.3333333333333333,
+                steps=500,
             ),
         )
 
@@ -152,8 +189,8 @@ class FCOS_Method_Exp(COCOBaseExp):
             to_bgr=False,
             channel_first=True,
         )
-        # PadBatchSingle
-        self.padBatchSingle = dict(
+        # PadBatch
+        self.padBatch = dict(
             pad_to_stride=32,   # 添加黑边使得图片边长能够被pad_to_stride整除。pad_to_stride代表着最大下采样倍率，这个模型最大到p5，为32。
             use_padded_im_info=False,
         )
@@ -179,7 +216,7 @@ class FCOS_Method_Exp(COCOBaseExp):
         self.sample_transforms_seq.append('resizeImage')
         self.sample_transforms_seq.append('permute')
         self.batch_transforms_seq = []
-        self.batch_transforms_seq.append('padBatchSingle')
+        self.batch_transforms_seq.append('padBatch')
         self.batch_transforms_seq.append('gt2FCOSTargetSingle')
 
         # ---------------- dataloader config ---------------- #
@@ -190,6 +227,7 @@ class FCOS_Method_Exp(COCOBaseExp):
         from mmdet.models import Resnet50Vd, Resnet18Vd, Resnet50Vb
         from mmdet.models.necks.fpn import FPN
         from mmdet.models import FCOS, FCOSHead
+        from mmdet.models import FCOSLoss
         if getattr(self, "model", None) is None:
             Backbone = None
             if self.backbone_type == 'Resnet50Vd':
@@ -206,10 +244,8 @@ class FCOS_Method_Exp(COCOBaseExp):
             if self.fpn_type == 'FPN':
                 Fpn = FPN
             fpn = Fpn(**self.fpn)
-            # Loss = select_loss(cfg.fcos_loss_type)
-            # fcos_loss = Loss(**cfg.fcos_loss)
-            # head = FCOSHead(fcos_loss=fcos_loss, nms_cfg=self.nms_cfg, **self.head)
-            head = FCOSHead(fcos_loss=None, nms_cfg=self.nms_cfg, **self.head)
+            fcos_loss = FCOSLoss(**self.fcos_loss)
+            head = FCOSHead(fcos_loss=fcos_loss, nms_cfg=self.nms_cfg, **self.head)
             self.model = FCOS(backbone, fpn, head)
         return self.model
 
@@ -217,7 +253,7 @@ class FCOS_Method_Exp(COCOBaseExp):
         self, batch_size, start_epoch, is_distributed, cache_img=False
     ):
         from mmdet.data import (
-            PPYOLO_COCOTrainDataset,
+            FCOS_COCOTrainDataset,
             InfiniteSampler,
             worker_init_reset_seed,
         )
@@ -233,7 +269,7 @@ class FCOS_Method_Exp(COCOBaseExp):
             sample_transforms = get_sample_transforms(self)
             batch_transforms = get_batch_transforms(self)
 
-            train_dataset = PPYOLO_COCOTrainDataset(
+            train_dataset = FCOS_COCOTrainDataset(
                 data_dir=self.data_dir,
                 json_file=self.train_ann,
                 ann_folder=self.ann_folder,
@@ -248,7 +284,7 @@ class FCOS_Method_Exp(COCOBaseExp):
         self.dataset = train_dataset
         self.epoch_steps = train_dataset.train_steps
         self.max_iters = train_dataset.max_iters
-        self.n_heads = train_dataset.n_heads
+        self.n_layers = train_dataset.n_layers
 
         if is_distributed:
             batch_size = batch_size // dist.get_world_size()
@@ -301,12 +337,12 @@ class FCOS_Method_Exp(COCOBaseExp):
         normalizeImage = NormalizeImage(**self.normalizeImage)
         target_size = self.test_size[0]
         max_size = self.test_size[1]
-        resizeImage = ResizeImage(target_size=target_size, resize_box=False, interp=self.resizeImage['interp'],
-                                  max_size=max_size, use_cv2=self.resizeImage['use_cv2'])
+        resizeImage = ResizeImage(target_size=target_size, max_size=max_size, interp=self.resizeImage['interp'],
+                                  use_cv2=self.resizeImage['use_cv2'])
         permute = Permute(**self.permute)
 
         # batch_transforms
-        padBatch = PadBatch(use_padded_im_info=True, pad_to_stride=self.padBatchSingle['pad_to_stride'])
+        padBatch = PadBatch(**self.padBatch)
 
         sample_transforms = [decodeImage, normalizeImage, resizeImage, permute]
         batch_transforms = [padBatch]
@@ -317,7 +353,6 @@ class FCOS_Method_Exp(COCOBaseExp):
             name=self.val_image_folder if not testdev else "test2017",
             cfg=self,
             sample_transforms=sample_transforms,
-            batch_transforms=batch_transforms,
         )
 
         if is_distributed:
@@ -334,7 +369,9 @@ class FCOS_Method_Exp(COCOBaseExp):
             "sampler": sampler,
         }
         dataloader_kwargs["batch_size"] = batch_size
-        val_loader = torch.utils.data.DataLoader(val_dataset, **dataloader_kwargs)
+
+        collater = FCOSEvalCollater(self.context, batch_transforms)
+        val_loader = torch.utils.data.DataLoader(val_dataset, collate_fn=collater, **dataloader_kwargs)
 
         return val_loader
 
