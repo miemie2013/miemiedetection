@@ -51,6 +51,106 @@ class FCOSEvalCollater():
         return images, im_scales, im_ids
 
 
+class FCOSTrainCollater():
+    def __init__(self, context, batch_transforms, n_layers):
+        self.context = context
+        self.batch_transforms = batch_transforms
+        self.n_layers = n_layers
+
+    def __call__(self, batch):
+        # 重组samples
+        samples = []
+        for i, item in enumerate(batch):
+            sample = {}
+            sample['image'] = item[0]
+            sample['im_info'] = item[1]
+            sample['im_id'] = item[2]
+            sample['h'] = item[3]
+            sample['w'] = item[4]
+            sample['is_crowd'] = item[5]
+            sample['gt_class'] = item[6]
+            sample['gt_bbox'] = item[7]
+            sample['gt_score'] = item[8]
+            samples.append(sample)
+
+        # batch_transforms
+        for batch_transform in self.batch_transforms:
+            samples = batch_transform(samples, self.context)
+
+        # 取出感兴趣的项
+        images = []
+        labels0 = []
+        reg_target0 = []
+        centerness0 = []
+        labels1 = []
+        reg_target1 = []
+        centerness1 = []
+        labels2 = []
+        reg_target2 = []
+        centerness2 = []
+        labels3 = []
+        reg_target3 = []
+        centerness3 = []
+        labels4 = []
+        reg_target4 = []
+        centerness4 = []
+        for i, sample in enumerate(samples):
+            images.append(sample['image'].astype(np.float32))
+            labels0.append(sample['labels0'].astype(np.int32))
+            reg_target0.append(sample['reg_target0'].astype(np.float32))
+            centerness0.append(sample['centerness0'].astype(np.float32))
+            labels1.append(sample['labels1'].astype(np.int32))
+            reg_target1.append(sample['reg_target1'].astype(np.float32))
+            centerness1.append(sample['centerness1'].astype(np.float32))
+            labels2.append(sample['labels2'].astype(np.int32))
+            reg_target2.append(sample['reg_target2'].astype(np.float32))
+            centerness2.append(sample['centerness2'].astype(np.float32))
+            if self.n_layers == 5:
+                labels3.append(sample['labels3'].astype(np.int32))
+                reg_target3.append(sample['reg_target3'].astype(np.float32))
+                centerness3.append(sample['centerness3'].astype(np.float32))
+                labels4.append(sample['labels4'].astype(np.int32))
+                reg_target4.append(sample['reg_target4'].astype(np.float32))
+                centerness4.append(sample['centerness4'].astype(np.float32))
+        images = np.stack(images, axis=0)
+        labels0 = np.stack(labels0, axis=0)
+        reg_target0 = np.stack(reg_target0, axis=0)
+        centerness0 = np.stack(centerness0, axis=0)
+        labels1 = np.stack(labels1, axis=0)
+        reg_target1 = np.stack(reg_target1, axis=0)
+        centerness1 = np.stack(centerness1, axis=0)
+        labels2 = np.stack(labels2, axis=0)
+        reg_target2 = np.stack(reg_target2, axis=0)
+        centerness2 = np.stack(centerness2, axis=0)
+
+        images = torch.Tensor(images)
+        labels0 = torch.Tensor(labels0)
+        reg_target0 = torch.Tensor(reg_target0)
+        centerness0 = torch.Tensor(centerness0)
+        labels1 = torch.Tensor(labels1)
+        reg_target1 = torch.Tensor(reg_target1)
+        centerness1 = torch.Tensor(centerness1)
+        labels2 = torch.Tensor(labels2)
+        reg_target2 = torch.Tensor(reg_target2)
+        centerness2 = torch.Tensor(centerness2)
+        if self.n_layers == 5:
+            labels3 = np.stack(labels3, axis=0)
+            reg_target3 = np.stack(reg_target3, axis=0)
+            centerness3 = np.stack(centerness3, axis=0)
+            labels4 = np.stack(labels4, axis=0)
+            reg_target4 = np.stack(reg_target4, axis=0)
+            centerness4 = np.stack(centerness4, axis=0)
+
+            labels3 = torch.Tensor(labels3)
+            reg_target3 = torch.Tensor(reg_target3)
+            centerness3 = torch.Tensor(centerness3)
+            labels4 = torch.Tensor(labels4)
+            reg_target4 = torch.Tensor(reg_target4)
+            centerness4 = torch.Tensor(centerness4)
+            return images, labels0, reg_target0, centerness0, labels1, reg_target1, centerness1, labels2, reg_target2, centerness2, labels3, reg_target3, centerness3, labels4, reg_target4, centerness4
+        return images, labels0, reg_target0, centerness0, labels1, reg_target1, centerness1, labels2, reg_target2, centerness2
+
+
 class FCOS_Method_Exp(COCOBaseExp):
     def __init__(self):
         super().__init__()
@@ -194,8 +294,8 @@ class FCOS_Method_Exp(COCOBaseExp):
             pad_to_stride=32,   # 添加黑边使得图片边长能够被pad_to_stride整除。pad_to_stride代表着最大下采样倍率，这个模型最大到p5，为32。
             use_padded_im_info=False,
         )
-        # Gt2FCOSTargetSingle
-        self.gt2FCOSTargetSingle = dict(
+        # Gt2FCOSTarget
+        self.gt2FCOSTarget = dict(
             object_sizes_boundary=[64, 128],
             center_sampling_radius=1.5,
             downsample_ratios=[8, 16, 32],
@@ -217,7 +317,7 @@ class FCOS_Method_Exp(COCOBaseExp):
         self.sample_transforms_seq.append('permute')
         self.batch_transforms_seq = []
         self.batch_transforms_seq.append('padBatch')
-        self.batch_transforms_seq.append('gt2FCOSTargetSingle')
+        self.batch_transforms_seq.append('gt2FCOSTarget')
 
         # ---------------- dataloader config ---------------- #
         # 默认是4。如果报错“OSError: [WinError 1455] 页面文件太小,无法完成操作”，设置为2或0解决。
@@ -276,7 +376,6 @@ class FCOS_Method_Exp(COCOBaseExp):
                 name=self.train_image_folder,
                 cfg=self,
                 sample_transforms=sample_transforms,
-                batch_transforms=batch_transforms,
                 batch_size=batch_size,
                 start_epoch=start_epoch,
             )
@@ -305,7 +404,8 @@ class FCOS_Method_Exp(COCOBaseExp):
         dataloader_kwargs["worker_init_fn"] = worker_init_reset_seed
         dataloader_kwargs["shuffle"] = False
 
-        train_loader = torch.utils.data.DataLoader(self.dataset, **dataloader_kwargs)
+        collater = FCOSTrainCollater(self.context, batch_transforms, self.n_layers)
+        train_loader = torch.utils.data.DataLoader(self.dataset, collate_fn=collater, **dataloader_kwargs)
 
         return train_loader
 

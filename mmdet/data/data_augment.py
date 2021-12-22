@@ -3744,8 +3744,8 @@ def get_batch_transforms(cfg):
             preprocess = PadBatchSingle(use_padded_im_info=use_padded_im_info)   # 填充黑边。使这一批图片有相同的大小。
         elif preprocess_name == 'padBatch':
             preprocess = PadBatch(**cfg.padBatch)                         # 填充黑边。使这一批图片有相同的大小。
-        elif preprocess_name == 'gt2FCOSTargetSingle':
-            preprocess = Gt2FCOSTargetSingle(**cfg.gt2FCOSTargetSingle)   # 填写target张量。
+        elif preprocess_name == 'gt2FCOSTarget':
+            preprocess = Gt2FCOSTarget(**cfg.gt2FCOSTarget)   # 填写target张量。
         elif preprocess_name == 'gt2Solov2Target':
             preprocess = Gt2Solov2Target(**cfg.gt2Solov2Target)     # 填写target张量。
         elif preprocess_name == 'gt2RepPointsTargetSingle':

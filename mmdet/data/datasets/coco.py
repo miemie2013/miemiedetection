@@ -584,7 +584,7 @@ class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
 
 
 class FCOS_COCOTrainDataset(torch.utils.data.Dataset):
-    def __init__(self, data_dir, json_file, ann_folder, name, cfg, sample_transforms, batch_transforms, batch_size, start_epoch):
+    def __init__(self, data_dir, json_file, ann_folder, name, cfg, sample_transforms, batch_size, start_epoch):
         self.data_dir = data_dir
         self.json_file = json_file
         self.ann_folder = ann_folder
@@ -605,7 +605,6 @@ class FCOS_COCOTrainDataset(torch.utils.data.Dataset):
         self.records = train_records
         self.context = cfg.context
         self.sample_transforms = sample_transforms
-        self.batch_transforms = batch_transforms
         self.catid2clsid = _catid2clsid
         self.clsid2catid = _clsid2catid
         self.num_record = len(train_records)
@@ -641,14 +640,6 @@ class FCOS_COCOTrainDataset(torch.utils.data.Dataset):
             self.indexes += indexes2
         self.indexes = self.indexes[:self.max_iters * batch_size]
 
-        # 多尺度训练
-        sizes = cfg.yOLOXResizeImage['target_size']
-        self.shapes = []
-        while len(self.shapes) < self.max_iters:
-            shape = np.random.choice(sizes)
-            self.shapes.append(shape)
-        self.shapes = self.shapes[:self.max_iters]
-
         # 初始化开始的迭代id
         self.init_iter_id = start_epoch * self.train_steps
 
@@ -675,7 +666,6 @@ class FCOS_COCOTrainDataset(torch.utils.data.Dataset):
                 return image, gt_bbox, gt_score, gt_class, target0, target1
 
         img_idx = self.indexes[idx]
-        shape = self.shapes[iter_id]
         sample = copy.deepcopy(self.records[img_idx])
         sample["curr_iter"] = iter_id
 
@@ -720,34 +710,18 @@ class FCOS_COCOTrainDataset(torch.utils.data.Dataset):
 
         # sample_transforms
         for sample_transform in self.sample_transforms:
-            if isinstance(sample_transform, YOLOXResizeImage):
-                sample = sample_transform(sample, shape, self.context)
-            else:
-                sample = sample_transform(sample, self.context)
-
-        # batch_transforms
-        for batch_transform in self.batch_transforms:
-            sample = batch_transform(sample, self.context)
+            sample = sample_transform(sample, self.context)
 
         # 取出感兴趣的项
-        image = sample['image'].astype(np.float32)
-        labels0 = sample['labels0'].astype(np.int32)
-        reg_target0 = sample['reg_target0'].astype(np.float32)
-        centerness0 = sample['centerness0'].astype(np.float32)
-        labels1 = sample['labels1'].astype(np.int32)
-        reg_target1 = sample['reg_target1'].astype(np.float32)
-        centerness1 = sample['centerness1'].astype(np.float32)
-        labels2 = sample['labels2'].astype(np.int32)
-        reg_target2 = sample['reg_target2'].astype(np.float32)
-        centerness2 = sample['centerness2'].astype(np.float32)
-        if self.n_layers == 5:
-            labels3 = sample['labels3'].astype(np.int32)
-            reg_target3 = sample['reg_target3'].astype(np.float32)
-            centerness3 = sample['centerness3'].astype(np.float32)
-            labels4 = sample['labels4'].astype(np.int32)
-            reg_target4 = sample['reg_target4'].astype(np.float32)
-            centerness4 = sample['centerness4'].astype(np.float32)
-            return image, labels0, reg_target0, centerness0, labels1, reg_target1, centerness1, labels2, reg_target2, centerness2, labels3, reg_target3, centerness3, labels4, reg_target4, centerness4
-        return image, labels0, reg_target0, centerness0, labels1, reg_target1, centerness1, labels2, reg_target2, centerness2
+        pimage = sample['image']
+        im_info = sample['im_info']
+        im_id = sample['im_id']
+        h = sample['h']
+        w = sample['w']
+        is_crowd = sample['is_crowd']
+        gt_class = sample['gt_class']
+        gt_bbox = sample['gt_bbox']
+        gt_score = sample['gt_score']
+        return pimage, im_info, im_id, h, w, is_crowd, gt_class, gt_bbox, gt_score
 
 
