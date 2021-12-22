@@ -114,6 +114,7 @@ class Trainer:
             train_iter = self.train_one_iter()
             if train_iter:
                 self.after_iter_mmdet()
+                # if (self.iter + 1) % 21 == 0:   # 用来调试
                 if (self.iter + 1) % self.epoch_steps == 0:
                     self.epoch = self.iter // self.epoch_steps
                     self.after_epoch()
