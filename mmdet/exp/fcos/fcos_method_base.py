@@ -170,7 +170,7 @@ class FCOS_Method_Exp(COCOBaseExp):
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
         self.learningRate = dict(
-            base_lr=0.01 / 16,   # 最初base_lr表示的是每一张图片的学习率。代码中会自动修改为乘以批大小。
+            base_lr=0.01 / 16,  # 最初base_lr表示的是每一张图片的学习率。代码中会自动修改为乘以批大小。
             PiecewiseDecay=dict(
                 gamma=0.1,
                 milestones_epoch=[32, 44],
@@ -191,7 +191,7 @@ class FCOS_Method_Exp(COCOBaseExp):
             norm_type='bn',
             feature_maps=[3, 4, 5],
             dcn_v2_stages=[],
-            downsample_in3x3=False,   # 注意这个细节，是在1x1卷积层下采样的。即Resnet50Va。
+            downsample_in3x3=False,  # 注意这个细节，是在1x1卷积层下采样的。即Resnet50Va。
             freeze_at=2,
             fix_bn_mean_var_at=0,
             freeze_norm=False,
@@ -291,7 +291,7 @@ class FCOS_Method_Exp(COCOBaseExp):
         )
         # PadBatch
         self.padBatch = dict(
-            pad_to_stride=32,   # 添加黑边使得图片边长能够被pad_to_stride整除。pad_to_stride代表着最大下采样倍率，这个模型最大到p5，为32。
+            pad_to_stride=32,  # 添加黑边使得图片边长能够被pad_to_stride整除。pad_to_stride代表着最大下采样倍率，这个模型最大到p5，为32。
             use_padded_im_info=False,
         )
         # Gt2FCOSTarget
