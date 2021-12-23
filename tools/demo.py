@@ -306,7 +306,7 @@ class FCOSPredictor(object):
         permute = Permute(**exp.permute)
 
         # batch_transforms
-        padBatch = PadBatch(use_padded_im_info=True, pad_to_stride=exp.padBatchSingle['pad_to_stride'])
+        padBatch = PadBatch(**exp.padBatch)
 
         self.preproc = FCOSValTransform(self.context, self.to_rgb, normalizeImage, resizeImage, permute, padBatch)
 

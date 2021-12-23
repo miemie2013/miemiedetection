@@ -3721,6 +3721,8 @@ def get_sample_transforms(cfg):
             preprocess = BboxXYXY2XYWH(**cfg.bboxXYXY2XYWH)     # sample['gt_bbox']被改写为cx_cy_w_h格式。
         elif preprocess_name == 'permute':
             preprocess = Permute(**cfg.permute)    # 图片从HWC格式变成CHW格式
+        else:
+            raise NotImplementedError("Transform \'{}\' is not implemented.".format(preprocess_name))
         sample_transforms.append(preprocess)
     return sample_transforms
 
@@ -3750,6 +3752,8 @@ def get_batch_transforms(cfg):
             preprocess = Gt2Solov2Target(**cfg.gt2Solov2Target)     # 填写target张量。
         elif preprocess_name == 'gt2RepPointsTargetSingle':
             preprocess = Gt2RepPointsTargetSingle(**cfg.gt2RepPointsTargetSingle)     # 填写target张量。
+        else:
+            raise NotImplementedError("Transform \'{}\' is not implemented.".format(preprocess_name))
         batch_transforms.append(preprocess)
     return batch_transforms
 

@@ -45,6 +45,7 @@ class FCOSHead(torch.nn.Module):
         self.norm_type = norm_type
         self.fcos_loss = fcos_loss
         self.nms_cfg = nms_cfg
+        self.export_onnx = False
 
 
         self.scales_on_reg = torch.nn.ParameterList()       # 回归分支（预测框坐标）的系数
@@ -268,6 +269,27 @@ class FCOSHead(torch.nn.Module):
         # is_training=False表示验证状态。
         # 验证状态的话，bbox_reg再乘以下采样倍率，这样得到的坐标是相对于输入图片宽高的坐标。
         cls_logits, bboxes_reg, centerness = self._get_output(input, is_training=False)
+        if self.export_onnx:
+            # ptss = []
+            clss = []
+            boxs = []
+            ctns = []
+            # for _, (
+            #         pts, cls, box, ctn
+            # ) in enumerate(zip(locations, cls_logits, bboxes_reg, centerness)):
+            for _, (
+                    cls, box, ctn
+            ) in enumerate(zip(cls_logits, bboxes_reg, centerness)):
+                # ptss.append(pts)
+                clss.append(torch.reshape(cls, (cls.shape[0], cls.shape[1], -1)))
+                boxs.append(torch.reshape(box, (box.shape[0], box.shape[1], -1)))
+                ctns.append(torch.reshape(ctn, (ctn.shape[0], ctn.shape[1], -1)))
+            # ptss = torch.cat(ptss, 0)
+            clss = torch.cat(clss, 2)
+            boxs = torch.cat(boxs, 2)
+            ctns = torch.cat(ctns, 2)
+            # return ptss, clss, boxs, ctns
+            return clss, boxs, ctns
 
         # locations里面每个元素是[格子行数*格子列数, 2]。即格子中心点相对于输入图片宽高的xy坐标。
         locations = self._compute_locations(input)

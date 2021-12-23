@@ -228,7 +228,9 @@ class AffineChannel(torch.nn.Module):
         self.bias = torch.nn.Parameter(torch.randn(num_features, ))
 
     def forward(self, x):
-        x = x * self.weight.unsqueeze([0, 2, 3]) + self.bias.unsqueeze([0, 2, 3])
+        w = torch.reshape(self.weight, (1, -1, 1, 1))
+        b = torch.reshape(self.bias, (1, -1, 1, 1))
+        x = x * w + b
         return x
 
 
@@ -384,8 +386,8 @@ class Conv2dUnit(torch.nn.Module):
             self.gn.weight.requires_grad = False
             self.gn.bias.requires_grad = False
         if self.af is not None:
-            self.scale.requires_grad = False
-            self.offset.requires_grad = False
+            self.af.weight.requires_grad = False
+            self.af.bias.requires_grad = False
 
     def fix_bn(self):
         if self.bn is not None:
