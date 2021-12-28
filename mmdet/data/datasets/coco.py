@@ -424,7 +424,7 @@ class FCOS_COCOEvalDataset(torch.utils.data.Dataset):
 
 
 class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
-    def __init__(self, data_dir, json_file, ann_folder, name, cfg, sample_transforms, batch_transforms, batch_size, start_epoch):
+    def __init__(self, data_dir, json_file, ann_folder, name, cfg, sample_transforms, batch_size):
         self.data_dir = data_dir
         self.json_file = json_file
         self.ann_folder = ann_folder
@@ -445,7 +445,6 @@ class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
         self.records = train_records
         self.context = cfg.context
         self.sample_transforms = sample_transforms
-        self.batch_transforms = batch_transforms
         self.catid2clsid = _catid2clsid
         self.clsid2catid = _clsid2catid
         self.num_record = len(train_records)
@@ -454,106 +453,60 @@ class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
         self.with_mosaic = cfg.decodeImage.get('with_mosaic', False)
         self.batch_size = batch_size
 
-
-        # 一轮的步数。丢弃最后几个样本。
-        self.train_steps = self.num_record // batch_size
-
-        # mixup、cutmix、mosaic数据增强的步数
-        self.aug_steps = self.train_steps * cfg.aug_epochs
-
-        # 一轮的样本数。丢弃最后几个样本。
-        train_samples = self.train_steps * batch_size
-
-        # 训练多少轮
-        self.max_epoch = cfg.max_epoch
-        # 总共训练多少步
-        self.max_iters = self.train_steps * self.max_epoch
-
-
-        # 训练样本
-        indexes = [i for i in range(self.num_record)]
-        self.indexes = []
-        while len(self.indexes) < self.max_iters * batch_size:
-            indexes2 = copy.deepcopy(indexes)
-            # 每个epoch之前洗乱
-            np.random.shuffle(indexes2)
-            indexes2 = indexes2[:train_samples]
-            self.indexes += indexes2
-        self.indexes = self.indexes[:self.max_iters * batch_size]
-
-        # 多尺度训练
-        sizes = cfg.randomShape['sizes']
-        self.shapes = []
-        while len(self.shapes) < self.max_iters:
-            shape = np.random.choice(sizes)
-            self.shapes.append(shape)
-        self.shapes = self.shapes[:self.max_iters]
-
-        # 初始化开始的迭代id
-        self.init_iter_id = start_epoch * self.train_steps
+        # mixup、cutmix、mosaic数据增强的轮数
+        self.aug_epochs = cfg.aug_epochs
 
         # 输出特征图数量
         self.n_layers = len(cfg.head['downsample'])
+        self._epoch = 0
 
 
     def __len__(self):
-        return len(self.indexes)
+        return self.num_record
+
+    def set_epoch(self, epoch_id):
+        self._epoch = epoch_id
 
     def __getitem__(self, idx):
         iter_id = idx // self.batch_size
-        if iter_id < self.init_iter_id:   # 恢复训练时跳过。
-            image = np.zeros((1, ), np.float32)
-            gt_bbox = np.zeros((1, ), np.float32)
-            gt_score = np.zeros((1, ), np.float32)
-            gt_class = np.zeros((1, ), np.float32)
-            target0 = np.zeros((1, ), np.float32)
-            target1 = np.zeros((1, ), np.float32)
-            target2 = np.zeros((1, ), np.float32)
-            if self.n_layers == 3:
-                return image, gt_bbox, gt_score, gt_class, target0, target1, target2
-            elif self.n_layers == 2:
-                return image, gt_bbox, gt_score, gt_class, target0, target1
-
-        img_idx = self.indexes[idx]
-        shape = self.shapes[iter_id]
-        sample = copy.deepcopy(self.records[img_idx])
+        sample = copy.deepcopy(self.records[idx])
         sample["curr_iter"] = iter_id
 
         # 为mixup数据增强做准备
-        if self.with_mixup and iter_id <= self.aug_steps:
+        if self.with_mixup and self._epoch <= self.aug_epochs:
             num = len(self.records)
             mix_idx = np.random.randint(0, num)
-            while mix_idx == img_idx:   # 为了不选到自己
+            while mix_idx == idx:   # 为了不选到自己
                 mix_idx = np.random.randint(0, num)
             sample['mixup'] = copy.deepcopy(self.records[mix_idx])
             sample['mixup']["curr_iter"] = iter_id
 
         # 为cutmix数据增强做准备
-        if self.with_cutmix and iter_id <= self.aug_steps:
+        if self.with_cutmix and self._epoch <= self.aug_epochs:
             num = len(self.records)
             mix_idx = np.random.randint(0, num)
-            while mix_idx == img_idx:   # 为了不选到自己
+            while mix_idx == idx:   # 为了不选到自己
                 mix_idx = np.random.randint(0, num)
             sample['cutmix'] = copy.deepcopy(self.records[mix_idx])
             sample['cutmix']["curr_iter"] = iter_id
 
         # 为mosaic数据增强做准备
-        if self.with_mosaic and iter_id <= self.aug_steps:
+        if self.with_mosaic and self._epoch <= self.aug_epochs:
             num = len(self.records)
             mix_idx = np.random.randint(0, num)
-            while mix_idx == img_idx:   # 为了不选到自己
+            while mix_idx == idx:   # 为了不选到自己
                 mix_idx = np.random.randint(0, num)
             sample['mosaic1'] = copy.deepcopy(self.records[mix_idx])
             sample['mosaic1']["curr_iter"] = iter_id
 
             mix_idx2 = np.random.randint(0, num)
-            while mix_idx2 in [img_idx, mix_idx]:   # 为了不重复
+            while mix_idx2 in [idx, mix_idx]:   # 为了不重复
                 mix_idx2 = np.random.randint(0, num)
             sample['mosaic2'] = copy.deepcopy(self.records[mix_idx2])
             sample['mosaic2']["curr_iter"] = iter_id
 
             mix_idx3 = np.random.randint(0, num)
-            while mix_idx3 in [img_idx, mix_idx, mix_idx2]:   # 为了不重复
+            while mix_idx3 in [idx, mix_idx, mix_idx2]:   # 为了不重复
                 mix_idx3 = np.random.randint(0, num)
             sample['mosaic3'] = copy.deepcopy(self.records[mix_idx3])
             sample['mosaic3']["curr_iter"] = iter_id
@@ -562,24 +515,18 @@ class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
         for sample_transform in self.sample_transforms:
             sample = sample_transform(sample, self.context)
 
-        # batch_transforms
-        for batch_transform in self.batch_transforms:
-            if isinstance(batch_transform, RandomShapeSingle):
-                sample = batch_transform(shape, sample, self.context)
-            else:
-                sample = batch_transform(sample, self.context)
-
         # 取出感兴趣的项
-        image = sample['image'].astype(np.float32)
-        gt_bbox = sample['gt_bbox'].astype(np.float32)
-        gt_score = sample['gt_score'].astype(np.float32)
-        gt_class = sample['gt_class'].astype(np.int32)
-        target0 = sample['target0'].astype(np.float32)
-        target1 = sample['target1'].astype(np.float32)
-        if self.n_layers == 3:
-            target2 = sample['target2'].astype(np.float32)
-            return image, gt_bbox, gt_score, gt_class, target0, target1, target2
-        return image, gt_bbox, gt_score, gt_class, target0, target1
+        pimage = sample['image']
+        im_info = sample['im_info']
+        im_id = sample['im_id']
+        h = sample['h']
+        w = sample['w']
+        is_crowd = sample['is_crowd']
+        gt_class = sample['gt_class']
+        gt_bbox = sample['gt_bbox']
+        gt_score = sample['gt_score']
+        curr_iter = sample['curr_iter']
+        return pimage, im_info, im_id, h, w, is_crowd, gt_class, gt_bbox, gt_score, curr_iter
 
 
 
@@ -645,10 +592,14 @@ class FCOS_COCOTrainDataset(torch.utils.data.Dataset):
 
         # 输出特征图数量
         self.n_layers = len(cfg.head['fpn_stride'])
+        self._epoch = 0
 
 
     def __len__(self):
         return len(self.indexes)
+
+    def set_epoch(self, epoch_id):
+        self._epoch = epoch_id
 
     def __getitem__(self, idx):
         iter_id = idx // self.batch_size

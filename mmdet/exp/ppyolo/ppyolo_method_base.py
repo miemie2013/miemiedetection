@@ -14,6 +14,63 @@ from mmdet.data import *
 from mmdet.exp.datasets.coco_base import COCOBaseExp
 
 
+class PPYOLOTrainCollater():
+    def __init__(self, context, batch_transforms, n_layers):
+        self.context = context
+        self.batch_transforms = batch_transforms
+        self.n_layers = n_layers
+
+    def __call__(self, batch):
+        # 重组samples
+        samples = []
+        for i, item in enumerate(batch):
+            sample = {}
+            sample['image'] = item[0]
+            sample['im_info'] = item[1]
+            sample['im_id'] = item[2]
+            sample['h'] = item[3]
+            sample['w'] = item[4]
+            sample['is_crowd'] = item[5]
+            sample['gt_class'] = item[6]
+            sample['gt_bbox'] = item[7]
+            sample['gt_score'] = item[8]
+            # sample['curr_iter'] = item[9]
+            samples.append(sample)
+
+        # batch_transforms
+        for batch_transform in self.batch_transforms:
+            samples = batch_transform(samples, self.context)
+
+        # 取出感兴趣的项
+        images = []
+        gt_bbox = []
+        target0 = []
+        target1 = []
+        target2 = []
+        for i, sample in enumerate(samples):
+            images.append(sample['image'].astype(np.float32))
+            gt_bbox.append(sample['gt_bbox'].astype(np.float32))
+            target0.append(sample['target0'].astype(np.float32))
+            target1.append(sample['target1'].astype(np.float32))
+            if self.n_layers == 3:
+                target2.append(sample['target2'].astype(np.float32))
+        images = np.stack(images, axis=0)
+        gt_bbox = np.stack(gt_bbox, axis=0)
+        target0 = np.stack(target0, axis=0)
+        target1 = np.stack(target1, axis=0)
+
+        images = torch.Tensor(images)
+        gt_bbox = torch.Tensor(gt_bbox)
+        target0 = torch.Tensor(target0)
+        target1 = torch.Tensor(target1)
+        if self.n_layers == 3:
+            target2 = np.stack(target2, axis=0)
+
+            target2 = torch.Tensor(target2)
+            return images, gt_bbox, target0, target1, target2
+        return images, gt_bbox, target0, target1
+
+
 class PPYOLO_Method_Exp(COCOBaseExp):
     def __init__(self):
         super().__init__()
@@ -32,17 +89,13 @@ class PPYOLO_Method_Exp(COCOBaseExp):
         self.eval_interval = 10
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
-        self.learningRate = dict(
-            base_lr=0.01 / 192,   # 最初base_lr表示的是每一张图片的学习率。代码中会自动修改为乘以批大小。
-            PiecewiseDecay=dict(
-                gamma=0.1,
-                milestones_epoch=[649, 730],
-            ),
-            LinearWarmup=dict(
-                start_factor=0.,
-                steps=4000,
-            ),
-        )
+        # learning_rate
+        self.scheduler = "warm_piecewisedecay"
+        self.warmup_epochs = 5
+        self.basic_lr_per_img = 0.01 / 192.0
+        self.start_factor = 0.0
+        self.decay_gamma = 0.1
+        self.milestones_epoch = [649, 730]
 
         # -----------------  testing config ------------------ #
         self.test_size = (608, 608)
@@ -228,7 +281,7 @@ class PPYOLO_Method_Exp(COCOBaseExp):
         return self.model
 
     def get_data_loader(
-        self, batch_size, start_epoch, is_distributed, cache_img=False
+        self, batch_size, is_distributed, cache_img=False
     ):
         from mmdet.data import (
             PPYOLO_COCOTrainDataset,
@@ -254,20 +307,16 @@ class PPYOLO_Method_Exp(COCOBaseExp):
                 name=self.train_image_folder,
                 cfg=self,
                 sample_transforms=sample_transforms,
-                batch_transforms=batch_transforms,
                 batch_size=batch_size,
-                start_epoch=start_epoch,
             )
 
         self.dataset = train_dataset
-        self.epoch_steps = train_dataset.train_steps
-        self.max_iters = train_dataset.max_iters
         self.n_layers = train_dataset.n_layers
 
         if is_distributed:
             batch_size = batch_size // dist.get_world_size()
 
-        sampler = InfiniteSampler(len(self.dataset), shuffle=False, seed=self.seed if self.seed else 0)
+        sampler = InfiniteSampler(len(self.dataset), shuffle=True, seed=self.seed if self.seed else 0)
 
         batch_sampler = torch.utils.data.sampler.BatchSampler(
             sampler=sampler,
@@ -281,9 +330,9 @@ class PPYOLO_Method_Exp(COCOBaseExp):
         # Make sure each process has different random seed, especially for 'fork' method.
         # Check https://github.com/pytorch/pytorch/issues/63311 for more details.
         dataloader_kwargs["worker_init_fn"] = worker_init_reset_seed
-        dataloader_kwargs["shuffle"] = False
 
-        train_loader = torch.utils.data.DataLoader(self.dataset, **dataloader_kwargs)
+        collater = PPYOLOTrainCollater(self.context, batch_transforms, self.n_layers)
+        train_loader = torch.utils.data.DataLoader(self.dataset, collate_fn=collater, **dataloader_kwargs)
 
         return train_loader
 
@@ -293,8 +342,13 @@ class PPYOLO_Method_Exp(COCOBaseExp):
     def preprocess(self, inputs, targets, tsize):
         return 1
 
-    def get_optimizer(self, param_groups, lr, momentum, weight_decay):
+    def get_optimizer(self, batch_size, param_groups, momentum, weight_decay):
         if "optimizer" not in self.__dict__:
+            if self.warmup_epochs > 0:
+                lr = self.basic_lr_per_img * batch_size * self.start_factor
+            else:
+                lr = self.basic_lr_per_img * batch_size
+
             optimizer = torch.optim.SGD(
                 param_groups, lr=lr, momentum=momentum, weight_decay=weight_decay
             )
@@ -303,7 +357,19 @@ class PPYOLO_Method_Exp(COCOBaseExp):
         return self.optimizer
 
     def get_lr_scheduler(self, lr, iters_per_epoch):
-        return 1
+        from mmdet.utils import LRScheduler
+
+        scheduler = LRScheduler(
+            self.scheduler,
+            lr,
+            iters_per_epoch,
+            self.max_epoch,
+            warmup_epochs=self.warmup_epochs,
+            warmup_lr_start=lr * self.start_factor,
+            milestones=self.milestones_epoch,
+            gamma=self.decay_gamma,
+        )
+        return scheduler
 
     def get_eval_loader(self, batch_size, is_distributed, testdev=False):
         from mmdet.data import PPYOLO_COCOEvalDataset

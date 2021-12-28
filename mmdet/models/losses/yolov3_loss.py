@@ -54,7 +54,7 @@ class YOLOv3Loss(nn.Module):
         self.scale_x_y = scale_x_y
         self.match_score = match_score
 
-    def forward(self, outputs, gt_box, gt_label, gt_score, targets, anchors,
+    def forward(self, outputs, gt_box, targets, anchors,
                 anchor_masks, mask_anchors, num_classes):
         return self._get_fine_grained_loss(
             outputs, targets, gt_box, num_classes,

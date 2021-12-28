@@ -192,17 +192,13 @@ class FCOS_Method_Exp(COCOBaseExp):
         self.eval_interval = 2
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
-        self.learningRate = dict(
-            base_lr=0.01 / 16,  # 最初base_lr表示的是每一张图片的学习率。代码中会自动修改为乘以批大小。
-            PiecewiseDecay=dict(
-                gamma=0.1,
-                milestones_epoch=[32, 44],
-            ),
-            LinearWarmup=dict(
-                start_factor=0.3333333333333333,
-                steps=500,
-            ),
-        )
+        # learning_rate
+        self.scheduler = "warm_piecewisedecay"
+        self.warmup_epochs = 1
+        self.basic_lr_per_img = 0.01 / 16.0
+        self.start_factor = 0.3333333333333333
+        self.decay_gamma = 0.1
+        self.milestones_epoch = [32, 44]
 
         # -----------------  testing config ------------------ #
         self.test_size = (512, 736)
@@ -373,7 +369,7 @@ class FCOS_Method_Exp(COCOBaseExp):
         return self.model
 
     def get_data_loader(
-        self, batch_size, start_epoch, is_distributed, cache_img=False
+        self, batch_size, is_distributed, cache_img=False
     ):
         from mmdet.data import (
             FCOS_COCOTrainDataset,
@@ -400,18 +396,15 @@ class FCOS_Method_Exp(COCOBaseExp):
                 cfg=self,
                 sample_transforms=sample_transforms,
                 batch_size=batch_size,
-                start_epoch=start_epoch,
             )
 
         self.dataset = train_dataset
-        self.epoch_steps = train_dataset.train_steps
-        self.max_iters = train_dataset.max_iters
         self.n_layers = train_dataset.n_layers
 
         if is_distributed:
             batch_size = batch_size // dist.get_world_size()
 
-        sampler = InfiniteSampler(len(self.dataset), shuffle=False, seed=self.seed if self.seed else 0)
+        sampler = InfiniteSampler(len(self.dataset), shuffle=True, seed=self.seed if self.seed else 0)
 
         batch_sampler = torch.utils.data.sampler.BatchSampler(
             sampler=sampler,
@@ -425,7 +418,6 @@ class FCOS_Method_Exp(COCOBaseExp):
         # Make sure each process has different random seed, especially for 'fork' method.
         # Check https://github.com/pytorch/pytorch/issues/63311 for more details.
         dataloader_kwargs["worker_init_fn"] = worker_init_reset_seed
-        dataloader_kwargs["shuffle"] = False
 
         collater = FCOSTrainCollater(self.context, batch_transforms, self.n_layers)
         train_loader = torch.utils.data.DataLoader(self.dataset, collate_fn=collater, **dataloader_kwargs)
@@ -438,8 +430,13 @@ class FCOS_Method_Exp(COCOBaseExp):
     def preprocess(self, inputs, targets, tsize):
         return 1
 
-    def get_optimizer(self, param_groups, lr, momentum, weight_decay):
+    def get_optimizer(self, batch_size, param_groups, momentum, weight_decay):
         if "optimizer" not in self.__dict__:
+            if self.warmup_epochs > 0:
+                lr = self.basic_lr_per_img * batch_size * self.start_factor
+            else:
+                lr = self.basic_lr_per_img * batch_size
+
             optimizer = torch.optim.SGD(
                 param_groups, lr=lr, momentum=momentum, weight_decay=weight_decay
             )
@@ -448,7 +445,19 @@ class FCOS_Method_Exp(COCOBaseExp):
         return self.optimizer
 
     def get_lr_scheduler(self, lr, iters_per_epoch):
-        return 1
+        from mmdet.utils import LRScheduler
+
+        scheduler = LRScheduler(
+            self.scheduler,
+            lr,
+            iters_per_epoch,
+            self.max_epoch,
+            warmup_epochs=self.warmup_epochs,
+            warmup_lr_start=lr * self.start_factor,
+            milestones=self.milestones_epoch,
+            gamma=self.decay_gamma,
+        )
+        return scheduler
 
     def get_eval_loader(self, batch_size, is_distributed, testdev=False):
         from mmdet.data import FCOS_COCOEvalDataset

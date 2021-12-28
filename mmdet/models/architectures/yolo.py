@@ -21,9 +21,9 @@ class PPYOLO(torch.nn.Module):
         out = self.head.get_prediction(body_feats, im_size)
         return out
 
-    def train_model(self, x, gt_box, gt_label, gt_score, targets):
+    def train_model(self, x, gt_box, targets):
         body_feats = self.backbone(x)
-        out = self.head.get_loss(body_feats, gt_box, gt_label, gt_score, targets)
+        out = self.head.get_loss(body_feats, gt_box, targets)
         return out
 
     def add_param_group(self, param_groups, base_lr, base_wd):

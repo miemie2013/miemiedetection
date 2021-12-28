@@ -26,17 +26,13 @@ class FCOS_RT_R50_FPN_4x_Exp(FCOS_Method_Exp):
         self.eval_interval = 2
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
-        self.learningRate = dict(
-            base_lr=0.01 / 16,  # 最初base_lr表示的是每一张图片的学习率。代码中会自动修改为乘以批大小。
-            PiecewiseDecay=dict(
-                gamma=0.1,
-                milestones_epoch=[32, 44],
-            ),
-            LinearWarmup=dict(
-                start_factor=0.3333333333333333,
-                steps=500,
-            ),
-        )
+        # learning_rate
+        self.scheduler = "warm_piecewisedecay"
+        self.warmup_epochs = 1
+        self.basic_lr_per_img = 0.01 / 16.0
+        self.start_factor = 0.3333333333333333
+        self.decay_gamma = 0.1
+        self.milestones_epoch = [32, 44]
 
         # -----------------  testing config ------------------ #
         self.test_size = (512, 736)

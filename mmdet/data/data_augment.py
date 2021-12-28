@@ -3732,7 +3732,7 @@ def get_batch_transforms(cfg):
     batch_transforms = []
     for preprocess_name in cfg.batch_transforms_seq:
         if preprocess_name == 'randomShape':
-            preprocess = RandomShapeSingle(random_inter=cfg.randomShape['random_inter'])     # 多尺度训练。随机选一个尺度。也随机选一种插值方式。
+            preprocess = RandomShape(**cfg.randomShape)     # 多尺度训练。随机选一个尺度。也随机选一种插值方式。
         elif preprocess_name == 'normalizeImage':
             preprocess = NormalizeImage(**cfg.normalizeImage)     # 图片归一化。先除以255归一化，再减均值除以标准差
         elif preprocess_name == 'permute':
@@ -3740,7 +3740,7 @@ def get_batch_transforms(cfg):
         elif preprocess_name == 'squareImage':
             preprocess = SquareImage(**cfg.squareImage)    # 图片变正方形。
         elif preprocess_name == 'gt2YoloTarget':
-            preprocess = Gt2YoloTargetSingle(**cfg.gt2YoloTarget)   # 填写target张量。
+            preprocess = Gt2YoloTarget(**cfg.gt2YoloTarget)   # 填写target张量。
         elif preprocess_name == 'padBatchSingle':
             use_padded_im_info = cfg.padBatchSingle['use_padded_im_info'] if 'use_padded_im_info' in cfg.padBatchSingle else True
             preprocess = PadBatchSingle(use_padded_im_info=use_padded_im_info)   # 填充黑边。使这一批图片有相同的大小。

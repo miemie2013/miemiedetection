@@ -96,7 +96,11 @@ class Trainer:
                 self.train_in_iter()
                 self.after_epoch()
         elif self.archi_name == 'PPYOLO':
-            self.train_in_all_iter()   # 所有的epoch被合并成1个大的epoch
+            # self.train_in_all_iter()   # 所有的epoch被合并成1个大的epoch
+            for self.epoch in range(self.start_epoch, self.max_epoch):
+                self.before_epoch()
+                self.train_in_iter()
+                self.after_epoch()
         elif self.archi_name == 'FCOS':
             self.train_in_all_iter()   # 所有的epoch被合并成1个大的epoch
         else:
@@ -106,7 +110,7 @@ class Trainer:
         for self.iter in range(self.max_iter):
             self.before_iter()
             self.train_one_iter()
-            self.after_iter_yolox()
+            self.after_iter()
 
     def train_in_all_iter(self):   # 所有的epoch被合并成1个大的epoch
         for self.iter in range(self.max_iter):
@@ -122,7 +126,6 @@ class Trainer:
     def train_one_iter(self):
         iter_start_time = time.time()
 
-        train_iter = True
         if self.archi_name == 'YOLOX':
             inps, targets = self.prefetcher.next()
             inps = inps.to(self.data_type)
@@ -133,41 +136,19 @@ class Trainer:
 
             with torch.cuda.amp.autocast(enabled=self.amp_training):
                 outputs = self.model(inps, targets)
-
-            loss = outputs["total_loss"]
-
-            self.optimizer.zero_grad()
-            self.scaler.scale(loss).backward()
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
-
-            if self.use_model_ema:
-                self.ema_model.update(self.model)
-
-            # 修改学习率
-            lr = self.lr_scheduler.update_lr(self.progress_in_iter + 1)
-            for param_group in self.optimizer.param_groups:
-                param_group["lr"] = lr
         elif self.archi_name == 'PPYOLO':
             if self.n_layers == 3:
-                inps, gt_bbox, gt_score, gt_class, target0, target1, target2 = self.prefetcher.next()
+                inps, gt_bbox, target0, target1, target2 = self.prefetcher.next()
             elif self.n_layers == 2:
-                inps, gt_bbox, gt_score, gt_class, target0, target1 = self.prefetcher.next()
-            if self.iter < self.init_iter_id:  # 恢复训练时跳过。
-                train_iter = False
-                return train_iter
+                inps, gt_bbox, target0, target1 = self.prefetcher.next()
             inps = inps.to(self.data_type)
             gt_bbox = gt_bbox.to(self.data_type)
-            gt_score = gt_score.to(self.data_type)
-            gt_class = gt_class.to(self.data_type)
             target0 = target0.to(self.data_type)
             target1 = target1.to(self.data_type)
             if self.n_layers == 3:
                 target2 = target2.to(self.data_type)
                 target2.requires_grad = False
             gt_bbox.requires_grad = False
-            gt_score.requires_grad = False
-            gt_class.requires_grad = False
             target0.requires_grad = False
             target1.requires_grad = False
             data_end_time = time.time()
@@ -177,30 +158,12 @@ class Trainer:
                     targets = [target0, target1, target2]
                 elif self.n_layers == 2:
                     targets = [target0, target1]
-                outputs = self.model.train_model(inps, gt_bbox, gt_class, gt_score, targets)
-
-            loss = outputs["total_loss"]
-
-            # 修改学习率
-            lr = self.calc_lr(self.iter, self.epoch_steps, self.max_iters, self.exp)
-            for param_group in self.optimizer.param_groups:
-                param_group['lr'] = lr * param_group['base_lr'] / self.base_lr
-
-            self.optimizer.zero_grad()
-            self.scaler.scale(loss).backward()
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
-
-            if self.use_model_ema:
-                self.ema_model.update(self.model)
+                outputs = self.model.train_model(inps, gt_bbox, targets)
         elif self.archi_name == 'FCOS':
             if self.n_layers == 5:
                 inps, labels0, reg_target0, centerness0, labels1, reg_target1, centerness1, labels2, reg_target2, centerness2, labels3, reg_target3, centerness3, labels4, reg_target4, centerness4 = self.prefetcher.next()
             elif self.n_layers == 3:
                 inps, labels0, reg_target0, centerness0, labels1, reg_target1, centerness1, labels2, reg_target2, centerness2 = self.prefetcher.next()
-            if self.iter < self.init_iter_id:  # 恢复训练时跳过。
-                train_iter = False
-                return train_iter
             inps = inps.to(self.data_type)
             labels0 = labels0.to(self.data_type)
             reg_target0 = reg_target0.to(self.data_type)
@@ -245,23 +208,24 @@ class Trainer:
                     tag_bboxes = [reg_target0, reg_target1, reg_target2]
                     tag_center = [centerness0, centerness1, centerness2]
                 outputs = self.model.train_model(inps, tag_labels, tag_bboxes, tag_center)
-
-            loss = outputs["total_loss"]
-
-            # 修改学习率
-            lr = self.calc_lr(self.iter, self.epoch_steps, self.max_iters, self.exp)
-            for param_group in self.optimizer.param_groups:
-                param_group['lr'] = lr * param_group['base_lr'] / self.base_lr
-
-            self.optimizer.zero_grad()
-            self.scaler.scale(loss).backward()
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
-
-            if self.use_model_ema:
-                self.ema_model.update(self.model)
         else:
             raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
+
+
+        loss = outputs["total_loss"]
+
+        self.optimizer.zero_grad()
+        self.scaler.scale(loss).backward()
+        self.scaler.step(self.optimizer)
+        self.scaler.update()
+
+        if self.use_model_ema:
+            self.ema_model.update(self.model)
+
+        # 修改学习率
+        lr = self.lr_scheduler.update_lr(self.progress_in_iter + 1)
+        for param_group in self.optimizer.param_groups:
+            param_group["lr"] = lr
 
         iter_end_time = time.time()
         self.meter.update(
@@ -270,7 +234,6 @@ class Trainer:
             lr=lr,
             **outputs,
         )
-        return train_iter
 
     def calc_lr(self, iter_id, train_steps, max_iters, cfg):
         base_lr = cfg.learningRate['base_lr']
@@ -376,20 +339,15 @@ class Trainer:
                 batch_size=self.args.eval_batch_size, is_distributed=self.is_distributed
             )
         elif self.archi_name == 'PPYOLO':
-            # 修改基础学习率
-            base_lr = self.exp.learningRate['base_lr']
-            base_lr *= self.args.batch_size
-            self.exp.learningRate['base_lr'] = base_lr
-            self.base_lr = base_lr
-
             # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
+            base_lr = self.exp.basic_lr_per_img * self.args.batch_size
             param_groups = []
             base_wd = self.exp.weight_decay
             momentum = self.exp.momentum
             model.add_param_group(param_groups, base_lr, base_wd)
 
             # solver related init
-            self.optimizer = self.exp.get_optimizer(param_groups, lr=base_lr, momentum=momentum, weight_decay=base_wd)
+            self.optimizer = self.exp.get_optimizer(self.args.batch_size, param_groups, momentum=momentum, weight_decay=base_wd)
 
             # value of epoch will be set in `resume_train`
             model = self.resume_train(model)
@@ -397,25 +355,19 @@ class Trainer:
 
             self.train_loader = self.exp.get_data_loader(
                 batch_size=self.args.batch_size,
-                start_epoch=self.start_epoch,
                 is_distributed=self.is_distributed,
                 cache_img=self.args.cache,
             )
-            self.epoch_steps = self.exp.epoch_steps
-            self.max_iters = self.exp.max_iters
             self.n_layers = self.exp.n_layers
-
-            # 初始化开始的迭代id
-            self.init_iter_id = self.start_epoch * self.epoch_steps
 
             logger.info("init prefetcher, this might take one minute or less...")
             self.prefetcher = PPYOLODataPrefetcher(self.train_loader, self.n_layers)
             # max_iter means iters per epoch
             self.max_iter = len(self.train_loader)
 
-            # self.lr_scheduler = self.exp.get_lr_scheduler(
-            #     self.exp.basic_lr_per_img * self.args.batch_size, self.max_iter
-            # )
+            self.lr_scheduler = self.exp.get_lr_scheduler(
+                self.exp.basic_lr_per_img * self.args.batch_size, self.max_iter
+            )
             if self.args.occupy:
                 occupy_mem(self.local_rank)
 
@@ -433,20 +385,15 @@ class Trainer:
                 batch_size=self.args.eval_batch_size, is_distributed=self.is_distributed
             )
         elif self.archi_name == 'FCOS':
-            # 修改基础学习率
-            base_lr = self.exp.learningRate['base_lr']
-            base_lr *= self.args.batch_size
-            self.exp.learningRate['base_lr'] = base_lr
-            self.base_lr = base_lr
-
             # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
+            base_lr = self.exp.basic_lr_per_img * self.args.batch_size
             param_groups = []
             base_wd = self.exp.weight_decay
             momentum = self.exp.momentum
             model.add_param_group(param_groups, base_lr, base_wd)
 
             # solver related init
-            self.optimizer = self.exp.get_optimizer(param_groups, lr=base_lr, momentum=momentum, weight_decay=base_wd)
+            self.optimizer = self.exp.get_optimizer(self.args.batch_size, param_groups, momentum=momentum, weight_decay=base_wd)
 
             # value of epoch will be set in `resume_train`
             model = self.resume_train(model)
@@ -454,25 +401,19 @@ class Trainer:
 
             self.train_loader = self.exp.get_data_loader(
                 batch_size=self.args.batch_size,
-                start_epoch=self.start_epoch,
                 is_distributed=self.is_distributed,
                 cache_img=self.args.cache,
             )
-            self.epoch_steps = self.exp.epoch_steps
-            self.max_iters = self.exp.max_iters
             self.n_layers = self.exp.n_layers
-
-            # 初始化开始的迭代id
-            self.init_iter_id = self.start_epoch * self.epoch_steps
 
             logger.info("init prefetcher, this might take one minute or less...")
             self.prefetcher = FCOSDataPrefetcher(self.train_loader, self.n_layers)
             # max_iter means iters per epoch
             self.max_iter = len(self.train_loader)
 
-            # self.lr_scheduler = self.exp.get_lr_scheduler(
-            #     self.exp.basic_lr_per_img * self.args.batch_size, self.max_iter
-            # )
+            self.lr_scheduler = self.exp.get_lr_scheduler(
+                self.exp.basic_lr_per_img * self.args.batch_size, self.max_iter
+            )
             if self.args.occupy:
                 occupy_mem(self.local_rank)
 
@@ -517,18 +458,24 @@ class Trainer:
 
     def before_epoch(self):
         logger.info("---> start train epoch{}".format(self.epoch + 1))
-
-        if self.epoch == self.max_epoch - self.exp.no_aug_epochs or self.no_aug:
-            logger.info("--->No mosaic aug now!")
-            self.train_loader.close_mosaic()
-            logger.info("--->Add additional L1 loss now!")
-            if self.is_distributed:
-                self.model.module.head.use_l1 = True
-            else:
-                self.model.head.use_l1 = True
-            self.exp.eval_interval = 1
-            if not self.no_aug:
-                self.save_ckpt(ckpt_name="last_mosaic_epoch")
+        if self.archi_name == 'YOLOX':
+            if self.epoch == self.max_epoch - self.exp.no_aug_epochs or self.no_aug:
+                logger.info("--->No mosaic aug now!")
+                self.train_loader.close_mosaic()
+                logger.info("--->Add additional L1 loss now!")
+                if self.is_distributed:
+                    self.model.module.head.use_l1 = True
+                else:
+                    self.model.head.use_l1 = True
+                self.exp.eval_interval = 1
+                if not self.no_aug:
+                    self.save_ckpt(ckpt_name="last_mosaic_epoch")
+        elif self.archi_name == 'PPYOLO':
+            self.train_loader.dataset.set_epoch(self.epoch)
+        elif self.archi_name == 'FCOS':
+            self.train_loader.dataset.set_epoch(self.epoch)
+        else:
+            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 
     def after_epoch(self):
         self.save_ckpt(ckpt_name="%d" % (self.epoch + 1))
@@ -540,9 +487,9 @@ class Trainer:
     def before_iter(self):
         pass
 
-    def after_iter_yolox(self):
+    def after_iter(self):
         """
-        `after_iter_yolox` contains two parts of logic:
+        `after_iter` contains two parts of logic:
             * log information
             * reset setting of resize
         """
@@ -566,64 +513,55 @@ class Trainer:
                 ["{}: {:.3f}s".format(k, v.avg) for k, v in time_meter.items()]
             )
 
-            logger.info(
-                "{}, mem: {:.0f}Mb, {}, {}, lr: {:.6f}".format(
-                    progress_str,
-                    gpu_mem_usage(),
-                    time_str,
-                    loss_str,
-                    self.meter["lr"].latest,
+            if self.archi_name == 'YOLOX':
+                logger.info(
+                    "{}, mem: {:.0f}Mb, {}, {}, lr: {:.6f}".format(
+                        progress_str,
+                        gpu_mem_usage(),
+                        time_str,
+                        loss_str,
+                        self.meter["lr"].latest,
+                    )
+                    + (", size: {:d}, {}".format(self.input_size[0], eta_str))
                 )
-                + (", size: {:d}, {}".format(self.input_size[0], eta_str))
-            )
+            elif self.archi_name == 'PPYOLO':
+                logger.info(
+                    "{}, mem: {:.0f}Mb, {}, {}, lr: {:.6f}".format(
+                        progress_str,
+                        gpu_mem_usage(),
+                        time_str,
+                        loss_str,
+                        self.meter["lr"].latest,
+                    )
+                    + (", {}".format(eta_str))
+                )
+            elif self.archi_name == 'FCOS':
+                logger.info(
+                    "{}, mem: {:.0f}Mb, {}, {}, lr: {:.6f}".format(
+                        progress_str,
+                        gpu_mem_usage(),
+                        time_str,
+                        loss_str,
+                        self.meter["lr"].latest,
+                    )
+                    + (", {}".format(eta_str))
+                )
+            else:
+                raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
             self.meter.clear_meters()
 
-        # random resizing
-        if (self.progress_in_iter + 1) % 10 == 0:
-            self.input_size = self.exp.random_resize(
-                self.train_loader, self.epoch, self.rank, self.is_distributed
-            )
-
-
-    def after_iter_mmdet(self):
-        """
-        `after_iter_mmdet` contains two parts of logic:
-            * log information
-            * reset setting of resize
-        """
-        # log needed information
-        if (self.iter + 1) % self.exp.print_interval == 0:
-            # TODO check ETA logic
-            left_iters = self.max_iters - (self.iter + 1)
-            eta_seconds = self.meter["iter_time"].global_avg * left_iters
-            eta_str = "ETA: {}".format(datetime.timedelta(seconds=int(eta_seconds)))
-
-            self.epoch = self.iter // self.epoch_steps
-            it_ = self.iter % self.epoch_steps
-            progress_str = "epoch: {}/{}, iter: {}/{}".format(
-                self.epoch + 1, self.max_epoch, it_ + 1, self.epoch_steps
-            )
-            loss_meter = self.meter.get_filtered_meter("loss")
-            loss_str = ", ".join(
-                ["{}: {:.1f}".format(k, v.latest) for k, v in loss_meter.items()]
-            )
-
-            time_meter = self.meter.get_filtered_meter("time")
-            time_str = ", ".join(
-                ["{}: {:.3f}s".format(k, v.avg) for k, v in time_meter.items()]
-            )
-
-            logger.info(
-                "{}, mem: {:.0f}Mb, {}, {}, lr: {:.6f}".format(
-                    progress_str,
-                    gpu_mem_usage(),
-                    time_str,
-                    loss_str,
-                    self.meter["lr"].latest,
+        if self.archi_name == 'YOLOX':
+            # random resizing
+            if (self.progress_in_iter + 1) % 10 == 0:
+                self.input_size = self.exp.random_resize(
+                    self.train_loader, self.epoch, self.rank, self.is_distributed
                 )
-                + (", {}".format(eta_str))
-            )
-            self.meter.clear_meters()
+        elif self.archi_name == 'PPYOLO':
+            pass
+        elif self.archi_name == 'FCOS':
+            pass
+        else:
+            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 
     @property
     def progress_in_iter(self):

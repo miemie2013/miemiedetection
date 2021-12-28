@@ -315,15 +315,13 @@ class YOLOv3Head(torch.nn.Module):
                 route = self.upsample_layers[i*2+1](route)
         return outputs
 
-    def get_loss(self, input, gt_box, gt_label, gt_score, targets):
+    def get_loss(self, input, gt_box, targets):
         """
         Get final loss of network of YOLOv3.
 
         Args:
             input (list): List of Variables, output of backbone stages
             gt_box (Variable): The ground-truth boudding boxes.
-            gt_label (Variable): The ground-truth class labels.
-            gt_score (Variable): The ground-truth boudding boxes mixup scores.
             targets ([Variables]): List of Variables, the targets for yolo
                                    loss calculatation.
 
@@ -335,7 +333,7 @@ class YOLOv3Head(torch.nn.Module):
         # outputs里为大中小感受野的输出
         outputs = self._get_outputs(input)
 
-        return self.yolo_loss(outputs, gt_box, gt_label, gt_score, targets,
+        return self.yolo_loss(outputs, gt_box, targets,
                               self.anchors, self.anchor_masks,
                               self.mask_anchors, self.num_classes)
 
