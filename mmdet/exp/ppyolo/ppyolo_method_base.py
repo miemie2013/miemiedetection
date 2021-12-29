@@ -249,11 +249,15 @@ class PPYOLO_Method_Exp(COCOBaseExp):
         self.sample_transforms_seq.append('normalizeBox')
         self.sample_transforms_seq.append('padBox')
         self.sample_transforms_seq.append('bboxXYXY2XYWH')
+        self.sample_transforms_seq.append('randomShape')
+        self.sample_transforms_seq.append('normalizeImage')
+        self.sample_transforms_seq.append('permute')
+        self.sample_transforms_seq.append('gt2YoloTarget')
         self.batch_transforms_seq = []
-        self.batch_transforms_seq.append('randomShape')
-        self.batch_transforms_seq.append('normalizeImage')
-        self.batch_transforms_seq.append('permute')
-        self.batch_transforms_seq.append('gt2YoloTarget')
+        # self.batch_transforms_seq.append('randomShape')
+        # self.batch_transforms_seq.append('normalizeImage')
+        # self.batch_transforms_seq.append('permute')
+        # self.batch_transforms_seq.append('gt2YoloTarget')
 
         # ---------------- dataloader config ---------------- #
         # 默认是4。如果报错“OSError: [WinError 1455] 页面文件太小,无法完成操作”，设置为2或0解决。
@@ -316,7 +320,7 @@ class PPYOLO_Method_Exp(COCOBaseExp):
         if is_distributed:
             batch_size = batch_size // dist.get_world_size()
 
-        sampler = InfiniteSampler(len(self.dataset), shuffle=True, seed=self.seed if self.seed else 0)
+        sampler = InfiniteSampler(len(self.dataset), shuffle=False, seed=self.seed if self.seed else 0)
 
         batch_sampler = torch.utils.data.sampler.BatchSampler(
             sampler=sampler,
@@ -331,8 +335,9 @@ class PPYOLO_Method_Exp(COCOBaseExp):
         # Check https://github.com/pytorch/pytorch/issues/63311 for more details.
         dataloader_kwargs["worker_init_fn"] = worker_init_reset_seed
 
-        collater = PPYOLOTrainCollater(self.context, batch_transforms, self.n_layers)
-        train_loader = torch.utils.data.DataLoader(self.dataset, collate_fn=collater, **dataloader_kwargs)
+        # collater = PPYOLOTrainCollater(self.context, batch_transforms, self.n_layers)
+        # dataloader_kwargs["collate_fn"] = collater
+        train_loader = torch.utils.data.DataLoader(self.dataset, **dataloader_kwargs)
 
         return train_loader
 

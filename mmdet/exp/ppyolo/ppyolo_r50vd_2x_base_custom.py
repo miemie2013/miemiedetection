@@ -186,11 +186,15 @@ class PPYOLO_R50VD_2x_Exp(PPYOLO_Method_Exp):
         self.sample_transforms_seq.append('normalizeBox')
         self.sample_transforms_seq.append('padBox')
         self.sample_transforms_seq.append('bboxXYXY2XYWH')
+        self.sample_transforms_seq.append('randomShape')
+        self.sample_transforms_seq.append('normalizeImage')
+        self.sample_transforms_seq.append('permute')
+        self.sample_transforms_seq.append('gt2YoloTarget')
         self.batch_transforms_seq = []
-        self.batch_transforms_seq.append('randomShape')
-        self.batch_transforms_seq.append('normalizeImage')
-        self.batch_transforms_seq.append('permute')
-        self.batch_transforms_seq.append('gt2YoloTarget')
+        # self.batch_transforms_seq.append('randomShape')
+        # self.batch_transforms_seq.append('normalizeImage')
+        # self.batch_transforms_seq.append('permute')
+        # self.batch_transforms_seq.append('gt2YoloTarget')
 
         # ---------------- dataloader config ---------------- #
         # 默认是4。如果报错“OSError: [WinError 1455] 页面文件太小,无法完成操作”，设置为2或0解决。

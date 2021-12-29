@@ -90,38 +90,16 @@ class Trainer:
             self.after_train()
 
     def train_in_epoch(self):
-        if self.archi_name == 'YOLOX':
-            for self.epoch in range(self.start_epoch, self.max_epoch):
-                self.before_epoch()
-                self.train_in_iter()
-                self.after_epoch()
-        elif self.archi_name == 'PPYOLO':
-            # self.train_in_all_iter()   # 所有的epoch被合并成1个大的epoch
-            for self.epoch in range(self.start_epoch, self.max_epoch):
-                self.before_epoch()
-                self.train_in_iter()
-                self.after_epoch()
-        elif self.archi_name == 'FCOS':
-            self.train_in_all_iter()   # 所有的epoch被合并成1个大的epoch
-        else:
-            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
+        for self.epoch in range(self.start_epoch, self.max_epoch):
+            self.before_epoch()
+            self.train_in_iter()
+            self.after_epoch()
 
     def train_in_iter(self):
         for self.iter in range(self.max_iter):
             self.before_iter()
             self.train_one_iter()
             self.after_iter()
-
-    def train_in_all_iter(self):   # 所有的epoch被合并成1个大的epoch
-        for self.iter in range(self.max_iter):
-            self.before_iter()
-            train_iter = self.train_one_iter()
-            if train_iter:
-                self.after_iter_mmdet()
-                # if (self.iter + 1) % 21 == 0:   # 用来调试
-                if (self.iter + 1) % self.epoch_steps == 0:
-                    self.epoch = self.iter // self.epoch_steps
-                    self.after_epoch()
 
     def train_one_iter(self):
         iter_start_time = time.time()
@@ -316,28 +294,6 @@ class Trainer:
             )
             logger.info("init prefetcher, this might take one minute or less...")
             self.prefetcher = DataPrefetcher(self.train_loader)
-            # max_iter means iters per epoch
-            self.max_iter = len(self.train_loader)
-
-            self.lr_scheduler = self.exp.get_lr_scheduler(
-                self.exp.basic_lr_per_img * self.args.batch_size, self.max_iter
-            )
-            if self.args.occupy:
-                occupy_mem(self.local_rank)
-
-            if self.is_distributed:
-                model = DDP(model, device_ids=[self.local_rank], broadcast_buffers=False)
-
-            if self.use_model_ema:
-                self.ema_model = ModelEMA(model, self.exp.ema_decay)
-                self.ema_model.updates = self.max_iter * self.start_epoch
-
-            self.model = model
-            self.model.train()
-
-            self.evaluator = self.exp.get_evaluator(
-                batch_size=self.args.eval_batch_size, is_distributed=self.is_distributed
-            )
         elif self.archi_name == 'PPYOLO':
             # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
             base_lr = self.exp.basic_lr_per_img * self.args.batch_size
@@ -362,28 +318,6 @@ class Trainer:
 
             logger.info("init prefetcher, this might take one minute or less...")
             self.prefetcher = PPYOLODataPrefetcher(self.train_loader, self.n_layers)
-            # max_iter means iters per epoch
-            self.max_iter = len(self.train_loader)
-
-            self.lr_scheduler = self.exp.get_lr_scheduler(
-                self.exp.basic_lr_per_img * self.args.batch_size, self.max_iter
-            )
-            if self.args.occupy:
-                occupy_mem(self.local_rank)
-
-            if self.is_distributed:
-                model = DDP(model, device_ids=[self.local_rank], broadcast_buffers=False)
-
-            if self.use_model_ema:
-                self.ema_model = ModelEMA(model, self.exp.ema_decay)
-                self.ema_model.updates = self.max_iter * self.start_epoch
-
-            self.model = model
-            self.model.train()
-
-            self.evaluator = self.exp.get_evaluator(
-                batch_size=self.args.eval_batch_size, is_distributed=self.is_distributed
-            )
         elif self.archi_name == 'FCOS':
             # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
             base_lr = self.exp.basic_lr_per_img * self.args.batch_size
@@ -408,30 +342,32 @@ class Trainer:
 
             logger.info("init prefetcher, this might take one minute or less...")
             self.prefetcher = FCOSDataPrefetcher(self.train_loader, self.n_layers)
-            # max_iter means iters per epoch
-            self.max_iter = len(self.train_loader)
-
-            self.lr_scheduler = self.exp.get_lr_scheduler(
-                self.exp.basic_lr_per_img * self.args.batch_size, self.max_iter
-            )
-            if self.args.occupy:
-                occupy_mem(self.local_rank)
-
-            if self.is_distributed:
-                model = DDP(model, device_ids=[self.local_rank], broadcast_buffers=False)
-
-            if self.use_model_ema:
-                self.ema_model = ModelEMA(model, self.exp.ema_decay)
-                self.ema_model.updates = self.max_iter * self.start_epoch
-
-            self.model = model
-            self.model.train()
-
-            self.evaluator = self.exp.get_evaluator(
-                batch_size=self.args.eval_batch_size, is_distributed=self.is_distributed
-            )
         else:
             raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
+
+        # max_iter means iters per epoch
+        self.max_iter = len(self.train_loader)
+
+        self.lr_scheduler = self.exp.get_lr_scheduler(
+            self.exp.basic_lr_per_img * self.args.batch_size, self.max_iter
+        )
+        if self.args.occupy:
+            occupy_mem(self.local_rank)
+
+        if self.is_distributed:
+            model = DDP(model, device_ids=[self.local_rank], broadcast_buffers=False)
+
+        if self.use_model_ema:
+            self.ema_model = ModelEMA(model, self.exp.ema_decay)
+            self.ema_model.updates = self.max_iter * self.start_epoch
+
+        self.model = model
+        self.model.train()
+
+        self.evaluator = self.exp.get_evaluator(
+            batch_size=self.args.eval_batch_size, is_distributed=self.is_distributed
+        )
+
         # Tensorboard logger
         if self.rank == 0:
             self.tblogger = SummaryWriter(self.file_name)
@@ -513,41 +449,16 @@ class Trainer:
                 ["{}: {:.3f}s".format(k, v.avg) for k, v in time_meter.items()]
             )
 
+            log_msg = "{}, mem: {:.0f}Mb, {}, {}, lr: {:.6f}".format(progress_str, gpu_mem_usage(), time_str, loss_str, self.meter["lr"].latest, )
             if self.archi_name == 'YOLOX':
-                logger.info(
-                    "{}, mem: {:.0f}Mb, {}, {}, lr: {:.6f}".format(
-                        progress_str,
-                        gpu_mem_usage(),
-                        time_str,
-                        loss_str,
-                        self.meter["lr"].latest,
-                    )
-                    + (", size: {:d}, {}".format(self.input_size[0], eta_str))
-                )
+                log_msg += (", size: {:d}, {}".format(self.input_size[0], eta_str))
             elif self.archi_name == 'PPYOLO':
-                logger.info(
-                    "{}, mem: {:.0f}Mb, {}, {}, lr: {:.6f}".format(
-                        progress_str,
-                        gpu_mem_usage(),
-                        time_str,
-                        loss_str,
-                        self.meter["lr"].latest,
-                    )
-                    + (", {}".format(eta_str))
-                )
+                log_msg += (", {}".format(eta_str))
             elif self.archi_name == 'FCOS':
-                logger.info(
-                    "{}, mem: {:.0f}Mb, {}, {}, lr: {:.6f}".format(
-                        progress_str,
-                        gpu_mem_usage(),
-                        time_str,
-                        loss_str,
-                        self.meter["lr"].latest,
-                    )
-                    + (", {}".format(eta_str))
-                )
+                log_msg += (", {}".format(eta_str))
             else:
                 raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
+            logger.info(log_msg)
             self.meter.clear_meters()
 
         if self.archi_name == 'YOLOX':

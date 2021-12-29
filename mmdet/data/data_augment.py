@@ -3721,6 +3721,10 @@ def get_sample_transforms(cfg):
             preprocess = BboxXYXY2XYWH(**cfg.bboxXYXY2XYWH)     # sample['gt_bbox']被改写为cx_cy_w_h格式。
         elif preprocess_name == 'permute':
             preprocess = Permute(**cfg.permute)    # 图片从HWC格式变成CHW格式
+        elif preprocess_name == 'randomShape':
+            preprocess = RandomShapeSingle(random_inter=cfg.randomShape['random_inter'])  # 多尺度训练。随机选一个尺度。也随机选一种插值方式。
+        elif preprocess_name == 'gt2YoloTarget':
+            preprocess = Gt2YoloTargetSingle(**cfg.gt2YoloTarget)   # 填写target张量。
         else:
             raise NotImplementedError("Transform \'{}\' is not implemented.".format(preprocess_name))
         sample_transforms.append(preprocess)
