@@ -113,22 +113,28 @@ class PPYOLO_Method_Exp(COCOBaseExp):
             freeze_norm=False,
             norm_decay=0.,
         )
+        self.fpn_type = 'PPYOLOFPN'
+        self.fpn = dict(
+            in_channels=[512, 1024, 2048],
+            coord_conv=True,
+            drop_block=True,
+            block_size=3,
+            keep_prob=0.9,
+            spp=True,
+        )
+        self.head_type = 'YOLOv3Head'
         self.head = dict(
+            in_channels=[1024, 512, 256],
             num_classes=self.num_classes,
-            norm_type='bn',
             anchor_masks=[[6, 7, 8], [3, 4, 5], [0, 1, 2]],
             anchors=[[10, 13], [16, 30], [33, 23],
                      [30, 61], [62, 45], [59, 119],
                      [116, 90], [156, 198], [373, 326]],
-            coord_conv=True,
+            downsample=[32, 16, 8],
+            scale_x_y=1.05,
+            clip_bbox=True,
             iou_aware=True,
             iou_aware_factor=0.4,
-            scale_x_y=1.05,
-            spp=True,
-            drop_block=True,
-            keep_prob=0.9,
-            downsample=[32, 16, 8],
-            in_channels=[2048, 1024, 512],
         )
         self.iou_loss = dict(
             loss_weight=2.5,
@@ -265,6 +271,7 @@ class PPYOLO_Method_Exp(COCOBaseExp):
 
     def get_model(self):
         from mmdet.models import Resnet50Vd, Resnet18Vd, IouLoss, IouAwareLoss, YOLOv3Loss, YOLOv3Head, PPYOLO
+        from mmdet.models.necks.yolo_fpn import PPYOLOFPN
         if getattr(self, "model", None) is None:
             Backbone = None
             if self.backbone_type == 'Resnet50Vd':
@@ -275,13 +282,18 @@ class PPYOLO_Method_Exp(COCOBaseExp):
             # 冻结骨干网络
             backbone.freeze()
             backbone.fix_bn()
+            Fpn = None
+            if self.fpn_type == 'PPYOLOFPN':
+                Fpn = PPYOLOFPN
+            fpn = Fpn(**self.fpn)
             iou_loss = IouLoss(**self.iou_loss)
             iou_aware_loss = None
             if self.head['iou_aware']:
                 iou_aware_loss = IouAwareLoss(**self.iou_aware_loss)
-            yolo_loss = YOLOv3Loss(iou_loss=iou_loss, iou_aware_loss=iou_aware_loss, **self.yolo_loss)
-            head = YOLOv3Head(yolo_loss=yolo_loss, nms_cfg=self.nms_cfg, **self.head)
-            self.model = PPYOLO(backbone, head)
+            # yolo_loss = YOLOv3Loss(iou_loss=iou_loss, iou_aware_loss=iou_aware_loss, **self.yolo_loss)
+            # head = YOLOv3Head(loss=yolo_loss, nms_cfg=self.nms_cfg, **self.head)
+            head = YOLOv3Head(loss=None, nms_cfg=self.nms_cfg, **self.head)
+            self.model = PPYOLO(backbone, fpn, head)
         return self.model
 
     def get_data_loader(

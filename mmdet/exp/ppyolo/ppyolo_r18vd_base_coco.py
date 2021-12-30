@@ -49,22 +49,27 @@ class PPYOLO_R18VD_Exp(PPYOLO_Method_Exp):
             freeze_norm=False,
             norm_decay=0.,
         )
-        self.head = dict(
-            num_classes=self.num_classes,
+        self.fpn_type = 'PPYOLOFPN'
+        self.fpn = dict(
+            in_channels=[256, 512],
+            coord_conv=False,
+            drop_block=True,
+            block_size=3,
+            keep_prob=0.9,
             conv_block_num=0,
-            norm_type='bn',
+            spp=False,
+        )
+        self.head_type = 'YOLOv3Head'
+        self.head = dict(
+            in_channels=[512, 256],
+            num_classes=self.num_classes,
             anchor_masks=[[3, 4, 5], [0, 1, 2]],
             anchors=[[10, 14], [23, 27], [37, 58],
                      [81, 82], [135, 169], [344, 319]],
-            coord_conv=False,
-            iou_aware=False,
-            iou_aware_factor=0.4,
-            scale_x_y=1.05,
-            spp=False,
-            drop_block=True,
-            keep_prob=0.9,
             downsample=[32, 16],
-            in_channels=[512, 256],
+            scale_x_y=1.05,
+            clip_bbox=True,
+            iou_aware=False,
         )
         self.iou_loss = dict(
             loss_weight=2.5,

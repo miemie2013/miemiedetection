@@ -243,6 +243,7 @@ class Conv2dUnit(torch.nn.Module):
                  bias_attr=False,
                  norm_type=None,
                  groups=1,
+                 padding=None,
                  norm_groups=32,
                  act=None,
                  freeze_norm=False,
@@ -252,12 +253,15 @@ class Conv2dUnit(torch.nn.Module):
                  weight_init=None,
                  bias_init=None,
                  use_dcn=False,
-                 name=''):
+                 name='',
+                 data_format='NCHW'):
         super(Conv2dUnit, self).__init__()
         self.filters = filters
         self.filter_size = filter_size
         self.stride = stride
         self.padding = (filter_size - 1) // 2
+        if padding is not None:
+            self.padding = padding
         self.act = act
         self.freeze_norm = freeze_norm
         self.norm_decay = norm_decay
@@ -489,9 +493,9 @@ class Conv2dUnit(torch.nn.Module):
         return x
 
 
-class CoordConv(torch.nn.Module):
+class CoordConv2(torch.nn.Module):
     def __init__(self, coord_conv=True):
-        super(CoordConv, self).__init__()
+        super(CoordConv2, self).__init__()
         self.coord_conv = coord_conv
 
     def forward(self, input):
@@ -508,9 +512,77 @@ class CoordConv(torch.nn.Module):
         return offset
 
 
-class SPP(torch.nn.Module):
+def add_coord(x, data_format):
+    b = x.shape[0]
+    if data_format == 'NCHW':
+        h, w = x.shape[2], x.shape[3]
+    else:
+        h, w = x.shape[1], x.shape[2]
+
+    gx = T.arange(0, w, dtype=x.dtype, device=x.device) / (w - 1.) * 2.0 - 1.
+    gy = T.arange(0, h, dtype=x.dtype, device=x.device) / (h - 1.) * 2.0 - 1.
+
+    if data_format == 'NCHW':
+        gx = gx.reshape([1, 1, 1, w]).expand([b, 1, h, w])
+        gy = gy.reshape([1, 1, h, 1]).expand([b, 1, h, w])
+    else:
+        gx = gx.reshape([1, 1, w, 1]).expand([b, h, w, 1])
+        gy = gy.reshape([1, h, 1, 1]).expand([b, h, w, 1])
+
+    gx.requires_grad = False
+    gy.requires_grad = False
+    return gx, gy
+
+
+class CoordConv(torch.nn.Module):
+    def __init__(self,
+                 ch_in,
+                 ch_out,
+                 filter_size,
+                 padding,
+                 norm_type,
+                 freeze_norm=False,
+                 name='',
+                 act='leaky',
+                 data_format='NCHW'):
+        """
+        PPYOLO专用的CoordConv，强制绑定一个Conv + BN + LeakyRELU.
+        CoordConv layer, see https://arxiv.org/abs/1807.03247
+
+        Args:
+            ch_in (int): input channel
+            ch_out (int): output channel
+            filter_size (int): filter size, default 3
+            padding (int): padding size, default 0
+            norm_type (str): batch norm type, default bn
+            name (str): layer name
+            data_format (str): data format, NCHW or NHWC
+
+        """
+        super(CoordConv, self).__init__()
+        self.conv = Conv2dUnit(
+            ch_in + 2,
+            ch_out,
+            filter_size=filter_size,
+            norm_type=norm_type,
+            freeze_norm=freeze_norm,
+            act=act,
+            name=name)
+        self.data_format = data_format
+
+    def forward(self, x):
+        gx, gy = add_coord(x, self.data_format)
+        if self.data_format == 'NCHW':
+            y = torch.cat([x, gx, gy], 1)
+        else:
+            y = torch.cat([x, gx, gy], -1)
+        y = self.conv(y)
+        return y
+
+
+class SPP2(torch.nn.Module):
     def __init__(self, seq='asc'):
-        super(SPP, self).__init__()
+        super(SPP2, self).__init__()
         assert seq in ['desc', 'asc']
         self.seq = seq
 
@@ -526,11 +598,66 @@ class SPP(torch.nn.Module):
         return out
 
 
-class DropBlock(torch.nn.Module):
+class SPP(torch.nn.Module):
+    def __init__(self,
+                 ch_in,
+                 ch_out,
+                 k,
+                 pool_size,
+                 norm_type,
+                 freeze_norm=False,
+                 name='',
+                 act='leaky',
+                 data_format='NCHW'):
+        """
+        PPYOLO专用的SPP，强制绑定一个Conv + BN + LeakyRELU.
+        SPP layer, which consist of four pooling layer follwed by conv layer
+
+        Args:
+            ch_in (int): input channel of conv layer
+            ch_out (int): output channel of conv layer
+            k (int): kernel size of conv layer
+            norm_type (str): batch norm type
+            freeze_norm (bool): whether to freeze norm, default False
+            name (str): layer name
+            act (str): activation function
+            data_format (str): data format, NCHW or NHWC
+        """
+        super(SPP, self).__init__()
+        self.pool = torch.nn.ModuleList()
+        self.data_format = data_format
+        for size in pool_size:
+            pool = nn.MaxPool2d(kernel_size=size, stride=1, padding=size // 2, ceil_mode=False)
+            self.pool.append(pool)
+        self.conv = Conv2dUnit(
+            ch_in,
+            ch_out,
+            k,
+            padding=k // 2,
+            norm_type=norm_type,
+            freeze_norm=freeze_norm,
+            name=name,
+            act=act,
+            data_format=data_format)
+
+    def forward(self, x):
+        outs = [x]
+        for pool in self.pool:
+            outs.append(pool(x))
+        if self.data_format == "NCHW":
+            y = torch.cat(outs, 1)
+        else:
+            y = torch.cat(outs, -1)
+
+        y = self.conv(y)
+        return y
+
+
+class DropBlock2(torch.nn.Module):
     def __init__(self,
                  block_size=3,
                  keep_prob=0.9):
-        super(DropBlock, self).__init__()
+        super(DropBlock2, self).__init__()
         self.block_size = block_size
         self.keep_prob = keep_prob
 
@@ -574,6 +701,48 @@ class DropBlock(torch.nn.Module):
 
         output = input * mask * elem_numel_m / elem_sum
         return output
+
+
+class DropBlock(torch.nn.Module):
+    def __init__(self, block_size, keep_prob, name, data_format='NCHW'):
+        """
+        DropBlock layer, see https://arxiv.org/abs/1810.12890
+
+        Args:
+            block_size (int): block size
+            keep_prob (int): keep probability
+            name (str): layer name
+            data_format (str): data format, NCHW or NHWC
+        """
+        super(DropBlock, self).__init__()
+        self.block_size = block_size
+        self.keep_prob = keep_prob
+        self.name = name
+        self.data_format = data_format
+
+    def forward(self, x):
+        if not self.training or self.keep_prob == 1:
+            return x
+        else:
+            gamma = (1. - self.keep_prob) / (self.block_size**2)
+            if self.data_format == 'NCHW':
+                shape = x.shape[2:]
+            else:
+                shape = x.shape[1:3]
+            for s in shape:
+                gamma *= s / (s - self.block_size + 1)
+
+            matrix = torch.rand(x.shape, device=x.device)
+            matrix = (matrix < gamma).float()
+            mask_inv = F.max_pool2d(
+                matrix,
+                self.block_size,
+                stride=1,
+                padding=self.block_size // 2,
+                data_format=self.data_format)
+            mask = 1. - mask_inv
+            y = x * mask * (mask.numel() / mask.sum())
+            return y
 
 
 class PointGenerator(object):

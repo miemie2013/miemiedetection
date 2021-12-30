@@ -1,0 +1,191 @@
+# 跟进最新版本的paddle的写法
+import paddle
+import paddle.nn as nn
+import paddle.nn.functional as F
+
+
+# 停止梯度
+tensor.stop_gradient = True
+
+# 张量变成一维张量
+tensor = tensor.flatten()
+
+# 张量reshape
+tensor = tensor.reshape([-1, 4])
+tensor = tensor.reshape((b, -1, 4))
+
+# 张量转置
+tensor = tensor.transpose((0, 1, 3, 4, 2))
+tensor = tensor.transpose((1, 0))
+
+# 张量某一维求最大值。来自SSD算法。
+prior_max_iou, prior_argmax_iou = ious.max(axis=1), ious.argmax(axis=1)
+gt_max_iou, gt_argmax_iou = ious.max(axis=2), ious.argmax(axis=2)
+gt_max_iou = ious.max(axis=2)
+gt_argmax_iou = ious.argmax(axis=2)
+
+# 2个张量逐元素求最大值、最小值。来自FCOS算法。
+clw = paddle.maximum(plw, tlw)
+ilw = paddle.minimum(plw, tlw)
+
+# topk和排序
+value_3, indices_3 = paddle.topk(data_2, k=1, axis=None, largest=True, sorted=True)
+loss_idx = conf_loss.argsort(axis=1, descending=True)
+idx_rank = loss_idx.argsort(axis=1)
+
+# 各种激活函数
+tensor = paddle.exp(tensor)
+tensor = paddle.log(tensor)
+tensor = F.sigmoid(tensor)
+tensor = F.relu(tensor)
+tensor = paddle.atan(tensor)
+tensor = paddle.pow(tensor, 2)
+
+# 上下限
+x = paddle.clip(x, min=eps, max=1.0/eps)
+dh = paddle.clip(dh, max=clip_scale)
+x1 = boxes[:, 0].clip(0, w)
+y1 = boxes[:, 1].clip(0, h)
+
+# 逻辑与。来自FCOS算法。
+mask = paddle.logical_and(w > min_size, w > min_size)
+
+# 返回输入中非零元素的坐标。来自FCOS算法。
+keep = paddle.nonzero(mask)
+
+# 获取onehot向量。来自FCOS算法。labels.data = [1, 1, 3, 0]
+one_hots = F.one_hot(labels, num_classes=1 + num_classes)
+one_hots = one_hots[:, 1:]
+
+# where逐元素选择。来自PaddleDetection中bbox_utils.py中bbox_overlaps(boxes1, boxes2)求两两之间的iou。
+overlaps = paddle.where(inter > 0,
+                        inter / (paddle.unsqueeze(area1, 1) + area2 - inter),
+                        paddle.zeros_like(inter))
+
+# 张量某维求积。来自PaddleDetection中bbox_utils.py中bbox_overlaps(boxes1, boxes2)求两两之间的iou。
+inter = width_height.prod(axis=2)
+out4 = paddle.prod(x, axis=0, keepdim=True)
+
+
+# 生成yolov3格子图里每个格子左上角xy坐标
+# yv.shape=[h, w]  每个格子左上角的y坐标，为[[0, 0, 0], [1, 1, 1]]
+# xv.shape=[h, w]  每个格子左上角的x坐标，为[[0, 1, 2], [0, 1, 2]]
+# grid_xy.shape=[h, w, 2]  每个格子左上角的xy坐标，为[[[0, 0], [1, 0], [2, 0]], [[0, 1], [1, 1], [2, 1]]]
+h, w = 2, 3
+yv, xv = paddle.meshgrid([paddle.arange(h), paddle.arange(w)])
+grid_xy = paddle.stack((xv, yv), 2).cast(dtype='float32')
+
+
+# 张量某些维求和、求平均
+loss_iou_aware = loss_iou_aware.sum([1, 2, 3, 4])
+loss_iou_aware = loss_iou_aware.mean()
+num_pos = pos.sum(axis=1, keepdim=True)
+
+# 生成等差数列、全0、全1、全255
+batch_ind = paddle.arange(end=batch_size, dtype='int64')
+batch_ind = paddle.arange(0, batch_size, dtype='int64').unsqueeze(-1).tile([1, num_priors])
+reg_target = paddle.zeros((10, 4), 'float32')
+l1_target = paddle.ones((10, 4), 'float32')
+tensor = paddle.full((10, 4), 'float32', fill_value=255)
+
+# 增加1维
+batch_ind = batch_ind.unsqueeze(0)
+batch_ind = paddle.unsqueeze(batch_ind, axis=0)
+
+# 去掉1维
+tensor = tensor.squeeze(1)
+tensor = paddle.squeeze(tensor, axis=1)
+
+# tile重复n次
+batch_ind = batch_ind.tile([1, num_priors])
+
+# 张量拼接
+gbox = paddle.concat([gxy, gwh], -1)
+
+# 张量stack拼接（维数+1）。来自SSD算法。
+prior_argmax_iou = paddle.stack([batch_ind, prior_argmax_iou], axis=-1)
+
+# 用paddle.nonzero()代替旧的api L.where()的写法。返回fg_mask > 0是True的元素的下标。
+index = L.where(fg_mask > 0)
+index = paddle.nonzero(fg_mask > 0)
+
+# 读取张量某几个下标里的值
+index = paddle.nonzero(fg_mask > 0)
+targets_bbox = paddle.gather(gt_bbox, prior_argmax_iou)
+targets_bbox = paddle.gather_nd(gt_bbox, prior_argmax_iou)
+
+# 修改张量某几个下标里的值
+fg_mask = paddle.scatter(fg_mask, index, fg_mask_inboxes, overwrite=True)
+
+# 张量类型转换
+iou_mask = paddle.cast(iou_max <= ignore_thresh, dtype=pbox.dtype)
+num_object = (ious.sum(axis=-1) > 0).astype('int64').sum(axis=-1)
+pos = (targets_label != bg_index).astype(conf_loss.dtype)
+neg = (targets_label == bg_index).astype(conf_loss.dtype)
+
+# 二值交叉熵损失
+loss_x = F.binary_cross_entropy(x, tx, reduction='none')
+loss_cls = F.binary_cross_entropy_with_logits(pcls, tcls, reduction='none')
+
+# L1损失
+loss_h = paddle.abs(h - th)
+
+# SmoothL1损失
+loc_loss = bbox_mask * F.smooth_l1_loss(boxes, targets_bbox, reduction='none')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -10,6 +10,7 @@
 import numpy as np
 import torch
 import torch as T
+import torch.nn.functional as F
 import copy
 import math
 
@@ -170,7 +171,7 @@ class DetectionBlock(torch.nn.Module):
                 layer.add_param_group(param_groups, base_lr, base_wd)
 
 
-class YOLOv3Head(torch.nn.Module):
+class YOLOv3Head2(torch.nn.Module):
     def __init__(self,
                  conv_block_num=2,
                  num_classes=80,
@@ -196,7 +197,7 @@ class YOLOv3Head(torch.nn.Module):
                  focalloss_on_obj=False,
                  prior_prob=0.01,
                  ):
-        super(YOLOv3Head, self).__init__()
+        super(YOLOv3Head2, self).__init__()
         self.conv_block_num = conv_block_num
         self.num_classes = num_classes
         self.norm_type = norm_type
@@ -386,6 +387,180 @@ class YOLOv3Head(torch.nn.Module):
         #         preds.append(pred)
         return preds
 
+class YOLOv3Head(torch.nn.Module):
+    def __init__(self,
+                 in_channels=[1024, 512, 256],
+                 anchors=[[10, 13], [16, 30], [33, 23], [30, 61], [62, 45],
+                          [59, 119], [116, 90], [156, 198], [373, 326]],
+                 anchor_masks=[[6, 7, 8], [3, 4, 5], [0, 1, 2]],
+                 downsample=[32, 16, 8],
+                 scale_x_y=1.05,
+                 clip_bbox=True,
+                 num_classes=80,
+                 loss='YOLOv3Loss',
+                 iou_aware=False,
+                 iou_aware_factor=0.4,
+                 nms_cfg=None,
+                 data_format='NCHW'):
+        """
+        Head for YOLOv3 network
+
+        Args:
+            num_classes (int): number of foreground classes
+            anchors (list): anchors
+            anchor_masks (list): anchor masks
+            loss (object): YOLOv3Loss instance
+            iou_aware (bool): whether to use iou_aware
+            iou_aware_factor (float): iou aware factor
+            data_format (str): data format, NCHW or NHWC
+        """
+        super(YOLOv3Head, self).__init__()
+        assert len(in_channels) > 0, "in_channels length should > 0"
+        self.in_channels = in_channels
+        self.num_classes = num_classes
+        self.loss = loss
+
+        self.iou_aware = iou_aware
+        self.iou_aware_factor = iou_aware_factor
+
+        self.parse_anchor(anchors, anchor_masks)
+        self.num_outputs = len(self.anchors)
+        self.data_format = data_format
+        self.nms_cfg = nms_cfg
+        self.export_onnx = False
+
+        self.anchor_masks = anchor_masks
+        self.downsample = downsample
+        self.scale_x_y = scale_x_y
+        self.clip_bbox = clip_bbox
+        _anchors = copy.deepcopy(anchors)
+        _anchors = np.array(_anchors)
+        _anchors = _anchors.astype(np.float32)
+        self._anchors = _anchors   # [9, 2]
+
+        self.yolo_outputs = torch.nn.ModuleList()
+        for i in range(len(self.anchors)):
+
+            if self.iou_aware:
+                num_filters = len(self.anchors[i]) * (self.num_classes + 6)
+            else:
+                num_filters = len(self.anchors[i]) * (self.num_classes + 5)
+            name = 'yolo_output.{}'.format(i)
+            bias_init = None
+            # if self.focalloss_on_obj:
+            #     # 设置偏移的初始值使得obj预测概率初始值为self.prior_prob (根据激活函数是sigmoid()时推导出)
+            #     bias_init_value = -math.log((1 - self.prior_prob) / self.prior_prob)
+            #     bias_init_array = np.zeros((num_filters, ), np.float32)
+            #     an_num = len(self.anchor_masks[i])
+            #     start = 0
+            #     stride = (self.num_classes + 5)
+            #     if self.iou_aware:
+            #         start = an_num
+            #     # 只设置置信位
+            #     for o in range(an_num):
+            #         bias_init_array[start + o * stride + 4] = bias_init_value
+            #     bias_init = fluid.initializer.NumpyArrayInitializer(bias_init_array)
+            conv = Conv2dUnit(self.in_channels[i], num_filters, 1, stride=1, bias_attr=True, act=None,
+                              bias_init=bias_init, name=name)
+            self.yolo_outputs.append(conv)
+
+    def parse_anchor(self, anchors, anchor_masks):
+        self.anchors = [[anchors[i] for i in mask] for mask in anchor_masks]
+        self.mask_anchors = []
+        anchor_num = len(anchors)
+        for masks in anchor_masks:
+            self.mask_anchors.append([])
+            for mask in masks:
+                assert mask < anchor_num, "anchor mask index overflow"
+                self.mask_anchors[-1].extend(anchors[mask])
+
+    def forward(self, feats, im_size, targets=None):
+        assert len(feats) == len(self.anchors)
+        yolo_outputs = []
+        for i, feat in enumerate(feats):
+            yolo_output = self.yolo_outputs[i](feat)
+            if self.data_format == 'NHWC':
+                yolo_output = yolo_output.permute(0, 3, 1, 2)
+            yolo_outputs.append(yolo_output)
+
+        if self.training:
+            return self.loss(yolo_outputs, targets, self.anchors)
+        else:
+            # outputs里为大中小感受野的输出
+            outputs = yolo_outputs
+
+            boxes = []
+            scores = []
+            for i, out in enumerate(outputs):
+                if self.iou_aware:
+                    na = len(self.anchors[i])
+                    ioup, x = out[:, 0:na, :, :], out[:, na:, :, :]
+                    b, c, h, w = x.shape
+                    no = c // na
+                    x = x.reshape((b, na, no, h * w))
+                    ioup = ioup.reshape((b, na, 1, h * w))
+                    obj = x[:, :, 4:5, :]
+                    ioup = torch.sigmoid(ioup)
+                    obj = torch.sigmoid(obj)
+                    obj_t = (obj**(1 - self.iou_aware_factor)) * (
+                        ioup**self.iou_aware_factor)
+                    obj_t = _de_sigmoid(obj_t)
+                    loc_t = x[:, :, :4, :]
+                    cls_t = x[:, :, 5:, :]
+                    y_t = torch.cat([loc_t, obj_t, cls_t], 2)
+                    out = y_t.reshape((b, c, h, w))
+                    # output = get_iou_aware_score(output,
+                    #                              len(self.anchor_masks[i]),
+                    #                              self.num_classes,
+                    #                              self.iou_aware_factor)
+                box, score = paddle_yolo_box(out, self._anchors[self.anchor_masks[i]], self.downsample[i],
+                                             self.num_classes, self.scale_x_y, im_size, self.clip_bbox,
+                                             conf_thresh=self.nms_cfg['score_threshold'])
+                boxes.append(box)
+                scores.append(score)
+            yolo_boxes = torch.cat(boxes, 1)  # [N, A,  4]
+            yolo_scores = torch.cat(scores, 1)  # [N, A, 80]
+            if self.export_onnx:
+                decode_output = torch.cat([yolo_boxes, yolo_scores], 2)  # [N, A, 4+80]
+                return decode_output
+
+            # nms
+            preds = []
+            nms_cfg = copy.deepcopy(self.nms_cfg)
+            nms_type = nms_cfg.pop('nms_type')
+            batch_size = yolo_boxes.shape[0]
+            if nms_type == 'matrix_nms':
+                for i in range(batch_size):
+                    pred = matrix_nms(yolo_boxes[i, :, :], yolo_scores[i, :, :], **nms_cfg)
+                    preds.append(pred)
+            # elif nms_type == 'multiclass_nms':
+            #     for i in range(batch_size):
+            #         pred = fluid.layers.multiclass_nms(yolo_boxes[i:i+1, :, :], yolo_scores[i:i+1, :, :], background_label=-1, **nms_cfg)
+            #         preds.append(pred)
+            return preds
+            # if self.iou_aware:
+            #     y = []
+            #     for i, out in enumerate(yolo_outputs):
+            #         na = len(self.anchors[i])
+            #         ioup, x = out[:, 0:na, :, :], out[:, na:, :, :]
+            #         b, c, h, w = x.shape
+            #         no = c // na
+            #         x = x.reshape((b, na, no, h * w))
+            #         ioup = ioup.reshape((b, na, 1, h * w))
+            #         obj = x[:, :, 4:5, :]
+            #         ioup = torch.sigmoid(ioup)
+            #         obj = torch.sigmoid(obj)
+            #         obj_t = (obj**(1 - self.iou_aware_factor)) * (
+            #             ioup**self.iou_aware_factor)
+            #         obj_t = _de_sigmoid(obj_t)
+            #         loc_t = x[:, :, :4, :]
+            #         cls_t = x[:, :, 5:, :]
+            #         y_t = torch.cat([loc_t, obj_t, cls_t], 2)
+            #         y_t = y_t.reshape((b, c, h, w))
+            #         y.append(y_t)
+            #     return y
+            # else:
+            #     return yolo_outputs
 
 
 

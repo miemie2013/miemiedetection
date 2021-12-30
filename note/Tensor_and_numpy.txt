@@ -1,0 +1,52 @@
+
+
+1.pytorch张量转numpy：
+
+
+ndarray = input.cpu().detach().numpy()
+import numpy as np
+dic = {}
+dic['img'] = ndarray
+np.savez('data', **dic)
+
+
+dic2 = np.load('data.npz')
+
+
+
+aaaaaaaaaaa2 = dic2['aaaaaaaaaaa']
+ddd = np.sum((aaaaaaaaaaa2 - aaaaaaaaaaa.numpy())**2)
+print('ddd=%.6f' % ddd)
+
+
+
+2.numpy转pytorch张量：
+_anchors = torch.Tensor(anchors).cuda()
+img = torch.from_numpy(img)
+
+
+3.paddle张量转numpy：
+ndarray = input.numpy()
+
+4.numpy转paddle张量：
+x = paddle.to_tensor(img, place=place)
+
+
+
+当你安装了高版本的numpy，跑pycocotools会报错：
+
+  File "D:\Python39\lib\site-packages\pycocotools-2.0-py3.9-win-amd64.egg\pycocotools\cocoeval.py", line 506, in setDetParams
+    self.iouThrs = np.linspace(.5, 0.95, np.round((0.95 - .5) / .05) + 1, endpoint=True)
+  File "<__array_function__ internals>", line 5, in linspace
+  File "D:\Python39\lib\site-packages\numpy\core\function_base.py", line 113, in linspace
+    num = operator.index(num)
+TypeError: 'numpy.float64' object cannot be interpreted as an integer
+
+这时打开D:\Python39\lib\site-packages\pycocotools-2.0-py3.9-win-amd64.egg\pycocotools\cocoeval.py
+修改代码为
+# self.iouThrs = np.linspace(.5, 0.95, np.round((0.95 - .5) / .05) + 1, endpoint=True)
+# self.recThrs = np.linspace(.0, 1.00, np.round((1.00 - .0) / .01) + 1, endpoint=True)
+self.iouThrs = [x for x in range(50, 100, 5)]
+self.iouThrs = np.array(self.iouThrs).astype(np.float32) / 100
+self.recThrs = [x for x in range(0, 101, 1)]
+self.recThrs = np.array(self.recThrs).astype(np.float32) / 100

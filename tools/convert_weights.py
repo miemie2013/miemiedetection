@@ -20,6 +20,7 @@ from mmdet.exp import get_exp
 from mmdet.utils import fuse_model, get_model_info, postprocess, vis, get_classes
 from mmdet.models import *
 from mmdet.models.custom_layers import *
+from mmdet.models.necks.yolo_fpn import PPYOLOFPN
 
 
 def make_parser():
@@ -122,28 +123,44 @@ def main(exp, args):
         pass
     elif model_class_name == 'PPYOLO':
         state_dict = fluid.io.load_program_state(args.ckpt)
+        backbone_dic = {}
+        fpn_dic = {}
+        head_dic = {}
+        others = {}
+        for key, value in state_dict.items():
+            if 'tracked' in key:
+                continue
+            if 'backbone' in key:
+                backbone_dic[key] = value
+            elif 'neck' in key:
+                fpn_dic[key] = value
+            elif 'head' in key:
+                head_dic[key] = value
+            else:
+                others[key] = value
         backbone = model.backbone
+        fpn = model.fpn
         head = model.head
         if isinstance(backbone, Resnet50Vd):
-            w = state_dict['conv1_1_weights']
-            scale = state_dict['bnv1_1_scale']
-            offset = state_dict['bnv1_1_offset']
-            m = state_dict['bnv1_1_mean']
-            v = state_dict['bnv1_1_variance']
+            w = state_dict['backbone.conv1.conv1_1.conv.weight']
+            scale = state_dict['backbone.conv1.conv1_1.norm.weight']
+            offset = state_dict['backbone.conv1.conv1_1.norm.bias']
+            m = state_dict['backbone.conv1.conv1_1.norm._mean']
+            v = state_dict['backbone.conv1.conv1_1.norm._variance']
             copy_conv_bn(backbone.stage1_conv1_1, w, scale, offset, m, v, use_gpu)
 
-            w = state_dict['conv1_2_weights']
-            scale = state_dict['bnv1_2_scale']
-            offset = state_dict['bnv1_2_offset']
-            m = state_dict['bnv1_2_mean']
-            v = state_dict['bnv1_2_variance']
+            w = state_dict['backbone.conv1.conv1_2.conv.weight']
+            scale = state_dict['backbone.conv1.conv1_2.norm.weight']
+            offset = state_dict['backbone.conv1.conv1_2.norm.bias']
+            m = state_dict['backbone.conv1.conv1_2.norm._mean']
+            v = state_dict['backbone.conv1.conv1_2.norm._variance']
             copy_conv_bn(backbone.stage1_conv1_2, w, scale, offset, m, v, use_gpu)
 
-            w = state_dict['conv1_3_weights']
-            scale = state_dict['bnv1_3_scale']
-            offset = state_dict['bnv1_3_offset']
-            m = state_dict['bnv1_3_mean']
-            v = state_dict['bnv1_3_variance']
+            w = state_dict['backbone.conv1.conv1_3.conv.weight']
+            scale = state_dict['backbone.conv1.conv1_3.norm.weight']
+            offset = state_dict['backbone.conv1.conv1_3.norm.bias']
+            m = state_dict['backbone.conv1.conv1_3.norm._mean']
+            v = state_dict['backbone.conv1.conv1_3.norm._variance']
             copy_conv_bn(backbone.stage1_conv1_3, w, scale, offset, m, v, use_gpu)
 
             nums = [3, 4, 6, 3]
@@ -151,38 +168,35 @@ def main(exp, args):
                 stage_name = 'res' + str(nid + 2)
                 for kk in range(num):
                     block_name = stage_name + chr(ord("a") + kk)
-                    conv_name1 = block_name + "_branch2a"
-                    conv_name2 = block_name + "_branch2b"
-                    conv_name3 = block_name + "_branch2c"
-                    shortcut_name = block_name + "_branch1"
+                    conv_name1 = 'backbone.' + stage_name + "." + block_name + ".branch2a"
+                    conv_name2 = 'backbone.' + stage_name + "." + block_name + ".branch2b"
+                    conv_name3 = 'backbone.' + stage_name + "." + block_name + ".branch2c"
+                    shortcut_name = 'backbone.' + stage_name + "." + block_name + ".short"
+                    if nid > 0:
+                        shortcut_name = 'backbone.' + stage_name + "." + block_name + ".short.conv"
 
-                    bn_name1 = 'bn' + conv_name1[3:]
-                    bn_name2 = 'bn' + conv_name2[3:]
-                    bn_name3 = 'bn' + conv_name3[3:]
-                    shortcut_bn_name = 'bn' + shortcut_name[3:]
-
-                    w = state_dict[conv_name1 + '_weights']
-                    scale = state_dict[bn_name1 + '_scale']
-                    offset = state_dict[bn_name1 + '_offset']
-                    m = state_dict[bn_name1 + '_mean']
-                    v = state_dict[bn_name1 + '_variance']
+                    w = state_dict[conv_name1 + '.conv.weight']
+                    scale = state_dict[conv_name1 + '.norm.weight']
+                    offset = state_dict[conv_name1 + '.norm.bias']
+                    m = state_dict[conv_name1 + '.norm._mean']
+                    v = state_dict[conv_name1 + '.norm._variance']
                     copy_conv_bn(backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv1, w, scale, offset, m, v, use_gpu)
 
                     if nid == 3:  # DCNv2
                         conv_unit = backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv2
 
-                        offset_w = state_dict[conv_name2 + '_conv_offset.w_0']
-                        offset_b = state_dict[conv_name2 + '_conv_offset.b_0']
+                        offset_w = state_dict[conv_name2 + '.conv_offset.weight']
+                        offset_b = state_dict[conv_name2 + '.conv_offset.bias']
                         if isinstance(conv_unit.conv, MyDCNv2):  # 如果是自实现的DCNv2
                             copy_conv(conv_unit.conv_offset, offset_w, offset_b, use_gpu)
                         # else:
                         #     copy_conv(conv_unit.conv.conv_offset_mask, offset_w, offset_b, use_gpu)
 
-                        w = state_dict[conv_name2 + '_weights']
-                        scale = state_dict[bn_name2 + '_scale']
-                        offset = state_dict[bn_name2 + '_offset']
-                        m = state_dict[bn_name2 + '_mean']
-                        v = state_dict[bn_name2 + '_variance']
+                        w = state_dict[conv_name2 + '.conv.weight']
+                        scale = state_dict[conv_name2 + '.norm.weight']
+                        offset = state_dict[conv_name2 + '.norm.bias']
+                        m = state_dict[conv_name2 + '.norm._mean']
+                        v = state_dict[conv_name2 + '.norm._variance']
 
                         if isinstance(conv_unit.conv, MyDCNv2):  # 如果是自实现的DCNv2
                             conv_unit.conv.weight.data = torch.Tensor(w).cuda()
@@ -193,198 +207,48 @@ def main(exp, args):
                         # else:
                         #     copy_conv_bn(conv_unit, w, scale, offset, m, v, use_gpu)
                     else:
-                        w = state_dict[conv_name2 + '_weights']
-                        scale = state_dict[bn_name2 + '_scale']
-                        offset = state_dict[bn_name2 + '_offset']
-                        m = state_dict[bn_name2 + '_mean']
-                        v = state_dict[bn_name2 + '_variance']
+                        w = state_dict[conv_name2 + '.conv.weight']
+                        scale = state_dict[conv_name2 + '.norm.weight']
+                        offset = state_dict[conv_name2 + '.norm.bias']
+                        m = state_dict[conv_name2 + '.norm._mean']
+                        v = state_dict[conv_name2 + '.norm._variance']
                         copy_conv_bn(backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv2, w, scale, offset, m, v, use_gpu)
 
-                    w = state_dict[conv_name3 + '_weights']
-                    scale = state_dict[bn_name3 + '_scale']
-                    offset = state_dict[bn_name3 + '_offset']
-                    m = state_dict[bn_name3 + '_mean']
-                    v = state_dict[bn_name3 + '_variance']
+                    w = state_dict[conv_name3 + '.conv.weight']
+                    scale = state_dict[conv_name3 + '.norm.weight']
+                    offset = state_dict[conv_name3 + '.norm.bias']
+                    m = state_dict[conv_name3 + '.norm._mean']
+                    v = state_dict[conv_name3 + '.norm._variance']
                     copy_conv_bn(backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv3, w, scale, offset, m, v, use_gpu)
 
                     # 每个stage的第一个卷积块才有4个卷积层
                     if kk == 0:
-                        w = state_dict[shortcut_name + '_weights']
-                        scale = state_dict[shortcut_bn_name + '_scale']
-                        offset = state_dict[shortcut_bn_name + '_offset']
-                        m = state_dict[shortcut_bn_name + '_mean']
-                        v = state_dict[shortcut_bn_name + '_variance']
+                        w = state_dict[shortcut_name + '.conv.weight']
+                        scale = state_dict[shortcut_name + '.norm.weight']
+                        offset = state_dict[shortcut_name + '.norm.bias']
+                        m = state_dict[shortcut_name + '.norm._mean']
+                        v = state_dict[shortcut_name + '.norm._variance']
                         copy_conv_bn(backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv4, w, scale, offset, m, v, use_gpu)
-            # head
-            conv_block_num = 2
-            num_classes = 80
-            anchors = [[10, 13], [16, 30], [33, 23],
-                       [30, 61], [62, 45], [59, 119],
-                       [116, 90], [156, 198], [373, 326]]
-            anchor_masks = [[6, 7, 8], [3, 4, 5], [0, 1, 2]]
-            batch_size = 1
-            norm_type = "bn"
-            coord_conv = True
-            iou_aware = True
-            iou_aware_factor = 0.4
-            block_size = 3
-            scale_x_y = 1.05
-            use_spp = True
-            drop_block = True
-            keep_prob = 0.9
-            clip_bbox = True
-            yolo_loss = None
-            downsample = [32, 16, 8]
-            in_channels = [2048, 1024, 512]
-            nms_cfg = None
-            is_train = False
-
-            bn = 0
-            gn = 0
-            af = 0
-            if norm_type == 'bn':
-                bn = 1
-            elif norm_type == 'gn':
-                gn = 1
-            elif norm_type == 'affine_channel':
-                af = 1
-
-            def copy_DetectionBlock(
-                    _detection_block,
-                    in_c,
-                    channel,
-                    coord_conv=True,
-                    bn=0,
-                    gn=0,
-                    af=0,
-                    conv_block_num=2,
-                    is_first=False,
-                    use_spp=True,
-                    drop_block=True,
-                    block_size=3,
-                    keep_prob=0.9,
-                    is_test=True,
-                    name=''):
-                kkk = 0
-                for j in range(conv_block_num):
-                    kkk += 1
-
-                    conv_name = '{}.{}.0'.format(name, j)
-                    w = state_dict[conv_name + '.conv.weights']
-                    scale = state_dict[conv_name + '.bn.scale']
-                    offset = state_dict[conv_name + '.bn.offset']
-                    m = state_dict[conv_name + '.bn.mean']
-                    v = state_dict[conv_name + '.bn.var']
-                    copy_conv_bn(_detection_block.layers[kkk], w, scale, offset, m, v, use_gpu)
-                    kkk += 1
-
-                    if use_spp and is_first and j == 1:
-                        kkk += 1
-
-                        conv_name = '{}.{}.spp.conv'.format(name, j)
-                        w = state_dict[conv_name + '.conv.weights']
-                        scale = state_dict[conv_name + '.bn.scale']
-                        offset = state_dict[conv_name + '.bn.offset']
-                        m = state_dict[conv_name + '.bn.mean']
-                        v = state_dict[conv_name + '.bn.var']
-                        copy_conv_bn(_detection_block.layers[kkk], w, scale, offset, m, v, use_gpu)
-                        kkk += 1
-
-                        conv_name = '{}.{}.1'.format(name, j)
-                        w = state_dict[conv_name + '.conv.weights']
-                        scale = state_dict[conv_name + '.bn.scale']
-                        offset = state_dict[conv_name + '.bn.offset']
-                        m = state_dict[conv_name + '.bn.mean']
-                        v = state_dict[conv_name + '.bn.var']
-                        copy_conv_bn(_detection_block.layers[kkk], w, scale, offset, m, v, use_gpu)
-                        kkk += 1
-                    else:
-                        conv_name = '{}.{}.1'.format(name, j)
-                        w = state_dict[conv_name + '.conv.weights']
-                        scale = state_dict[conv_name + '.bn.scale']
-                        offset = state_dict[conv_name + '.bn.offset']
-                        m = state_dict[conv_name + '.bn.mean']
-                        v = state_dict[conv_name + '.bn.var']
-                        copy_conv_bn(_detection_block.layers[kkk], w, scale, offset, m, v, use_gpu)
-                        kkk += 1
-
-                    if drop_block and j == 0 and not is_first:
-                        kkk += 1
-
-                if drop_block and is_first:
-                    kkk += 1
-
-                kkk += 1
-
-                conv_name = '{}.2'.format(name)
-                w = state_dict[conv_name + '.conv.weights']
-                scale = state_dict[conv_name + '.bn.scale']
-                offset = state_dict[conv_name + '.bn.offset']
-                m = state_dict[conv_name + '.bn.mean']
-                v = state_dict[conv_name + '.bn.var']
-                copy_conv_bn(_detection_block.layers[kkk], w, scale, offset, m, v, use_gpu)
-                kkk += 1
-
-                conv_name = '{}.tip'.format(name)
-                w = state_dict[conv_name + '.conv.weights']
-                scale = state_dict[conv_name + '.bn.scale']
-                offset = state_dict[conv_name + '.bn.offset']
-                m = state_dict[conv_name + '.bn.mean']
-                v = state_dict[conv_name + '.bn.var']
-                copy_conv_bn(_detection_block.tip_layers[1], w, scale, offset, m, v, use_gpu)
-
-            out_layer_num = len(downsample)
-            for i in range(out_layer_num):
-                copy_DetectionBlock(
-                    head.detection_blocks[i],
-                    in_c=in_channels[i],
-                    channel=64 * (2 ** out_layer_num) // (2 ** i),
-                    coord_conv=coord_conv,
-                    bn=bn,
-                    gn=gn,
-                    af=af,
-                    is_first=i == 0,
-                    conv_block_num=conv_block_num,
-                    use_spp=use_spp,
-                    drop_block=drop_block,
-                    block_size=block_size,
-                    keep_prob=keep_prob,
-                    is_test=(not is_train),
-                    name="yolo_block.{}".format(i)
-                )
-
-                w = state_dict["yolo_output.{}.conv.weights".format(i)]
-                b = state_dict["yolo_output.{}.conv.bias".format(i)]
-                copy_conv(head.yolo_output_convs[i].conv, w, b, use_gpu)
-
-                if i < out_layer_num - 1:
-                    conv_name = "yolo_transition.{}".format(i)
-                    w = state_dict[conv_name + '.conv.weights']
-                    scale = state_dict[conv_name + '.bn.scale']
-                    offset = state_dict[conv_name + '.bn.offset']
-                    m = state_dict[conv_name + '.bn.mean']
-                    v = state_dict[conv_name + '.bn.var']
-                    copy_conv_bn(head.upsample_layers[i * 2], w, scale, offset, m, v, use_gpu)
         elif isinstance(backbone, Resnet18Vd):
-            w = state_dict['conv1_1_weights']
-            scale = state_dict['bnv1_1_scale']
-            offset = state_dict['bnv1_1_offset']
-            m = state_dict['bnv1_1_mean']
-            v = state_dict['bnv1_1_variance']
+            w = state_dict['backbone.conv1.conv1_1.conv.weight']
+            scale = state_dict['backbone.conv1.conv1_1.norm.weight']
+            offset = state_dict['backbone.conv1.conv1_1.norm.bias']
+            m = state_dict['backbone.conv1.conv1_1.norm._mean']
+            v = state_dict['backbone.conv1.conv1_1.norm._variance']
             copy_conv_bn(backbone.stage1_conv1_1, w, scale, offset, m, v, use_gpu)
 
-            w = state_dict['conv1_2_weights']
-            scale = state_dict['bnv1_2_scale']
-            offset = state_dict['bnv1_2_offset']
-            m = state_dict['bnv1_2_mean']
-            v = state_dict['bnv1_2_variance']
+            w = state_dict['backbone.conv1.conv1_2.conv.weight']
+            scale = state_dict['backbone.conv1.conv1_2.norm.weight']
+            offset = state_dict['backbone.conv1.conv1_2.norm.bias']
+            m = state_dict['backbone.conv1.conv1_2.norm._mean']
+            v = state_dict['backbone.conv1.conv1_2.norm._variance']
             copy_conv_bn(backbone.stage1_conv1_2, w, scale, offset, m, v, use_gpu)
 
-            w = state_dict['conv1_3_weights']
-            scale = state_dict['bnv1_3_scale']
-            offset = state_dict['bnv1_3_offset']
-            m = state_dict['bnv1_3_mean']
-            v = state_dict['bnv1_3_variance']
+            w = state_dict['backbone.conv1.conv1_3.conv.weight']
+            scale = state_dict['backbone.conv1.conv1_3.norm.weight']
+            offset = state_dict['backbone.conv1.conv1_3.norm.bias']
+            m = state_dict['backbone.conv1.conv1_3.norm._mean']
+            v = state_dict['backbone.conv1.conv1_3.norm._variance']
             copy_conv_bn(backbone.stage1_conv1_3, w, scale, offset, m, v, use_gpu)
 
             nums = [2, 2, 2, 2]
@@ -392,187 +256,138 @@ def main(exp, args):
                 stage_name = 'res' + str(nid + 2)
                 for kk in range(num):
                     block_name = stage_name + chr(ord("a") + kk)
-                    conv_name1 = block_name + "_branch2a"
-                    conv_name2 = block_name + "_branch2b"
-                    shortcut_name = block_name + "_branch1"
+                    conv_name1 = 'backbone.' + stage_name + "." + block_name + ".branch2a"
+                    conv_name2 = 'backbone.' + stage_name + "." + block_name + ".branch2b"
+                    shortcut_name = 'backbone.' + stage_name + "." + block_name + ".short"
+                    if nid > 0:
+                        shortcut_name = 'backbone.' + stage_name + "." + block_name + ".short.conv"
 
-                    bn_name1 = 'bn' + conv_name1[3:]
-                    bn_name2 = 'bn' + conv_name2[3:]
-                    shortcut_bn_name = 'bn' + shortcut_name[3:]
-
-                    w = state_dict[conv_name1 + '_weights']
-                    scale = state_dict[bn_name1 + '_scale']
-                    offset = state_dict[bn_name1 + '_offset']
-                    m = state_dict[bn_name1 + '_mean']
-                    v = state_dict[bn_name1 + '_variance']
+                    w = state_dict[conv_name1 + '.conv.weight']
+                    scale = state_dict[conv_name1 + '.norm.weight']
+                    offset = state_dict[conv_name1 + '.norm.bias']
+                    m = state_dict[conv_name1 + '.norm._mean']
+                    v = state_dict[conv_name1 + '.norm._variance']
                     copy_conv_bn(backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv1, w, scale, offset, m, v, use_gpu)
 
-                    w = state_dict[conv_name2 + '_weights']
-                    scale = state_dict[bn_name2 + '_scale']
-                    offset = state_dict[bn_name2 + '_offset']
-                    m = state_dict[bn_name2 + '_mean']
-                    v = state_dict[bn_name2 + '_variance']
+                    w = state_dict[conv_name2 + '.conv.weight']
+                    scale = state_dict[conv_name2 + '.norm.weight']
+                    offset = state_dict[conv_name2 + '.norm.bias']
+                    m = state_dict[conv_name2 + '.norm._mean']
+                    v = state_dict[conv_name2 + '.norm._variance']
                     copy_conv_bn(backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv2, w, scale, offset, m, v, use_gpu)
 
                     # 每个stage的第一个卷积块才有shortcut卷积层
                     if kk == 0:
-                        w = state_dict[shortcut_name + '_weights']
-                        scale = state_dict[shortcut_bn_name + '_scale']
-                        offset = state_dict[shortcut_bn_name + '_offset']
-                        m = state_dict[shortcut_bn_name + '_mean']
-                        v = state_dict[shortcut_bn_name + '_variance']
+                        w = state_dict[shortcut_name + '.conv.weight']
+                        scale = state_dict[shortcut_name + '.norm.weight']
+                        offset = state_dict[shortcut_name + '.norm.bias']
+                        m = state_dict[shortcut_name + '.norm._mean']
+                        v = state_dict[shortcut_name + '.norm._variance']
                         copy_conv_bn(backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv3, w, scale, offset, m, v, use_gpu)
+        if isinstance(fpn, PPYOLOFPN):
+            for i, ch_in in enumerate(fpn.in_channels[::-1]):
+                yolo_block = fpn.yolo_blocks[i]
+                for j in range(fpn.conv_block_num):
 
-            # head
+                    conv_name0 = 'neck.yolo_block.%d.conv_module.conv%d.conv' % (i, 2 * j)
+                    conv_name1 = 'neck.yolo_block.%d.conv_module.conv%d' % (i, 2 * j + 1)
 
-            conv_block_num = 0
-            num_classes = 80
-            anchors = [[10, 14], [23, 27], [37, 58],
-                       [81, 82], [135, 169], [344, 319]]
-            anchor_masks = [[3, 4, 5], [0, 1, 2]]
-            batch_size = 1
-            norm_type = "bn"
-            coord_conv = False
-            iou_aware = False
-            iou_aware_factor = 0.4
-            block_size = 3
-            scale_x_y = 1.05
-            use_spp = False
-            drop_block = True
-            keep_prob = 0.9
-            clip_bbox = True
-            yolo_loss = None
-            downsample = [32, 16]
-            in_channels = [512, 256]
-            nms_cfg = None
-            is_train = False
+                    # 精确找到卷积层被移动到了哪里
+                    if fpn.conv_block_num == 2:
+                        w = state_dict[conv_name0 + '.conv.weight']
+                        scale = state_dict[conv_name0 + '.batch_norm.weight']
+                        offset = state_dict[conv_name0 + '.batch_norm.bias']
+                        m = state_dict[conv_name0 + '.batch_norm._mean']
+                        v = state_dict[conv_name0 + '.batch_norm._variance']
+                        layer = None
+                        count = 0
+                        for _layey in yolo_block.conv_module:
+                            if isinstance(_layey, CoordConv):
+                                count += 1
+                                if count == j + 1:
+                                    layer = _layey
+                                    break
+                        copy_conv_bn(layer.conv, w, scale, offset, m, v, use_gpu)
 
-            bn = 0
-            gn = 0
-            af = 0
-            if norm_type == 'bn':
-                bn = 1
-            elif norm_type == 'gn':
-                gn = 1
-            elif norm_type == 'affine_channel':
-                af = 1
+                        w = state_dict[conv_name1 + '.conv.weight']
+                        scale = state_dict[conv_name1 + '.batch_norm.weight']
+                        offset = state_dict[conv_name1 + '.batch_norm.bias']
+                        m = state_dict[conv_name1 + '.batch_norm._mean']
+                        v = state_dict[conv_name1 + '.batch_norm._variance']
+                        layer = None
+                        count = 0
+                        for _layey in yolo_block.conv_module:
+                            if isinstance(_layey, Conv2dUnit):
+                                count += 1
+                                if count == j + 1:
+                                    layer = _layey
+                                    break
+                        copy_conv_bn(layer, w, scale, offset, m, v, use_gpu)
 
-            def copy_DetectionBlock(
-                    _detection_block,
-                    in_c,
-                    channel,
-                    coord_conv=True,
-                    bn=0,
-                    gn=0,
-                    af=0,
-                    conv_block_num=2,
-                    is_first=False,
-                    use_spp=True,
-                    drop_block=True,
-                    block_size=3,
-                    keep_prob=0.9,
-                    is_test=True,
-                    name=''):
-                kkk = 0
-                for j in range(conv_block_num):
-                    kkk += 1
+                # route 和 tip
+                if isinstance(backbone, Resnet50Vd):
+                    conv_name = 'neck.yolo_block.%d.conv_module.route.conv' % (i, )
+                elif isinstance(backbone, Resnet18Vd):
+                    conv_name = 'neck.yolo_block.%d.conv_module.route' % (i, )
+                w = state_dict[conv_name + '.conv.weight']
+                scale = state_dict[conv_name + '.batch_norm.weight']
+                offset = state_dict[conv_name + '.batch_norm.bias']
+                m = state_dict[conv_name + '.batch_norm._mean']
+                v = state_dict[conv_name + '.batch_norm._variance']
+                if fpn.coord_conv:
+                    copy_conv_bn(yolo_block.conv_module[-1].conv, w, scale, offset, m, v, use_gpu)
+                else:
+                    copy_conv_bn(yolo_block.conv_module[-1], w, scale, offset, m, v, use_gpu)
 
-                    conv_name = '{}.{}.0'.format(name, j)
-                    w = state_dict[conv_name + '.conv.weights']
-                    scale = state_dict[conv_name + '.bn.scale']
-                    offset = state_dict[conv_name + '.bn.offset']
-                    m = state_dict[conv_name + '.bn.mean']
-                    v = state_dict[conv_name + '.bn.var']
-                    copy_conv_bn(_detection_block.layers[kkk], w, scale, offset, m, v, use_gpu)
-                    kkk += 1
+                if isinstance(backbone, Resnet50Vd):
+                    conv_name = 'neck.yolo_block.%d.tip.conv' % (i, )
+                elif isinstance(backbone, Resnet18Vd):
+                    conv_name = 'neck.yolo_block.%d.tip' % (i, )
+                w = state_dict[conv_name + '.conv.weight']
+                scale = state_dict[conv_name + '.batch_norm.weight']
+                offset = state_dict[conv_name + '.batch_norm.bias']
+                m = state_dict[conv_name + '.batch_norm._mean']
+                v = state_dict[conv_name + '.batch_norm._variance']
+                if fpn.coord_conv:
+                    copy_conv_bn(yolo_block.tip.conv, w, scale, offset, m, v, use_gpu)
+                else:
+                    copy_conv_bn(yolo_block.tip, w, scale, offset, m, v, use_gpu)
 
-                    if use_spp and is_first and j == 1:
-                        kkk += 1
+                # SPP 和 DropBlock
+                if fpn.conv_block_num == 2:
+                    if i == 0:
+                        if fpn.spp:
+                            conv_name = 'neck.yolo_block.%d.conv_module.spp.conv' % (i,)
+                            w = state_dict[conv_name + '.conv.weight']
+                            scale = state_dict[conv_name + '.batch_norm.weight']
+                            offset = state_dict[conv_name + '.batch_norm.bias']
+                            m = state_dict[conv_name + '.batch_norm._mean']
+                            v = state_dict[conv_name + '.batch_norm._variance']
+                            copy_conv_bn(yolo_block.conv_module[3].conv, w, scale, offset, m, v, use_gpu)
+                elif fpn.conv_block_num == 0:
+                    if fpn.spp and i == 0:
+                        conv_name = 'neck.yolo_block.%d.conv_module.spp.conv' % (i,)
+                        w = state_dict[conv_name + '.conv.weight']
+                        scale = state_dict[conv_name + '.batch_norm.weight']
+                        offset = state_dict[conv_name + '.batch_norm.bias']
+                        m = state_dict[conv_name + '.batch_norm._mean']
+                        v = state_dict[conv_name + '.batch_norm._variance']
+                        copy_conv_bn(yolo_block.conv_module[0].conv, w, scale, offset, m, v, use_gpu)
 
-                        conv_name = '{}.{}.spp.conv'.format(name, j)
-                        w = state_dict[conv_name + '.conv.weights']
-                        scale = state_dict[conv_name + '.bn.scale']
-                        offset = state_dict[conv_name + '.bn.offset']
-                        m = state_dict[conv_name + '.bn.mean']
-                        v = state_dict[conv_name + '.bn.var']
-                        copy_conv_bn(_detection_block.layers[kkk], w, scale, offset, m, v, use_gpu)
-                        kkk += 1
-
-                        conv_name = '{}.{}.1'.format(name, j)
-                        w = state_dict[conv_name + '.conv.weights']
-                        scale = state_dict[conv_name + '.bn.scale']
-                        offset = state_dict[conv_name + '.bn.offset']
-                        m = state_dict[conv_name + '.bn.mean']
-                        v = state_dict[conv_name + '.bn.var']
-                        copy_conv_bn(_detection_block.layers[kkk], w, scale, offset, m, v, use_gpu)
-                        kkk += 1
-                    else:
-                        conv_name = '{}.{}.1'.format(name, j)
-                        w = state_dict[conv_name + '.conv.weights']
-                        scale = state_dict[conv_name + '.bn.scale']
-                        offset = state_dict[conv_name + '.bn.offset']
-                        m = state_dict[conv_name + '.bn.mean']
-                        v = state_dict[conv_name + '.bn.var']
-                        copy_conv_bn(_detection_block.layers[kkk], w, scale, offset, m, v, use_gpu)
-                        kkk += 1
-
-                    if drop_block and j == 0 and not is_first:
-                        kkk += 1
-
-                if drop_block and is_first:
-                    kkk += 1
-
-                kkk += 1
-
-                conv_name = '{}.2'.format(name)
-                w = state_dict[conv_name + '.conv.weights']
-                scale = state_dict[conv_name + '.bn.scale']
-                offset = state_dict[conv_name + '.bn.offset']
-                m = state_dict[conv_name + '.bn.mean']
-                v = state_dict[conv_name + '.bn.var']
-                copy_conv_bn(_detection_block.layers[kkk], w, scale, offset, m, v, use_gpu)
-                kkk += 1
-
-                conv_name = '{}.tip'.format(name)
-                w = state_dict[conv_name + '.conv.weights']
-                scale = state_dict[conv_name + '.bn.scale']
-                offset = state_dict[conv_name + '.bn.offset']
-                m = state_dict[conv_name + '.bn.mean']
-                v = state_dict[conv_name + '.bn.var']
-                copy_conv_bn(_detection_block.tip_layers[1], w, scale, offset, m, v, use_gpu)
-
-            out_layer_num = len(downsample)
-            for i in range(out_layer_num):
-                copy_DetectionBlock(
-                    head.detection_blocks[i],
-                    in_c=in_channels[i],
-                    channel=64 * (2 ** out_layer_num) // (2 ** i),
-                    coord_conv=coord_conv,
-                    bn=bn,
-                    gn=gn,
-                    af=af,
-                    is_first=i == 0,
-                    conv_block_num=conv_block_num,
-                    use_spp=use_spp,
-                    drop_block=drop_block,
-                    block_size=block_size,
-                    keep_prob=keep_prob,
-                    is_test=(not is_train),
-                    name="yolo_block.{}".format(i)
-                )
-
-                w = state_dict["yolo_output.{}.conv.weights".format(i)]
-                b = state_dict["yolo_output.{}.conv.bias".format(i)]
-                copy_conv(head.yolo_output_convs[i].conv, w, b, use_gpu)
-
-                if i < out_layer_num - 1:
-                    conv_name = "yolo_transition.{}".format(i)
-                    w = state_dict[conv_name + '.conv.weights']
-                    scale = state_dict[conv_name + '.bn.scale']
-                    offset = state_dict[conv_name + '.bn.offset']
-                    m = state_dict[conv_name + '.bn.mean']
-                    v = state_dict[conv_name + '.bn.var']
-                    copy_conv_bn(head.upsample_layers[i * 2], w, scale, offset, m, v, use_gpu)
+                # 上采样之前的yolo_transition
+                if i < fpn.num_blocks - 1:
+                    conv_name = 'neck.yolo_transition.%d' % (i,)
+                    w = state_dict[conv_name + '.conv.weight']
+                    scale = state_dict[conv_name + '.batch_norm.weight']
+                    offset = state_dict[conv_name + '.batch_norm.bias']
+                    m = state_dict[conv_name + '.batch_norm._mean']
+                    v = state_dict[conv_name + '.batch_norm._variance']
+                    copy_conv_bn(fpn.routes[i], w, scale, offset, m, v, use_gpu)
+        if isinstance(head, YOLOv3Head):
+            for i in range(len(head.anchors)):
+                w = state_dict["yolo_head.yolo_output.{}.weight".format(i)]
+                b = state_dict["yolo_head.yolo_output.{}.bias".format(i)]
+                copy_conv(head.yolo_outputs[i].conv, w, b, use_gpu)
     elif model_class_name == 'FCOS':
         ss = args.ckpt.split('.')
         if ss[-1] == 'pth':
