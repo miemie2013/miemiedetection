@@ -570,6 +570,9 @@ class CoordConv(torch.nn.Module):
             name=name)
         self.data_format = data_format
 
+    def add_param_group(self, param_groups, base_lr, base_wd):
+        self.conv.add_param_group(param_groups, base_lr, base_wd)
+
     def forward(self, x):
         gx, gy = add_coord(x, self.data_format)
         if self.data_format == 'NCHW':
@@ -639,6 +642,9 @@ class SPP(torch.nn.Module):
             name=name,
             act=act,
             data_format=data_format)
+
+    def add_param_group(self, param_groups, base_lr, base_wd):
+        self.conv.add_param_group(param_groups, base_lr, base_wd)
 
     def forward(self, x):
         outs = [x]

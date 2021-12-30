@@ -108,6 +108,18 @@ class PPYOLODetBlock(nn.Module):
         kwargs.update(name='{}.{}'.format(name, conv_name), data_format=data_format)
         self.tip = layer(*args, **kwargs)
 
+    def add_param_group(self, param_groups, base_lr, base_wd):
+        for layer in self.conv_module:
+            if isinstance(layer, CoordConv):
+                layer.add_param_group(param_groups, base_lr, base_wd)
+            elif isinstance(layer, Conv2dUnit):
+                layer.add_param_group(param_groups, base_lr, base_wd)
+            elif isinstance(layer, SPP):
+                layer.add_param_group(param_groups, base_lr, base_wd)
+            elif isinstance(layer, DropBlock):
+                pass
+        self.tip.add_param_group(param_groups, base_lr, base_wd)
+
     def forward(self, inputs):
         route = self.conv_module(inputs)
         tip = self.tip(route)
@@ -243,6 +255,12 @@ class PPYOLOFPN(nn.Module):
     def get_block(self, name):
         layer = getattr(self, name)
         return layer
+
+    def add_param_group(self, param_groups, base_lr, base_wd):
+        for i, ch_in in enumerate(self.in_channels[::-1]):
+            self.yolo_blocks[i].add_param_group(param_groups, base_lr, base_wd)
+            if i < self.num_blocks - 1:
+                self.routes[i].add_param_group(param_groups, base_lr, base_wd)
 
     def forward(self, blocks, for_mot=False):
         assert len(blocks) == self.num_blocks
