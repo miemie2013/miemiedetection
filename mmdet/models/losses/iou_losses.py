@@ -69,7 +69,8 @@ class IouAwareLoss(IouLoss):
     def forward(self, ioup, pbox, gbox):
         iou = bbox_iou(
             pbox, gbox, giou=self.giou, diou=self.diou, ciou=self.ciou)
-        iou.requires_grad = False
+        # iou.requires_grad = False
+        iou = iou.detach()
         loss_iou_aware = F.binary_cross_entropy_with_logits(
             ioup, iou, reduction='none')
         loss_iou_aware = loss_iou_aware * self.loss_weight
