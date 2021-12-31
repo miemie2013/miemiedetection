@@ -138,20 +138,16 @@ class PPYOLO_Method_Exp(COCOBaseExp):
         )
         self.iou_loss = dict(
             loss_weight=2.5,
-            max_height=608,
-            max_width=608,
-            ciou_term=False,
+            loss_square=True,
         )
         self.iou_aware_loss = dict(
             loss_weight=1.0,
-            max_height=608,
-            max_width=608,
         )
         self.yolo_loss = dict(
             ignore_thresh=0.7,
-            scale_x_y=1.05,
+            downsample=[32, 16, 8],
             label_smooth=False,
-            use_fine_grained_loss=True,
+            scale_x_y=1.05,
         )
         self.nms_cfg = dict(
             nms_type='matrix_nms',
@@ -290,9 +286,8 @@ class PPYOLO_Method_Exp(COCOBaseExp):
             iou_aware_loss = None
             if self.head['iou_aware']:
                 iou_aware_loss = IouAwareLoss(**self.iou_aware_loss)
-            # yolo_loss = YOLOv3Loss(iou_loss=iou_loss, iou_aware_loss=iou_aware_loss, **self.yolo_loss)
-            # head = YOLOv3Head(loss=yolo_loss, nms_cfg=self.nms_cfg, **self.head)
-            head = YOLOv3Head(loss=None, nms_cfg=self.nms_cfg, **self.head)
+            yolo_loss = YOLOv3Loss(iou_loss=iou_loss, iou_aware_loss=iou_aware_loss, **self.yolo_loss)
+            head = YOLOv3Head(loss=yolo_loss, nms_cfg=self.nms_cfg, **self.head)
             self.model = PPYOLO(backbone, fpn, head)
         return self.model
 

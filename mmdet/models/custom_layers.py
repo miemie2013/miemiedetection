@@ -744,8 +744,7 @@ class DropBlock(torch.nn.Module):
                 matrix,
                 self.block_size,
                 stride=1,
-                padding=self.block_size // 2,
-                data_format=self.data_format)
+                padding=self.block_size // 2)
             mask = 1. - mask_inv
             y = x * mask * (mask.numel() / mask.sum())
             return y

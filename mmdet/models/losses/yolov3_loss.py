@@ -9,11 +9,13 @@
 # ================================================================
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch as T
 import numpy as np
 
 from mmdet.models.custom_layers import paddle_yolo_box
 from mmdet.models.matrix_nms import jaccard
+from mmdet.utils import bboxes_iou_batch
 
 try:
     from collections.abc import Sequence
@@ -23,7 +25,7 @@ except Exception:
 
 
 
-class YOLOv3Loss(nn.Module):
+class YOLOv3Loss2(nn.Module):
     """
     Combined loss for YOLOv3 network
 
@@ -44,7 +46,7 @@ class YOLOv3Loss(nn.Module):
                  downsample=[32, 16, 8],
                  scale_x_y=1.,
                  match_score=False):
-        super(YOLOv3Loss, self).__init__()
+        super(YOLOv3Loss2, self).__init__()
         self._ignore_thresh = ignore_thresh
         self._label_smooth = label_smooth
         self._use_fine_grained_loss = use_fine_grained_loss
@@ -301,6 +303,235 @@ class YOLOv3Loss(nn.Module):
 
         return loss_obj_pos, loss_obj_neg
 
+
+def xywh2xyxy(box):
+    x, y, w, h = box
+    x1 = x - w * 0.5
+    y1 = y - h * 0.5
+    x2 = x + w * 0.5
+    y2 = y + h * 0.5
+    return [x1, y1, x2, y2]
+
+
+def make_grid(h, w, dtype, device):
+    yv, xv = torch.meshgrid([torch.arange(h, dtype=dtype, device=device), torch.arange(w, dtype=dtype, device=device)])
+    xy = torch.stack((xv, yv), 2).float()  # [h, w, 2]  值为[[[0, 0], [1, 0], [2, 0], ...]
+    return xy
+
+
+def decode_yolo(box, anchor, downsample_ratio):
+    """decode yolo box
+
+    Args:
+        box (list): [x, y, w, h], all have the shape [b, na, h, w, 1]
+        anchor (list): anchor with the shape [na, 2]
+        downsample_ratio (int): downsample ratio, default 32
+        scale (float): scale, default 1.
+
+    Return:
+        box (list): decoded box, [x, y, w, h], all have the shape [b, na, h, w, 1]
+    """
+    x, y, w, h = box   # x.shape=[N, 3, h, w, 1]
+    na, grid_h, grid_w = x.shape[1:4]
+    grid = make_grid(grid_h, grid_w, x.dtype, x.device)  # [h, w, 2]  值为[[[0, 0], [1, 0], [2, 0], ...]
+    grid = torch.reshape(grid, (1, 1, grid_h, grid_w, 2))  # [1, 1, h, w, 2]
+    x1 = (x + grid[:, :, :, :, 0:1]) / grid_w  # [N, 3, h, w, 1]  预测框中心点在输入图片中的绝对x坐标，除以图片宽进行归一化。
+    y1 = (y + grid[:, :, :, :, 1:2]) / grid_h  # [N, 3, h, w, 1]  预测框中心点在输入图片中的绝对y坐标，除以图片高进行归一化。
+
+    device_name = w.device.type
+    device_index = w.device.index
+    anchor_ndarray = np.array(anchor).astype(np.float32)
+    _anchor = torch.from_numpy(anchor_ndarray)
+    if device_name == 'cuda':
+        _anchor = torch.from_numpy(anchor_ndarray).cuda(device_index)
+    _anchor = _anchor.to(x)
+    _anchor = torch.reshape(_anchor, (1, na, 1, 1, 2))
+    w1 = torch.exp(w) * _anchor[:, :, :, :, 0:1] / (downsample_ratio * grid_w)  # [N, 3, h, w, 1]  预测框的宽，除以图片宽进行归一化。
+    h1 = torch.exp(h) * _anchor[:, :, :, :, 1:2] / (downsample_ratio * grid_h)  # [N, 3, h, w, 1]  预测框的高，除以图片高进行归一化。
+
+    return [x1, y1, w1, h1]
+
+
+
+def bbox_transform(pbox, anchor, downsample):
+    pbox = decode_yolo(pbox, anchor, downsample)
+    pbox = xywh2xyxy(pbox)
+    return pbox
+
+
+class YOLOv3Loss(nn.Module):
+
+    __inject__ = ['iou_loss', 'iou_aware_loss']
+    __shared__ = ['num_classes']
+
+    def __init__(self,
+                 num_classes=80,
+                 ignore_thresh=0.7,
+                 label_smooth=False,
+                 downsample=[32, 16, 8],
+                 scale_x_y=1.,
+                 iou_loss=None,
+                 iou_aware_loss=None):
+        """
+        YOLOv3Loss layer
+
+        Args:
+            num_calsses (int): number of foreground classes
+            ignore_thresh (float): threshold to ignore confidence loss
+            label_smooth (bool): whether to use label smoothing
+            downsample (list): downsample ratio for each detection block
+            scale_x_y (float): scale_x_y factor
+            iou_loss (object): IoULoss instance
+            iou_aware_loss (object): IouAwareLoss instance
+        """
+        super(YOLOv3Loss, self).__init__()
+        self.num_classes = num_classes
+        self.ignore_thresh = ignore_thresh
+        self.label_smooth = label_smooth
+        self.downsample = downsample
+        self.scale_x_y = scale_x_y
+        self.iou_loss = iou_loss
+        self.iou_aware_loss = iou_aware_loss
+        self.distill_pairs = []
+
+    def obj_loss(self, pbox, gbox, pobj, tobj, anchor, downsample):
+        # pbox
+        pbox = decode_yolo(pbox, anchor, downsample)
+        pbox = xywh2xyxy(pbox)    # [N, 3, h, w, 1]  左上角+右下角xy坐标，除以图片宽高进行归一化。
+        pbox = torch.cat(pbox, -1)    # [N, 3, h, w, 4]  左上角+右下角xy坐标，除以图片宽高进行归一化。
+        b = pbox.shape[0]
+        pbox = pbox.reshape((b, -1, 4))   # [N, 3*h*w, 4]  左上角+右下角xy坐标，除以图片宽高进行归一化。
+        # gbox
+        gxy = gbox[:, :, 0:2] - gbox[:, :, 2:4] * 0.5
+        gwh = gbox[:, :, 0:2] + gbox[:, :, 2:4] * 0.5
+        gbox = torch.cat([gxy, gwh], -1)  # [N, 50, 4]  所有gt的左上角+右下角xy坐标，除以图片宽高进行归一化。
+
+        iou = bboxes_iou_batch(pbox, gbox, xyxy=True)   # [N, 3*h*w, 50]  每张图片 每个预测框和每个gt两两之间的iou
+        iou.requires_grad = False
+        iou_max, _ = iou.max(2)  # [N, 3*h*w]   预测框与所有gt最高的iou
+        iou_mask = (iou_max <= self.ignore_thresh).to(pbox)   # [N, 3*h*w]   候选负样本处为1
+        iou_mask.requires_grad = False
+
+        pobj = pobj.reshape((b, -1))   # [N, 3*h*w]
+        tobj = tobj.reshape((b, -1))   # [N, 3*h*w]
+        obj_mask = (tobj > 0).to(pbox)   # [N, 3*h*w]   正样本处为1
+        obj_mask.requires_grad = False
+
+        loss_obj = F.binary_cross_entropy_with_logits(pobj, obj_mask, reduction='none')
+        loss_obj_pos = (loss_obj * tobj)
+        loss_obj_neg = (loss_obj * (1 - obj_mask) * iou_mask)  # 候选负样本中，不是正样本的才是最终的负样本。
+        return loss_obj_pos + loss_obj_neg
+
+    def cls_loss(self, pcls, tcls):
+        # pcls    [N, 3, h, w, 80]  预测的未激活的pcls
+        # tcls    [N, 3, h, w, 80]  真实的tcls
+        if self.label_smooth:
+            delta = min(1. / self.num_classes, 1. / 40)
+            pos, neg = 1 - delta, delta
+            # 1 for positive, 0 for negative
+            # 修改监督值tcls
+            tcls = pos * (tcls > 0.).to(tcls) + neg * (tcls <= 0.).to(tcls)
+
+        loss_cls = F.binary_cross_entropy_with_logits(pcls, tcls, reduction='none')
+        return loss_cls
+
+    def yolov3_loss(self, p, t, gt_box, anchor, downsample, scale=1.,
+                    eps=1e-10):
+        na = len(anchor)
+        b, c, h, w = p.shape
+        if self.iou_aware_loss:
+            ioup, p = p[:, 0:na, :, :], p[:, na:, :, :]
+            ioup = ioup.unsqueeze(-1)
+        p = p.reshape((b, na, -1, h, w))   # [N, 3, 85, h, w]
+        p = p.permute(0, 1, 3, 4, 2)       # [N, 3, h, w, 85]
+        x, y = p[:, :, :, :, 0:1], p[:, :, :, :, 1:2]   # [N, 3, h, w, 1]、[N, 3, h, w, 1]  预测的未解码的x, y
+        w, h = p[:, :, :, :, 2:3], p[:, :, :, :, 3:4]   # [N, 3, h, w, 1]、[N, 3, h, w, 1]  预测的未解码的w, h
+        obj, pcls = p[:, :, :, :, 4:5], p[:, :, :, :, 5:]   # [N, 3, h, w, 1]、[N, 3, h, w, 80]  预测的未激活的obj, pcls
+        self.distill_pairs.append([x, y, w, h, obj, pcls])
+
+        t = t.permute(0, 1, 3, 4, 2)   # [N, 3, h, w, 86]
+        tx, ty = t[:, :, :, :, 0:1], t[:, :, :, :, 1:2]   # [N, 3, h, w, 1]、[N, 3, h, w, 1]  真实的已Grid Sensitive解码的x, y，0到1之间的值
+        tw, th = t[:, :, :, :, 2:3], t[:, :, :, :, 3:4]   # [N, 3, h, w, 1]、[N, 3, h, w, 1]  真实的未解码的w, h
+        tscale = t[:, :, :, :, 4:5]   # [N, 3, h, w, 1]
+        tobj, tcls = t[:, :, :, :, 5:6], t[:, :, :, :, 6:]   # [N, 3, h, w, 1]、[N, 3, h, w, 80]  真实的tobj, tcls
+
+        tscale_obj = tscale * tobj   # [N, 3, h, w, 1]
+        loss = dict()
+
+        # 对x、y进行Grid Sensitive解码
+        x = scale * torch.sigmoid(x) - 0.5 * (scale - 1.)
+        y = scale * torch.sigmoid(y) - 0.5 * (scale - 1.)
+
+        if abs(scale - 1.) < eps:  # 当不使用Grid Sensitive时
+            # tx是0到1之间的值，x是sigmoid()激活后的x，所以不要使用带有logits字样的api计算损失。
+            loss_x = F.binary_cross_entropy(x, tx, reduction='none')
+            loss_y = F.binary_cross_entropy(y, ty, reduction='none')
+            loss_xy = tscale_obj * (loss_x + loss_y)
+        else:
+            # Grid Sensitive
+            loss_x = torch.abs(x - tx)
+            loss_y = torch.abs(y - ty)
+            loss_xy = tscale_obj * (loss_x + loss_y)
+
+        loss_xy = loss_xy.sum([1, 2, 3, 4]).mean()
+
+        loss_w = torch.abs(w - tw)
+        loss_h = torch.abs(h - th)
+        loss_wh = tscale_obj * (loss_w + loss_h)
+        loss_wh = loss_wh.sum([1, 2, 3, 4]).mean()
+
+        loss['loss_xy'] = loss_xy
+        loss['loss_wh'] = loss_wh
+
+        if self.iou_loss is not None:
+            # warn: do not modify x, y, w, h in place
+            # 警告：不要把x, y, w, h改掉。其中x、y已经进行Grid Sensitive解码，约0到1之间的值
+            box, tbox = [x, y, w, h], [tx, ty, tw, th]
+            pbox = bbox_transform(box, anchor, downsample)
+            gbox = bbox_transform(tbox, anchor, downsample)
+            loss_iou = self.iou_loss(pbox, gbox)
+            loss_iou = loss_iou * tscale_obj
+            loss_iou = loss_iou.sum([1, 2, 3, 4]).mean()
+            loss['loss_iou'] = loss_iou
+
+        if self.iou_aware_loss is not None:
+            # warn: do not modify x, y, w, h in place
+            # 警告：不要把x, y, w, h改掉。其中x、y已经进行Grid Sensitive解码，约0到1之间的值
+            box, tbox = [x, y, w, h], [tx, ty, tw, th]
+            pbox = bbox_transform(box, anchor, downsample)
+            gbox = bbox_transform(tbox, anchor, downsample)
+            loss_iou_aware = self.iou_aware_loss(ioup, pbox, gbox)
+            loss_iou_aware = loss_iou_aware * tobj
+            loss_iou_aware = loss_iou_aware.sum([1, 2, 3, 4]).mean()
+            loss['loss_iou_aware'] = loss_iou_aware
+
+        box = [x, y, w, h]
+        loss_obj = self.obj_loss(box, gt_box, obj, tobj, anchor, downsample)
+        loss_obj = loss_obj.sum(-1).mean()
+        loss['loss_obj'] = loss_obj
+        loss_cls = self.cls_loss(pcls, tcls) * tobj
+        loss_cls = loss_cls.sum([1, 2, 3, 4]).mean()
+        loss['loss_cls'] = loss_cls
+        return loss
+
+    def forward(self, inputs, gt_bbox, gt_targets, anchors):
+        yolo_losses = dict()
+        self.distill_pairs.clear()
+        for x, t, anchor, downsample in zip(inputs, gt_targets, anchors,
+                                            self.downsample):
+            yolo_loss = self.yolov3_loss(x, t, gt_bbox, anchor, downsample,
+                                         self.scale_x_y)
+            for k, v in yolo_loss.items():
+                if k in yolo_losses:
+                    yolo_losses[k] += v
+                else:
+                    yolo_losses[k] = v
+        loss = 0
+        for k, v in yolo_losses.items():
+            loss += v
+
+        yolo_losses['total_loss'] = loss
+        return yolo_losses
 
 
 

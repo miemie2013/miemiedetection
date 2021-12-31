@@ -479,7 +479,7 @@ class YOLOv3Head(torch.nn.Module):
             if isinstance(layer, Conv2dUnit):
                 layer.add_param_group(param_groups, base_lr, base_wd)
 
-    def forward(self, feats, im_size, targets=None):
+    def get_loss(self, feats, gt_bbox, targets):
         assert len(feats) == len(self.anchors)
         yolo_outputs = []
         for i, feat in enumerate(feats):
@@ -487,85 +487,64 @@ class YOLOv3Head(torch.nn.Module):
             if self.data_format == 'NHWC':
                 yolo_output = yolo_output.permute(0, 3, 1, 2)
             yolo_outputs.append(yolo_output)
+        return self.loss(yolo_outputs, gt_bbox, targets, self.anchors)
 
-        if self.training:
-            return self.loss(yolo_outputs, targets, self.anchors)
-        else:
-            # outputs里为大中小感受野的输出
-            outputs = yolo_outputs
+    def forward(self, feats, im_size):
+        assert len(feats) == len(self.anchors)
+        yolo_outputs = []
+        for i, feat in enumerate(feats):
+            yolo_output = self.yolo_outputs[i](feat)
+            if self.data_format == 'NHWC':
+                yolo_output = yolo_output.permute(0, 3, 1, 2)
+            yolo_outputs.append(yolo_output)
+        # outputs里为大中小感受野的输出
+        outputs = yolo_outputs
 
-            boxes = []
-            scores = []
-            for i, out in enumerate(outputs):
-                if self.iou_aware:
-                    na = len(self.anchors[i])
-                    ioup, x = out[:, 0:na, :, :], out[:, na:, :, :]
-                    b, c, h, w = x.shape
-                    no = c // na
-                    x = x.reshape((b, na, no, h * w))
-                    ioup = ioup.reshape((b, na, 1, h * w))
-                    obj = x[:, :, 4:5, :]
-                    ioup = torch.sigmoid(ioup)
-                    obj = torch.sigmoid(obj)
-                    obj_t = (obj**(1 - self.iou_aware_factor)) * (
-                        ioup**self.iou_aware_factor)
-                    obj_t = _de_sigmoid(obj_t)
-                    loc_t = x[:, :, :4, :]
-                    cls_t = x[:, :, 5:, :]
-                    y_t = torch.cat([loc_t, obj_t, cls_t], 2)
-                    out = y_t.reshape((b, c, h, w))
-                    # output = get_iou_aware_score(output,
-                    #                              len(self.anchor_masks[i]),
-                    #                              self.num_classes,
-                    #                              self.iou_aware_factor)
-                box, score = paddle_yolo_box(out, self._anchors[self.anchor_masks[i]], self.downsample[i],
-                                             self.num_classes, self.scale_x_y, im_size, self.clip_bbox,
-                                             conf_thresh=self.nms_cfg['score_threshold'])
-                boxes.append(box)
-                scores.append(score)
-            yolo_boxes = torch.cat(boxes, 1)  # [N, A,  4]
-            yolo_scores = torch.cat(scores, 1)  # [N, A, 80]
-            if self.export_onnx:
-                decode_output = torch.cat([yolo_boxes, yolo_scores], 2)  # [N, A, 4+80]
-                return decode_output
+        boxes = []
+        scores = []
+        for i, out in enumerate(outputs):
+            if self.iou_aware:
+                na = len(self.anchors[i])
+                ioup, x = out[:, 0:na, :, :], out[:, na:, :, :]
+                b, c, h, w = x.shape
+                no = c // na
+                x = x.reshape((b, na, no, h * w))
+                ioup = ioup.reshape((b, na, 1, h * w))
+                obj = x[:, :, 4:5, :]
+                ioup = torch.sigmoid(ioup)
+                obj = torch.sigmoid(obj)
+                obj_t = (obj**(1 - self.iou_aware_factor)) * (
+                    ioup**self.iou_aware_factor)
+                obj_t = _de_sigmoid(obj_t)
+                loc_t = x[:, :, :4, :]
+                cls_t = x[:, :, 5:, :]
+                y_t = torch.cat([loc_t, obj_t, cls_t], 2)
+                out = y_t.reshape((b, c, h, w))
+            box, score = paddle_yolo_box(out, self._anchors[self.anchor_masks[i]], self.downsample[i],
+                                         self.num_classes, self.scale_x_y, im_size, self.clip_bbox,
+                                         conf_thresh=self.nms_cfg['score_threshold'])
+            boxes.append(box)
+            scores.append(score)
+        yolo_boxes = torch.cat(boxes, 1)  # [N, A,  4]
+        yolo_scores = torch.cat(scores, 1)  # [N, A, 80]
+        if self.export_onnx:
+            decode_output = torch.cat([yolo_boxes, yolo_scores], 2)  # [N, A, 4+80]
+            return decode_output
 
-            # nms
-            preds = []
-            nms_cfg = copy.deepcopy(self.nms_cfg)
-            nms_type = nms_cfg.pop('nms_type')
-            batch_size = yolo_boxes.shape[0]
-            if nms_type == 'matrix_nms':
-                for i in range(batch_size):
-                    pred = matrix_nms(yolo_boxes[i, :, :], yolo_scores[i, :, :], **nms_cfg)
-                    preds.append(pred)
-            # elif nms_type == 'multiclass_nms':
-            #     for i in range(batch_size):
-            #         pred = fluid.layers.multiclass_nms(yolo_boxes[i:i+1, :, :], yolo_scores[i:i+1, :, :], background_label=-1, **nms_cfg)
-            #         preds.append(pred)
-            return preds
-            # if self.iou_aware:
-            #     y = []
-            #     for i, out in enumerate(yolo_outputs):
-            #         na = len(self.anchors[i])
-            #         ioup, x = out[:, 0:na, :, :], out[:, na:, :, :]
-            #         b, c, h, w = x.shape
-            #         no = c // na
-            #         x = x.reshape((b, na, no, h * w))
-            #         ioup = ioup.reshape((b, na, 1, h * w))
-            #         obj = x[:, :, 4:5, :]
-            #         ioup = torch.sigmoid(ioup)
-            #         obj = torch.sigmoid(obj)
-            #         obj_t = (obj**(1 - self.iou_aware_factor)) * (
-            #             ioup**self.iou_aware_factor)
-            #         obj_t = _de_sigmoid(obj_t)
-            #         loc_t = x[:, :, :4, :]
-            #         cls_t = x[:, :, 5:, :]
-            #         y_t = torch.cat([loc_t, obj_t, cls_t], 2)
-            #         y_t = y_t.reshape((b, c, h, w))
-            #         y.append(y_t)
-            #     return y
-            # else:
-            #     return yolo_outputs
+        # nms
+        preds = []
+        nms_cfg = copy.deepcopy(self.nms_cfg)
+        nms_type = nms_cfg.pop('nms_type')
+        batch_size = yolo_boxes.shape[0]
+        if nms_type == 'matrix_nms':
+            for i in range(batch_size):
+                pred = matrix_nms(yolo_boxes[i, :, :], yolo_scores[i, :, :], **nms_cfg)
+                preds.append(pred)
+        # elif nms_type == 'multiclass_nms':
+        #     for i in range(batch_size):
+        #         pred = fluid.layers.multiclass_nms(yolo_boxes[i:i+1, :, :], yolo_scores[i:i+1, :, :], background_label=-1, **nms_cfg)
+        #         preds.append(pred)
+        return preds
 
 
 

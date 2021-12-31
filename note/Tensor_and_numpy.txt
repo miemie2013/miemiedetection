@@ -1,5 +1,10 @@
 
 
+pytorch张量转换到另外一个张量的类型：
+tcls = (tcls <= 0.).to(tcls)
+
+
+
 1.pytorch张量转numpy：
 
 
