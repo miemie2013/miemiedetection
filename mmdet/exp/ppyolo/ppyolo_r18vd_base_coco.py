@@ -73,15 +73,13 @@ class PPYOLO_R18VD_Exp(PPYOLO_Method_Exp):
         )
         self.iou_loss = dict(
             loss_weight=2.5,
-            max_height=608,
-            max_width=608,
-            ciou_term=False,
+            loss_square=True,
         )
         self.yolo_loss = dict(
             ignore_thresh=0.7,
-            scale_x_y=1.05,
+            downsample=[32, 16],
             label_smooth=False,
-            use_fine_grained_loss=True,
+            scale_x_y=1.05,
         )
         self.nms_cfg = dict(
             nms_type='matrix_nms',
