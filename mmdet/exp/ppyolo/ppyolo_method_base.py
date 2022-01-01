@@ -267,7 +267,7 @@ class PPYOLO_Method_Exp(COCOBaseExp):
 
     def get_model(self):
         from mmdet.models import Resnet50Vd, Resnet18Vd, IouLoss, IouAwareLoss, YOLOv3Loss, YOLOv3Head, PPYOLO
-        from mmdet.models.necks.yolo_fpn import PPYOLOFPN
+        from mmdet.models.necks.yolo_fpn import PPYOLOFPN, PPYOLOPAN
         if getattr(self, "model", None) is None:
             Backbone = None
             if self.backbone_type == 'Resnet50Vd':
@@ -281,6 +281,8 @@ class PPYOLO_Method_Exp(COCOBaseExp):
             Fpn = None
             if self.fpn_type == 'PPYOLOFPN':
                 Fpn = PPYOLOFPN
+            elif self.fpn_type == 'PPYOLOPAN':
+                Fpn = PPYOLOPAN
             fpn = Fpn(**self.fpn)
             iou_loss = IouLoss(**self.iou_loss)
             iou_aware_loss = None
