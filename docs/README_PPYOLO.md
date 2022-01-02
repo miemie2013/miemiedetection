@@ -106,6 +106,8 @@ D://GitHub
      |        |------VOC2012
      |                 |------Annotations
      |                 |------annotations2
+     |                 |         |----------voc2012_train.json
+     |                 |         |----------voc2012_val.json
      |                 |------ImageSets
      |                 |------JPEGImages
      |                 |------SegmentationClass
