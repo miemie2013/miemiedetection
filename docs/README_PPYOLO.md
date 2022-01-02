@@ -305,7 +305,9 @@ python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 4 -b 32 -eb 8
 以上述的VOC2012数据集为例，
 
 一、ppyolo_r50vd模型
+
 只需修改2个配置文件：
+
 （1）mmdet.exp.ppyolo.ppyolo_method_base.PPYOLO_Method_Exp，修改数据集的配置项。把COCO数据集的配置注释掉，把VOC2012数据集的配置项解除注释即可。如果是其它的自定义数据集，需要手动写一下配置项。
 
 （2）mmdet.exp.ppyolo.ppyolo_r50vd_2x_base.PPYOLO_R50VD_2x_Exp，修改该模型的配置项。复制ppyolo_r50vd_2x_base_custom.py里的全部内容，粘贴到ppyolo_r50vd_2x_base.py，再根据自己的需求更改相关配置项（或不改，使用咩酱预设配置）。我个人建议修改的配置项有：
@@ -334,7 +336,9 @@ python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 4 -c PPYOL
 
 
 二、ppyolo_r18vd模型
+
 只需修改2个配置文件：
+
 （1）mmdet.exp.ppyolo.ppyolo_method_base.PPYOLO_Method_Exp，修改数据集的配置项。把COCO数据集的配置注释掉，把VOC2012数据集的配置项解除注释即可。如果是其它的自定义数据集，需要手动写一下配置项。
 
 （2）mmdet.exp.ppyolo.ppyolo_r18vd_base.PPYOLO_R50VD_2x_Exp，修改该模型的配置项。复制ppyolo_r18vd_base_custom.py里的全部内容，粘贴到ppyolo_r18vd_base.py，再根据自己的需求更改相关配置项（或不改，使用咩酱预设配置）。
@@ -345,16 +349,6 @@ python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 1 -b 8 -eb 4 -c ppyolo_r
 ```
 
 迁移学习VOC2012数据集，实测ppyolo_r18vd的AP(0.50:0.95)可以到达0.39+、AP(0.50)可以到达0.65+、AP(small)可以到达0.06+。
-
-
-
-
-mmdet.exp.ppyolo.ppyolo_r18vd_base.PPYOLO_R18VD_Exp是PPYOLO算法的Resnet18Vd模型的配置类，继承了PPYOLO_Method_Exp，它给出了ppyolo_r18vd具体的所有配置（包括训练轮数、学习率、ema、网络结构配置、NMS配置、预处理配置等）；
-
-
-注意，xxx_base_coco.py和xxx_base_custom.py仅为了方便复制粘贴而存在，实际配置文件是xxx_base.py。如果是训练自定义数据集，复制xxx_base_custom.py里的全部内容，粘贴到xxx_base.py，再根据自己的需求更改相关配置项。如果是训练COCO数据集，复制xxx_base_coco.py里的全部内容，粘贴到xxx_base.py。最初xxx_base_coco.py里的内容和xxx_base.py里的内容是完全一样的。
-
-
 
 
 
