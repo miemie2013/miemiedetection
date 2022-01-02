@@ -113,7 +113,7 @@ Average forward time: 5.40 ms, Average NMS time: 0.00 ms, Average inference time
 
 
 ----------------------- 训练 -----------------------
-python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 --fp16
+python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 4
 
 
 

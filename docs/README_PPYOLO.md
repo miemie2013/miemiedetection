@@ -130,7 +130,7 @@ D://GitHub
 （4）mmdet.exp.ppyolo.ppyolo_r50vd_2x_base.PPYOLO_R50VD_2x_Exp是PPYOLO算法的Resnet50Vd模型的配置类，继承了PPYOLO_Method_Exp，它给出了ppyolo_r50vd_2x具体的所有配置（包括训练轮数、学习率、ema、网络结构配置、NMS配置、预处理配置等）；
 
 
-mmdet.exp.ppyolo.ppyolo_r18vd_base.PPPYOLO_R18VD_Exp是PPYOLO算法的Resnet18Vd模型的配置类，继承了PPYOLO_Method_Exp，它给出了ppyolo_r18vd具体的所有配置（包括训练轮数、学习率、ema、网络结构配置、NMS配置、预处理配置等）；
+mmdet.exp.ppyolo.ppyolo_r18vd_base.PPYOLO_R18VD_Exp是PPYOLO算法的Resnet18Vd模型的配置类，继承了PPYOLO_Method_Exp，它给出了ppyolo_r18vd具体的所有配置（包括训练轮数、学习率、ema、网络结构配置、NMS配置、预处理配置等）；
 
 
 注意，xxx_base_coco.py和xxx_base_custom.py仅为了方便复制粘贴而存在，实际配置文件是xxx_base.py。如果是训练自定义数据集，复制xxx_base_custom.py里的全部内容，粘贴到xxx_base.py，再根据自己的需求更改相关配置项。如果是训练COCO数据集，复制xxx_base_coco.py里的全部内容，粘贴到xxx_base.py。最初xxx_base_coco.py里的内容和xxx_base.py里的内容是完全一样的。
@@ -267,40 +267,132 @@ Average forward time: 5.40 ms, Average NMS time: 0.00 ms, Average inference time
 如果是使用训练自定义数据集保存的模型进行评估（评估的是自定义数据集的验证集），修改-c为你的模型的路径即可。
 
 
-## 预测
+## 训练COCO数据集
 
+如果从头训练COCO数据集，项目根目录下执行：
+```
+python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 8 -b 24 -eb 8
+```
+
+或者
+```
+python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 4 -b 32 -eb 8
+```
+
+
+
+这些是高端玩家才能输入的命令，使用8卡训练，每卡的批大小是24，需要每张卡的显存为32GB或以上。建议8张Tesla V100。咩酱没有试过多卡训练，如果有报错或你发现什么错误，请提出，让咩酱修正多卡部分的代码。
+
+**参数解释:**
+- -f表示的是使用的配置文件；
+- -d表示的是显卡数量；
+- -b表示的是训练时的批大小（单张卡）；
+- -eb表示的是评估时的批大小（单张卡）；
+
+**其它可选的参数:**
+- --fp16，自动混合精度训练；
+- --num_machines，机器数量，建议单机多卡训练；
+- -c表示的是读取的权重文件；
+- --resume表示的是是否是恢复训练；
+
+
+还没有实现多卡同步bn，目前正在实现中。还没有转换骨干网络ImageNet预训练权重，目前正在实现中。
+
+
+## 训练自定义数据集
+
+建议读取COCO预训练权重进行训练，因为收敛快。
+以上述的VOC2012数据集为例，
+
+一、ppyolo_r50vd模型
+只需修改2个配置文件：
+（1）mmdet.exp.ppyolo.ppyolo_method_base.PPYOLO_Method_Exp，修改数据集的配置项。把COCO数据集的配置注释掉，把VOC2012数据集的配置项解除注释即可。如果是其它的自定义数据集，需要手动写一下配置项。
+
+（2）mmdet.exp.ppyolo.ppyolo_r50vd_2x_base.PPYOLO_R50VD_2x_Exp，修改该模型的配置项。复制ppyolo_r50vd_2x_base_custom.py里的全部内容，粘贴到ppyolo_r50vd_2x_base.py，再根据自己的需求更改相关配置项（或不改，使用咩酱预设配置）。我个人建议修改的配置项有：
+
+- self.max_epoch，训练轮数；
+- self.aug_epochs，前几轮进行mixup或cutmix或mosaic数据增强；
+- self.eval_interval，每训练几轮评估一次模型；
+- self.warmup_epochs，前几轮学习率warm up；
+- self.milestones_epoch，第几个epoch学习率衰减一次；
+- self.backbone['freeze_at']，冻结骨干网络的前多少个stage，5表示冻结前5个（全部）stage，0表示不冻结骨干网络；
+
+不建议修改基础学习率self.basic_lr_per_img，这是算法作者默认的配置，是每张图片的学习率。本仓库会根据用户输入的训练时的批大小动态调节真正的basic_lr，即basic_lr = self.basic_lr_per_img * batch_size
+
+输入命令开始训练：
+```
+python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 4 -c ppyolo_2x.pth
+```
+
+如果训练因为某些原因中断，想要读取之前保存的模型恢复训练，只要修改-c，加上--resume，输入：
+```
+python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 4 -c PPYOLO_outputs/ppyolo_r50vd_2x/13.pth --resume
+```
+把13.pth替换成你要读取的模型的名字。
+
+迁移学习VOC2012数据集，实测ppyolo_r50vd_2x的AP(0.50:0.95)可以到达0.59+、AP(0.50)可以到达0.82+、AP(small)可以到达0.18+。
+
+
+二、ppyolo_r18vd模型
+只需修改2个配置文件：
+（1）mmdet.exp.ppyolo.ppyolo_method_base.PPYOLO_Method_Exp，修改数据集的配置项。把COCO数据集的配置注释掉，把VOC2012数据集的配置项解除注释即可。如果是其它的自定义数据集，需要手动写一下配置项。
+
+（2）mmdet.exp.ppyolo.ppyolo_r18vd_base.PPYOLO_R50VD_2x_Exp，修改该模型的配置项。复制ppyolo_r18vd_base_custom.py里的全部内容，粘贴到ppyolo_r18vd_base.py，再根据自己的需求更改相关配置项（或不改，使用咩酱预设配置）。
+
+输入命令开始训练：
+```
+python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 1 -b 8 -eb 4 -c ppyolo_r18vd.pth
+```
+
+迁移学习VOC2012数据集，实测ppyolo_r18vd的AP(0.50:0.95)可以到达0.39+、AP(0.50)可以到达0.65+、AP(small)可以到达0.06+。
+
+
+
+
+mmdet.exp.ppyolo.ppyolo_r18vd_base.PPYOLO_R18VD_Exp是PPYOLO算法的Resnet18Vd模型的配置类，继承了PPYOLO_Method_Exp，它给出了ppyolo_r18vd具体的所有配置（包括训练轮数、学习率、ema、网络结构配置、NMS配置、预处理配置等）；
+
+
+注意，xxx_base_coco.py和xxx_base_custom.py仅为了方便复制粘贴而存在，实际配置文件是xxx_base.py。如果是训练自定义数据集，复制xxx_base_custom.py里的全部内容，粘贴到xxx_base.py，再根据自己的需求更改相关配置项。如果是训练COCO数据集，复制xxx_base_coco.py里的全部内容，粘贴到xxx_base.py。最初xxx_base_coco.py里的内容和xxx_base.py里的内容是完全一样的。
+
+
+
+
+
+## 导出为ONNX
+
+目前只支持ppyolo_r18vd导出。其它模型实现中..
+
+导出：
+```
+python tools/export_onnx.py --output-name ppyolo_r18vd.onnx -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pth
+```
+
+
+ONNX预测：
+```
+python tools/onnx_inference.py -an PPYOLO -acn ppyolo_r18vd -m ppyolo_r18vd.onnx -i assets/dog.jpg -o ONNX_PPYOLO_R18VD_outputs -s 0.15 --input_shape 416,416 -cn class_names/coco_classes.txt
+```
+
+
+用onnx模型进行验证：
+```
+python tools/onnx_eval.py -an PPYOLO -acn ppyolo_r18vd -m ppyolo_r18vd.onnx -i ../COCO/val2017 -a ../COCO/annotations/instances_val2017.json -s 0.01 --input_shape 416,416 --eval_type eval
+```
+
+
+
+## NCNN
+
+实现中...
 ```
 
 ```
 
 
 
-## 预测
+## TensorRT
 
-```
-
-```
-
-
-
-## 预测
-
-```
-
-```
-
-
-
-## 预测
-
-```
-
-```
-
-
-
-## 预测
-
+实现中...
 ```
 
 ```
