@@ -124,6 +124,24 @@ D://GitHub
 数据集根目录和miemiedetection-master是同一级目录。我个人非常不建议把数据集放在miemiedetection-master里，那样的话PyCharm打开会巨卡无比；而且，多个项目（如mmdetection、PaddleDetection、AdelaiDet）共用数据集时，可以做到数据集路径和项目名无关。
 
 
+（3）mmdet.exp.ppyolo.ppyolo_method_base.PPYOLO_Method_Exp是实现具体算法所有抽象方法的类，继承了COCOBaseExp，它实现了所有抽象方法。
+
+
+（4）mmdet.exp.ppyolo.ppyolo_r50vd_2x_base.PPYOLO_R50VD_2x_Exp是PPYOLO算法的Resnet50Vd模型的配置类，继承了PPYOLO_Method_Exp，它给出了ppyolo_r50vd_2x具体的所有配置（包括训练轮数、学习率、ema、网络结构配置、NMS配置、预处理配置等）；
+
+
+mmdet.exp.ppyolo.ppyolo_r18vd_base.PPPYOLO_R18VD_Exp是PPYOLO算法的Resnet18Vd模型的配置类，继承了PPYOLO_Method_Exp，它给出了ppyolo_r18vd具体的所有配置（包括训练轮数、学习率、ema、网络结构配置、NMS配置、预处理配置等）；
+
+
+注意，xxx_base_coco.py和xxx_base_custom.py仅为了方便复制粘贴而存在，实际配置文件是xxx_base.py。如果是训练自定义数据集，复制xxx_base_custom.py里的全部内容，粘贴到xxx_base.py，再根据自己的需求更改相关配置项。如果是训练COCO数据集，复制xxx_base_coco.py里的全部内容，粘贴到xxx_base.py。最初xxx_base_coco.py里的内容和xxx_base.py里的内容是完全一样的。
+
+
+（5）exp.ppyolo_r50vd_2x.Exp是PPYOLO算法的Resnet50Vd模型的最终配置类，继承了PPYOLO_R50VD_2x_Exp，除了self.exp_name什么都没有修改；
+
+
+exp.ppyolo_r18vd.Exp是PPYOLO算法的Resnet50Vd模型的最终配置类，继承了PPYOLO_R18VD_Exp，除了self.exp_name什么都没有修改；
+
+
 
 ## 预测
 
