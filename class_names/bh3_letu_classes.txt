@@ -1,0 +1,13 @@
+muwu
+shangdian_maodian
+weikai_maodian
+boss_maodian
+zhuanshu_maodian
+nan_maodian
+bisha
+SP
+HP
+Hits
+shanbi
+snake
+wushang

@@ -37,3 +37,13 @@ class COCOBaseExp(BaseExp):
         # self.val_ann = "voc2012_val.json"
         # self.train_image_folder = "JPEGImages"
         # self.val_image_folder = "JPEGImages"
+
+        # bh3_letu_dataset
+        # self.num_classes = 13
+        # self.data_dir = '../bh3_letu_dataset'
+        # self.cls_names = 'class_names/bh3_letu_classes.txt'
+        # self.ann_folder = "annotations"
+        # self.train_ann = "bh3_letu_train.json"
+        # self.val_ann = "bh3_letu_val.json"
+        # self.train_image_folder = "images"
+        # self.val_image_folder = "images"
