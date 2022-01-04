@@ -229,6 +229,96 @@ def main(exp, args):
                         m = state_dict[shortcut_name + '.norm._mean']
                         v = state_dict[shortcut_name + '.norm._variance']
                         copy_conv_bn(backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv4, w, scale, offset, m, v, use_gpu)
+        elif isinstance(backbone, Resnet101Vd):
+            w = state_dict['backbone.conv1.conv1_1.conv.weight']
+            scale = state_dict['backbone.conv1.conv1_1.norm.weight']
+            offset = state_dict['backbone.conv1.conv1_1.norm.bias']
+            m = state_dict['backbone.conv1.conv1_1.norm._mean']
+            v = state_dict['backbone.conv1.conv1_1.norm._variance']
+            copy_conv_bn(backbone.stage1_conv1_1, w, scale, offset, m, v, use_gpu)
+
+            w = state_dict['backbone.conv1.conv1_2.conv.weight']
+            scale = state_dict['backbone.conv1.conv1_2.norm.weight']
+            offset = state_dict['backbone.conv1.conv1_2.norm.bias']
+            m = state_dict['backbone.conv1.conv1_2.norm._mean']
+            v = state_dict['backbone.conv1.conv1_2.norm._variance']
+            copy_conv_bn(backbone.stage1_conv1_2, w, scale, offset, m, v, use_gpu)
+
+            w = state_dict['backbone.conv1.conv1_3.conv.weight']
+            scale = state_dict['backbone.conv1.conv1_3.norm.weight']
+            offset = state_dict['backbone.conv1.conv1_3.norm.bias']
+            m = state_dict['backbone.conv1.conv1_3.norm._mean']
+            v = state_dict['backbone.conv1.conv1_3.norm._variance']
+            copy_conv_bn(backbone.stage1_conv1_3, w, scale, offset, m, v, use_gpu)
+
+            nums = [3, 4, 23, 3]
+            for nid, num in enumerate(nums):
+                stage_name = 'res' + str(nid + 2)
+                for kk in range(num):
+                    block_name = stage_name + chr(ord("a") + kk)
+                    if nid == 2 and kk > 0:
+                        block_name = stage_name + chr(ord("a") + 1) + '%d'%(kk, )
+                    conv_name1 = 'backbone.' + stage_name + "." + block_name + ".branch2a"
+                    conv_name2 = 'backbone.' + stage_name + "." + block_name + ".branch2b"
+                    conv_name3 = 'backbone.' + stage_name + "." + block_name + ".branch2c"
+                    shortcut_name = 'backbone.' + stage_name + "." + block_name + ".short"
+                    if nid > 0:
+                        shortcut_name = 'backbone.' + stage_name + "." + block_name + ".short.conv"
+
+                    w = state_dict[conv_name1 + '.conv.weight']
+                    scale = state_dict[conv_name1 + '.norm.weight']
+                    offset = state_dict[conv_name1 + '.norm.bias']
+                    m = state_dict[conv_name1 + '.norm._mean']
+                    v = state_dict[conv_name1 + '.norm._variance']
+                    copy_conv_bn(backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv1, w, scale, offset, m, v, use_gpu)
+
+                    if nid == 3:  # DCNv2
+                        conv_unit = backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv2
+
+                        offset_w = state_dict[conv_name2 + '.conv_offset.weight']
+                        offset_b = state_dict[conv_name2 + '.conv_offset.bias']
+                        if isinstance(conv_unit.conv, MyDCNv2):  # 如果是自实现的DCNv2
+                            copy_conv(conv_unit.conv_offset, offset_w, offset_b, use_gpu)
+                        # else:
+                        #     copy_conv(conv_unit.conv.conv_offset_mask, offset_w, offset_b, use_gpu)
+
+                        w = state_dict[conv_name2 + '.conv.weight']
+                        scale = state_dict[conv_name2 + '.norm.weight']
+                        offset = state_dict[conv_name2 + '.norm.bias']
+                        m = state_dict[conv_name2 + '.norm._mean']
+                        v = state_dict[conv_name2 + '.norm._variance']
+
+                        if isinstance(conv_unit.conv, MyDCNv2):  # 如果是自实现的DCNv2
+                            conv_unit.conv.weight.data = torch.Tensor(w).cuda()
+                            conv_unit.bn.weight.data = torch.Tensor(scale).cuda()
+                            conv_unit.bn.bias.data = torch.Tensor(offset).cuda()
+                            conv_unit.bn.running_mean.data = torch.Tensor(m).cuda()
+                            conv_unit.bn.running_var.data = torch.Tensor(v).cuda()
+                        # else:
+                        #     copy_conv_bn(conv_unit, w, scale, offset, m, v, use_gpu)
+                    else:
+                        w = state_dict[conv_name2 + '.conv.weight']
+                        scale = state_dict[conv_name2 + '.norm.weight']
+                        offset = state_dict[conv_name2 + '.norm.bias']
+                        m = state_dict[conv_name2 + '.norm._mean']
+                        v = state_dict[conv_name2 + '.norm._variance']
+                        copy_conv_bn(backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv2, w, scale, offset, m, v, use_gpu)
+
+                    w = state_dict[conv_name3 + '.conv.weight']
+                    scale = state_dict[conv_name3 + '.norm.weight']
+                    offset = state_dict[conv_name3 + '.norm.bias']
+                    m = state_dict[conv_name3 + '.norm._mean']
+                    v = state_dict[conv_name3 + '.norm._variance']
+                    copy_conv_bn(backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv3, w, scale, offset, m, v, use_gpu)
+
+                    # 每个stage的第一个卷积块才有4个卷积层
+                    if kk == 0:
+                        w = state_dict[shortcut_name + '.conv.weight']
+                        scale = state_dict[shortcut_name + '.norm.weight']
+                        offset = state_dict[shortcut_name + '.norm.bias']
+                        m = state_dict[shortcut_name + '.norm._mean']
+                        v = state_dict[shortcut_name + '.norm._variance']
+                        copy_conv_bn(backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv4, w, scale, offset, m, v, use_gpu)
         elif isinstance(backbone, Resnet18Vd):
             w = state_dict['backbone.conv1.conv1_1.conv.weight']
             scale = state_dict['backbone.conv1.conv1_1.norm.weight']

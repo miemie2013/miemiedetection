@@ -266,12 +266,14 @@ class PPYOLO_Method_Exp(COCOBaseExp):
         self.data_num_workers = 2
 
     def get_model(self):
-        from mmdet.models import Resnet50Vd, Resnet18Vd, IouLoss, IouAwareLoss, YOLOv3Loss, YOLOv3Head, PPYOLO
+        from mmdet.models import Resnet50Vd, Resnet101Vd, Resnet18Vd, IouLoss, IouAwareLoss, YOLOv3Loss, YOLOv3Head, PPYOLO
         from mmdet.models.necks.yolo_fpn import PPYOLOFPN, PPYOLOPAN
         if getattr(self, "model", None) is None:
             Backbone = None
             if self.backbone_type == 'Resnet50Vd':
                 Backbone = Resnet50Vd
+            elif self.backbone_type == 'Resnet101Vd':
+                Backbone = Resnet101Vd
             elif self.backbone_type == 'Resnet18Vd':
                 Backbone = Resnet18Vd
             backbone = Backbone(**self.backbone)

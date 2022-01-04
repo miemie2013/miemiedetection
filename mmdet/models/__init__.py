@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2021 Megvii Inc. All rights reserved.
 
 from .backbones.darknet import CSPDarknet, Darknet
-from .backbones.resnet_vd import Resnet18Vd, Resnet50Vd
+from .backbones.resnet_vd import Resnet18Vd, Resnet50Vd, Resnet101Vd
 from .backbones.resnet_vb import Resnet50Vb
 
 
