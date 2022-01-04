@@ -41,11 +41,11 @@ class ConvBlock(torch.nn.Module):
         self.conv3.fix_bn()
         self.conv4.fix_bn()
 
-    def add_param_group(self, param_groups, base_lr, base_wd):
-        self.conv1.add_param_group(param_groups, base_lr, base_wd)
-        self.conv2.add_param_group(param_groups, base_lr, base_wd)
-        self.conv3.add_param_group(param_groups, base_lr, base_wd)
-        self.conv4.add_param_group(param_groups, base_lr, base_wd)
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
+        self.conv1.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.conv2.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.conv3.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.conv4.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
     def forward(self, input_tensor):
         x = self.conv1(input_tensor)
@@ -196,24 +196,24 @@ class Resnet50Vb(torch.nn.Module):
             self.stage5_1.fix_bn()
             self.stage5_2.fix_bn()
 
-    def add_param_group(self, param_groups, base_lr, base_wd):
-        self.stage1_conv1_1.add_param_group(param_groups, base_lr, base_wd)
-        self.stage2_0.add_param_group(param_groups, base_lr, base_wd)
-        self.stage2_1.add_param_group(param_groups, base_lr, base_wd)
-        self.stage2_2.add_param_group(param_groups, base_lr, base_wd)
-        self.stage3_0.add_param_group(param_groups, base_lr, base_wd)
-        self.stage3_1.add_param_group(param_groups, base_lr, base_wd)
-        self.stage3_2.add_param_group(param_groups, base_lr, base_wd)
-        self.stage3_3.add_param_group(param_groups, base_lr, base_wd)
-        self.stage4_0.add_param_group(param_groups, base_lr, base_wd)
-        self.stage4_1.add_param_group(param_groups, base_lr, base_wd)
-        self.stage4_2.add_param_group(param_groups, base_lr, base_wd)
-        self.stage4_3.add_param_group(param_groups, base_lr, base_wd)
-        self.stage4_4.add_param_group(param_groups, base_lr, base_wd)
-        self.stage4_5.add_param_group(param_groups, base_lr, base_wd)
-        self.stage5_0.add_param_group(param_groups, base_lr, base_wd)
-        self.stage5_1.add_param_group(param_groups, base_lr, base_wd)
-        self.stage5_2.add_param_group(param_groups, base_lr, base_wd)
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
+        self.stage1_conv1_1.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.stage2_0.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.stage2_1.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.stage2_2.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.stage3_0.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.stage3_1.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.stage3_2.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.stage3_3.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.stage4_0.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.stage4_1.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.stage4_2.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.stage4_3.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.stage4_4.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.stage4_5.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.stage5_0.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.stage5_1.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.stage5_2.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
 
 

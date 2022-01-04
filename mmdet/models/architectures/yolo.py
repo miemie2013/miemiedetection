@@ -29,10 +29,10 @@ class PPYOLO(torch.nn.Module):
         out = self.head.get_loss(fpn_feats, gt_bbox, targets)
         return out
 
-    def add_param_group(self, param_groups, base_lr, base_wd):
-        self.backbone.add_param_group(param_groups, base_lr, base_wd)
-        self.fpn.add_param_group(param_groups, base_lr, base_wd)
-        self.head.add_param_group(param_groups, base_lr, base_wd)
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
+        self.backbone.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.fpn.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.head.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
 
 

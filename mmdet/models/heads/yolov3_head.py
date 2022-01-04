@@ -162,13 +162,13 @@ class DetectionBlock(torch.nn.Module):
             tip = ly(tip)
         return route, tip
 
-    def add_param_group(self, param_groups, base_lr, base_wd):
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         for layer in self.layers:
             if isinstance(layer, Conv2dUnit):
-                layer.add_param_group(param_groups, base_lr, base_wd)
+                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
         for layer in self.tip_layers:
             if isinstance(layer, Conv2dUnit):
-                layer.add_param_group(param_groups, base_lr, base_wd)
+                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
 
 class YOLOv3Head2(torch.nn.Module):
@@ -288,14 +288,14 @@ class YOLOv3Head2(torch.nn.Module):
                 self.upsample_layers.append(conv_unit)
                 self.upsample_layers.append(upsample)
 
-    def add_param_group(self, param_groups, base_lr, base_wd):
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         for detection_block in self.detection_blocks:
-            detection_block.add_param_group(param_groups, base_lr, base_wd)
+            detection_block.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
         for layer in self.yolo_output_convs:
-            layer.add_param_group(param_groups, base_lr, base_wd)
+            layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
         for layer in self.upsample_layers:
             if isinstance(layer, Conv2dUnit):
-                layer.add_param_group(param_groups, base_lr, base_wd)
+                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
     def _get_outputs(self, body_feats):
         outputs = []
@@ -474,10 +474,10 @@ class YOLOv3Head(torch.nn.Module):
                 assert mask < anchor_num, "anchor mask index overflow"
                 self.mask_anchors[-1].extend(anchors[mask])
 
-    def add_param_group(self, param_groups, base_lr, base_wd):
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         for layer in self.yolo_outputs:
             if isinstance(layer, Conv2dUnit):
-                layer.add_param_group(param_groups, base_lr, base_wd)
+                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
     def get_loss(self, feats, gt_bbox, targets):
         assert len(feats) == len(self.anchors)

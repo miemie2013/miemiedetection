@@ -397,13 +397,15 @@ class Conv2dUnit(torch.nn.Module):
         if self.bn is not None:
             self.bn.eval()
 
-    def add_param_group(self, param_groups, base_lr, base_wd):
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         if isinstance(self.conv, torch.nn.Conv2d):
             if self.conv.weight.requires_grad:
                 param_group_conv = {'params': [self.conv.weight]}
                 param_group_conv['lr'] = base_lr * self.lr
                 param_group_conv['base_lr'] = base_lr * self.lr
                 param_group_conv['weight_decay'] = base_wd
+                param_group_conv['need_clip'] = need_clip
+                param_group_conv['clip_norm'] = clip_norm
                 param_groups.append(param_group_conv)
                 if self.conv.bias is not None:
                     if self.conv.bias.requires_grad:
@@ -411,6 +413,8 @@ class Conv2dUnit(torch.nn.Module):
                         param_group_conv_bias['lr'] = base_lr * self.blr
                         param_group_conv_bias['base_lr'] = base_lr * self.blr
                         param_group_conv_bias['weight_decay'] = 0.0
+                        param_group_conv_bias['need_clip'] = need_clip
+                        param_group_conv_bias['clip_norm'] = clip_norm
                         param_groups.append(param_group_conv_bias)
         elif isinstance(self.conv, MyDCNv2):   # 自实现的DCNv2
             if self.conv_offset.weight.requires_grad:
@@ -418,18 +422,24 @@ class Conv2dUnit(torch.nn.Module):
                 param_group_conv_offset_w['lr'] = base_lr * self.lr
                 param_group_conv_offset_w['base_lr'] = base_lr * self.lr
                 param_group_conv_offset_w['weight_decay'] = base_wd
+                param_group_conv_offset_w['need_clip'] = need_clip
+                param_group_conv_offset_w['clip_norm'] = clip_norm
                 param_groups.append(param_group_conv_offset_w)
             if self.conv_offset.bias.requires_grad:
                 param_group_conv_offset_b = {'params': [self.conv_offset.bias]}
                 param_group_conv_offset_b['lr'] = base_lr * self.lr
                 param_group_conv_offset_b['base_lr'] = base_lr * self.lr
                 param_group_conv_offset_b['weight_decay'] = base_wd
+                param_group_conv_offset_b['need_clip'] = need_clip
+                param_group_conv_offset_b['clip_norm'] = clip_norm
                 param_groups.append(param_group_conv_offset_b)
             if self.conv.weight.requires_grad:
                 param_group_dcn_weight = {'params': [self.conv.weight]}
                 param_group_dcn_weight['lr'] = base_lr * self.lr
                 param_group_dcn_weight['base_lr'] = base_lr * self.lr
                 param_group_dcn_weight['weight_decay'] = base_wd
+                param_group_dcn_weight['need_clip'] = need_clip
+                param_group_dcn_weight['clip_norm'] = clip_norm
                 param_groups.append(param_group_dcn_weight)
         else:   # 官方DCNv2
             pass
@@ -439,12 +449,16 @@ class Conv2dUnit(torch.nn.Module):
                 param_group_norm_weight['lr'] = base_lr * self.lr
                 param_group_norm_weight['base_lr'] = base_lr * self.lr
                 param_group_norm_weight['weight_decay'] = 0.0
+                param_group_norm_weight['need_clip'] = need_clip
+                param_group_norm_weight['clip_norm'] = clip_norm
                 param_groups.append(param_group_norm_weight)
             if self.bn.bias.requires_grad:
                 param_group_norm_bias = {'params': [self.bn.bias]}
                 param_group_norm_bias['lr'] = base_lr * self.lr
                 param_group_norm_bias['base_lr'] = base_lr * self.lr
                 param_group_norm_bias['weight_decay'] = 0.0
+                param_group_norm_bias['need_clip'] = need_clip
+                param_group_norm_bias['clip_norm'] = clip_norm
                 param_groups.append(param_group_norm_bias)
         if self.gn is not None:
             if self.gn.weight.requires_grad:
@@ -452,12 +466,16 @@ class Conv2dUnit(torch.nn.Module):
                 param_group_norm_weight['lr'] = base_lr * self.lr
                 param_group_norm_weight['base_lr'] = base_lr * self.lr
                 param_group_norm_weight['weight_decay'] = 0.0
+                param_group_norm_weight['need_clip'] = need_clip
+                param_group_norm_weight['clip_norm'] = clip_norm
                 param_groups.append(param_group_norm_weight)
             if self.gn.bias.requires_grad:
                 param_group_norm_bias = {'params': [self.gn.bias]}
                 param_group_norm_bias['lr'] = base_lr * self.lr
                 param_group_norm_bias['base_lr'] = base_lr * self.lr
                 param_group_norm_bias['weight_decay'] = 0.0
+                param_group_norm_bias['need_clip'] = need_clip
+                param_group_norm_bias['clip_norm'] = clip_norm
                 param_groups.append(param_group_norm_bias)
         if self.af is not None:
             if self.af.weight.requires_grad:
@@ -465,12 +483,16 @@ class Conv2dUnit(torch.nn.Module):
                 param_group_norm_weight['lr'] = base_lr * self.lr
                 param_group_norm_weight['base_lr'] = base_lr * self.lr
                 param_group_norm_weight['weight_decay'] = 0.0
+                param_group_norm_weight['need_clip'] = need_clip
+                param_group_norm_weight['clip_norm'] = clip_norm
                 param_groups.append(param_group_norm_weight)
             if self.af.bias.requires_grad:
                 param_group_norm_bias = {'params': [self.af.bias]}
                 param_group_norm_bias['lr'] = base_lr * self.lr
                 param_group_norm_bias['base_lr'] = base_lr * self.lr
                 param_group_norm_bias['weight_decay'] = 0.0
+                param_group_norm_bias['need_clip'] = need_clip
+                param_group_norm_bias['clip_norm'] = clip_norm
                 param_groups.append(param_group_norm_bias)
 
     def forward(self, x):
@@ -570,8 +592,8 @@ class CoordConv(torch.nn.Module):
             name=name)
         self.data_format = data_format
 
-    def add_param_group(self, param_groups, base_lr, base_wd):
-        self.conv.add_param_group(param_groups, base_lr, base_wd)
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
+        self.conv.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
     def forward(self, x):
         gx, gy = add_coord(x, self.data_format)
@@ -643,8 +665,8 @@ class SPP(torch.nn.Module):
             act=act,
             data_format=data_format)
 
-    def add_param_group(self, param_groups, base_lr, base_wd):
-        self.conv.add_param_group(param_groups, base_lr, base_wd)
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
+        self.conv.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
     def forward(self, x):
         outs = [x]

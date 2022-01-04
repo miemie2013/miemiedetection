@@ -15,25 +15,25 @@ class PPYOLOv2_R50VD_365e_Exp(PPYOLO_Method_Exp):
         self.archi_name = 'PPYOLO'
 
         # --------------  training config --------------------- #
-        self.max_epoch = 365
-        self.aug_epochs = 365  # 前几轮进行mixup、cutmix、mosaic
+        self.max_epoch = 16
+        self.aug_epochs = 16  # 前几轮进行mixup、cutmix、mosaic
 
         self.ema = True
         self.ema_decay = 0.9998
         self.weight_decay = 5e-4
         self.momentum = 0.9
         self.print_interval = 20
-        self.eval_interval = 10
+        self.eval_interval = 2
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
         # learning_rate
         self.scheduler = "warm_piecewisedecay"
-        self.warmup_epochs = 5
+        self.warmup_epochs = 1
         self.basic_lr_per_img = 0.005 / 96.0
         self.clip_grad_by_norm = 35.0
         self.start_factor = 0.0
         self.decay_gamma = 0.1
-        self.milestones_epoch = [243, ]
+        self.milestones_epoch = [12, 14]
 
         # -----------------  testing config ------------------ #
         self.test_size = (640, 640)
@@ -46,7 +46,7 @@ class PPYOLOv2_R50VD_365e_Exp(PPYOLO_Method_Exp):
             feature_maps=[3, 4, 5],
             dcn_v2_stages=[5],
             downsample_in3x3=True,   # 注意这个细节，是在3x3卷积层下采样的。
-            freeze_at=0,
+            freeze_at=5,
             fix_bn_mean_var_at=0,
             freeze_norm=False,
             norm_decay=0.,
@@ -142,7 +142,7 @@ class PPYOLOv2_R50VD_365e_Exp(PPYOLO_Method_Exp):
         self.bboxXYXY2XYWH = dict()
         # RandomShape
         self.randomShape = dict(
-            sizes=[320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640, 672, 704, 736, 768],
+            sizes=[320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640],
             random_inter=True,
         )
         # NormalizeImage

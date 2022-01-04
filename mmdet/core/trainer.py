@@ -194,6 +194,11 @@ class Trainer:
 
         self.optimizer.zero_grad()
         self.scaler.scale(loss).backward()
+        # 梯度裁剪
+        if self.need_clip:
+            for param_group in self.optimizer.param_groups:
+                if param_group['need_clip']:
+                    torch.nn.utils.clip_grad_norm_(param_group['params'], max_norm=param_group['clip_norm'], norm_type=2)
         self.scaler.step(self.optimizer)
         self.scaler.update()
 
@@ -202,8 +207,17 @@ class Trainer:
 
         # 修改学习率
         lr = self.lr_scheduler.update_lr(self.progress_in_iter + 1)
-        for param_group in self.optimizer.param_groups:
-            param_group["lr"] = lr
+        if self.archi_name == 'YOLOX':
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = lr
+        elif self.archi_name == 'PPYOLO':
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
+        elif self.archi_name == 'FCOS':
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
+        else:
+            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 
         iter_end_time = time.time()
         self.meter.update(
@@ -212,61 +226,6 @@ class Trainer:
             lr=lr,
             **outputs,
         )
-
-    def calc_lr(self, iter_id, train_steps, max_iters, cfg):
-        base_lr = cfg.learningRate['base_lr']
-        piecewiseDecay = cfg.learningRate.get('PiecewiseDecay', None)
-        cosineDecay = cfg.learningRate.get('CosineDecay', None)
-        linearWarmup = cfg.learningRate.get('LinearWarmup', None)
-
-        cur_lr = base_lr
-
-        linearWarmup_end_iter_id = 0
-        skip = False
-        if linearWarmup is not None:
-            start_factor = linearWarmup['start_factor']
-            steps = linearWarmup.get('steps', -1)
-            epochs = linearWarmup.get('epochs', -1)
-
-            if steps <= 0 and epochs <= 0:
-                raise ValueError(
-                    "\'steps\' or \'epochs\' should be positive in {}.learningRate[\'LinearWarmup\']".format(cfg))
-            if steps > 0 and epochs > 0:
-                steps = -1  # steps和epochs都设置为正整数时，优先选择epochs
-            if steps <= 0 and epochs > 0:
-                steps = epochs * train_steps
-
-            linearWarmup_end_iter_id = steps
-            if iter_id < steps:
-                k = (1.0 - start_factor) / steps
-                factor = start_factor + k * iter_id
-                cur_lr = base_lr * factor
-                skip = True
-
-        if skip:
-            return cur_lr
-
-        if piecewiseDecay is not None:
-            gamma = piecewiseDecay['gamma']
-            milestones = piecewiseDecay.get('milestones', None)
-            milestones_epoch = piecewiseDecay.get('milestones_epoch', None)
-
-            if milestones is not None:
-                pass
-            elif milestones_epoch is not None:
-                milestones = [f * train_steps for f in milestones_epoch]
-            n = len(milestones)
-            cur_lr = base_lr
-            for i in range(n, 0, -1):
-                if iter_id >= milestones[i - 1]:
-                    cur_lr = base_lr * gamma ** i
-                    break
-
-        if cosineDecay is not None:
-            start_iter_id = linearWarmup_end_iter_id
-            dx = (iter_id - start_iter_id) / (max_iters - start_iter_id) * math.pi
-            cur_lr = base_lr * (1.0 + np.cos(dx)) * 0.5
-        return cur_lr
 
     def before_train(self):
         logger.info("args: {}".format(self.args))
@@ -277,6 +236,9 @@ class Trainer:
         model = self.exp.get_model()
         logger.info("Model Summary: {}".format(get_model_info(self.archi_name, model, self.exp.test_size)))
         model.to(self.device)
+
+        # 是否进行梯度裁剪
+        self.need_clip = False
 
         if self.archi_name == 'YOLOX':
             # solver related init
@@ -296,11 +258,16 @@ class Trainer:
             self.prefetcher = DataPrefetcher(self.train_loader)
         elif self.archi_name == 'PPYOLO':
             # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
-            base_lr = self.exp.basic_lr_per_img * self.args.batch_size
+            self.base_lr = self.exp.basic_lr_per_img * self.args.batch_size
             param_groups = []
             base_wd = self.exp.weight_decay
             momentum = self.exp.momentum
-            model.add_param_group(param_groups, base_lr, base_wd)
+            # 是否进行梯度裁剪
+            self.need_clip = hasattr(self.exp, 'clip_grad_by_norm')
+            self.clip_norm = 1000000.0
+            if self.need_clip:
+                self.clip_norm = getattr(self.exp, 'clip_grad_by_norm')
+            model.add_param_group(param_groups, self.base_lr, base_wd, self.need_clip, self.clip_norm)
 
             # solver related init
             self.optimizer = self.exp.get_optimizer(self.args.batch_size, param_groups, momentum=momentum, weight_decay=base_wd)
@@ -320,11 +287,16 @@ class Trainer:
             self.prefetcher = PPYOLODataPrefetcher(self.train_loader, self.n_layers)
         elif self.archi_name == 'FCOS':
             # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
-            base_lr = self.exp.basic_lr_per_img * self.args.batch_size
+            self.base_lr = self.exp.basic_lr_per_img * self.args.batch_size
             param_groups = []
             base_wd = self.exp.weight_decay
             momentum = self.exp.momentum
-            model.add_param_group(param_groups, base_lr, base_wd)
+            # 是否进行梯度裁剪
+            self.need_clip = hasattr(self.exp, 'clip_grad_by_norm')
+            self.clip_norm = 1000000.0
+            if self.need_clip:
+                self.clip_norm = getattr(self.exp, 'clip_grad_by_norm')
+            model.add_param_group(param_groups, self.base_lr, base_wd, self.need_clip, self.clip_norm)
 
             # solver related init
             self.optimizer = self.exp.get_optimizer(self.args.batch_size, param_groups, momentum=momentum, weight_decay=base_wd)

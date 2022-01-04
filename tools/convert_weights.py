@@ -20,7 +20,7 @@ from mmdet.exp import get_exp
 from mmdet.utils import fuse_model, get_model_info, postprocess, vis, get_classes
 from mmdet.models import *
 from mmdet.models.custom_layers import *
-from mmdet.models.necks.yolo_fpn import PPYOLOFPN
+from mmdet.models.necks.yolo_fpn import PPYOLOFPN, PPYOLOPAN
 
 
 def make_parser():
@@ -383,6 +383,132 @@ def main(exp, args):
                     m = state_dict[conv_name + '.batch_norm._mean']
                     v = state_dict[conv_name + '.batch_norm._variance']
                     copy_conv_bn(fpn.routes[i], w, scale, offset, m, v, use_gpu)
+        elif isinstance(fpn, PPYOLOPAN):
+            # fpn
+            for i, ch_in in enumerate(fpn.in_channels[::-1]):
+                fpn_block = fpn.fpn_blocks[i]  # PPYOLODetBlockCSP
+
+                # PPYOLODetBlockCSP的3个卷积层
+                conv_name = 'neck.fpn.%d.conv1' % (i,)
+                w = state_dict[conv_name + '.conv.weight']
+                scale = state_dict[conv_name + '.batch_norm.weight']
+                offset = state_dict[conv_name + '.batch_norm.bias']
+                m = state_dict[conv_name + '.batch_norm._mean']
+                v = state_dict[conv_name + '.batch_norm._variance']
+                copy_conv_bn(fpn_block.conv1, w, scale, offset, m, v, use_gpu)
+
+                conv_name = 'neck.fpn.%d.conv2' % (i,)
+                w = state_dict[conv_name + '.conv.weight']
+                scale = state_dict[conv_name + '.batch_norm.weight']
+                offset = state_dict[conv_name + '.batch_norm.bias']
+                m = state_dict[conv_name + '.batch_norm._mean']
+                v = state_dict[conv_name + '.batch_norm._variance']
+                copy_conv_bn(fpn_block.conv2, w, scale, offset, m, v, use_gpu)
+
+                conv_name = 'neck.fpn.%d.conv3' % (i,)
+                w = state_dict[conv_name + '.conv.weight']
+                scale = state_dict[conv_name + '.batch_norm.weight']
+                offset = state_dict[conv_name + '.batch_norm.bias']
+                m = state_dict[conv_name + '.batch_norm._mean']
+                v = state_dict[conv_name + '.batch_norm._variance']
+                copy_conv_bn(fpn_block.conv3, w, scale, offset, m, v, use_gpu)
+
+                # PPYOLODetBlockCSP的conv_module
+                for j in range(fpn.conv_block_num):
+                    start = 2 * j
+                    if j == 2:
+                        start += 1
+                    conv_name = 'neck.fpn.%d.conv_module.%d.0' % (i, j)
+                    w = state_dict[conv_name + '.conv.weight']
+                    scale = state_dict[conv_name + '.batch_norm.weight']
+                    offset = state_dict[conv_name + '.batch_norm.bias']
+                    m = state_dict[conv_name + '.batch_norm._mean']
+                    v = state_dict[conv_name + '.batch_norm._variance']
+                    copy_conv_bn(fpn_block.conv_module[start], w, scale, offset, m, v, use_gpu)
+                    if i == 0 and fpn.spp and j == 1:
+                        conv_name = 'neck.fpn.%d.conv_module.spp.conv' % (i, )
+                        w = state_dict[conv_name + '.conv.weight']
+                        scale = state_dict[conv_name + '.batch_norm.weight']
+                        offset = state_dict[conv_name + '.batch_norm.bias']
+                        m = state_dict[conv_name + '.batch_norm._mean']
+                        v = state_dict[conv_name + '.batch_norm._variance']
+                        copy_conv_bn(fpn_block.conv_module[start + 1].conv, w, scale, offset, m, v, use_gpu)
+                    else:
+                        conv_name = 'neck.fpn.%d.conv_module.%d.1' % (i, j)
+                        w = state_dict[conv_name + '.conv.weight']
+                        scale = state_dict[conv_name + '.batch_norm.weight']
+                        offset = state_dict[conv_name + '.batch_norm.bias']
+                        m = state_dict[conv_name + '.batch_norm._mean']
+                        v = state_dict[conv_name + '.batch_norm._variance']
+                        copy_conv_bn(fpn_block.conv_module[start + 1], w, scale, offset, m, v, use_gpu)
+                    if i < fpn.num_blocks - 1:
+                        # fpn_transition
+                        conv_name = 'neck.fpn_transition.%d' % (i, )
+                        w = state_dict[conv_name + '.conv.weight']
+                        scale = state_dict[conv_name + '.batch_norm.weight']
+                        offset = state_dict[conv_name + '.batch_norm.bias']
+                        m = state_dict[conv_name + '.batch_norm._mean']
+                        v = state_dict[conv_name + '.batch_norm._variance']
+                        copy_conv_bn(fpn.fpn_routes[i], w, scale, offset, m, v, use_gpu)
+            # pan
+            for i in reversed(range(fpn.num_blocks - 1)):
+                # route
+                conv_name = 'neck.pan_transition.%d' % (i,)
+                w = state_dict[conv_name + '.conv.weight']
+                scale = state_dict[conv_name + '.batch_norm.weight']
+                offset = state_dict[conv_name + '.batch_norm.bias']
+                m = state_dict[conv_name + '.batch_norm._mean']
+                v = state_dict[conv_name + '.batch_norm._variance']
+                copy_conv_bn(fpn.pan_routes[i], w, scale, offset, m, v, use_gpu)
+
+                # pan_block
+                pan_block = fpn.pan_blocks[i]  # PPYOLODetBlockCSP
+
+                # PPYOLODetBlockCSP的3个卷积层
+                conv_name = 'neck.pan.%d.conv1' % (i,)
+                w = state_dict[conv_name + '.conv.weight']
+                scale = state_dict[conv_name + '.batch_norm.weight']
+                offset = state_dict[conv_name + '.batch_norm.bias']
+                m = state_dict[conv_name + '.batch_norm._mean']
+                v = state_dict[conv_name + '.batch_norm._variance']
+                copy_conv_bn(pan_block.conv1, w, scale, offset, m, v, use_gpu)
+
+                conv_name = 'neck.pan.%d.conv2' % (i,)
+                w = state_dict[conv_name + '.conv.weight']
+                scale = state_dict[conv_name + '.batch_norm.weight']
+                offset = state_dict[conv_name + '.batch_norm.bias']
+                m = state_dict[conv_name + '.batch_norm._mean']
+                v = state_dict[conv_name + '.batch_norm._variance']
+                copy_conv_bn(pan_block.conv2, w, scale, offset, m, v, use_gpu)
+
+                conv_name = 'neck.pan.%d.conv3' % (i,)
+                w = state_dict[conv_name + '.conv.weight']
+                scale = state_dict[conv_name + '.batch_norm.weight']
+                offset = state_dict[conv_name + '.batch_norm.bias']
+                m = state_dict[conv_name + '.batch_norm._mean']
+                v = state_dict[conv_name + '.batch_norm._variance']
+                copy_conv_bn(pan_block.conv3, w, scale, offset, m, v, use_gpu)
+
+                # PPYOLODetBlockCSP的conv_module
+                for j in range(fpn.conv_block_num):
+                    start = 2 * j
+                    if j == 2:
+                        start += 1
+                    conv_name = 'neck.pan.%d.conv_module.%d.0' % (i, j)
+                    w = state_dict[conv_name + '.conv.weight']
+                    scale = state_dict[conv_name + '.batch_norm.weight']
+                    offset = state_dict[conv_name + '.batch_norm.bias']
+                    m = state_dict[conv_name + '.batch_norm._mean']
+                    v = state_dict[conv_name + '.batch_norm._variance']
+                    copy_conv_bn(pan_block.conv_module[start], w, scale, offset, m, v, use_gpu)
+
+                    conv_name = 'neck.pan.%d.conv_module.%d.1' % (i, j)
+                    w = state_dict[conv_name + '.conv.weight']
+                    scale = state_dict[conv_name + '.batch_norm.weight']
+                    offset = state_dict[conv_name + '.batch_norm.bias']
+                    m = state_dict[conv_name + '.batch_norm._mean']
+                    v = state_dict[conv_name + '.batch_norm._variance']
+                    copy_conv_bn(pan_block.conv_module[start + 1], w, scale, offset, m, v, use_gpu)
         if isinstance(head, YOLOv3Head):
             for i in range(len(head.anchors)):
                 w = state_dict["yolo_head.yolo_output.{}.weight".format(i)]

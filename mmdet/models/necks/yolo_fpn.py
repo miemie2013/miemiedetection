@@ -108,17 +108,17 @@ class PPYOLODetBlock(nn.Module):
         kwargs.update(name='{}.{}'.format(name, conv_name), data_format=data_format)
         self.tip = layer(*args, **kwargs)
 
-    def add_param_group(self, param_groups, base_lr, base_wd):
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         for layer in self.conv_module:
             if isinstance(layer, CoordConv):
-                layer.add_param_group(param_groups, base_lr, base_wd)
+                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
             elif isinstance(layer, Conv2dUnit):
-                layer.add_param_group(param_groups, base_lr, base_wd)
+                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
             elif isinstance(layer, SPP):
-                layer.add_param_group(param_groups, base_lr, base_wd)
+                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
             elif isinstance(layer, DropBlock):
                 pass
-        self.tip.add_param_group(param_groups, base_lr, base_wd)
+        self.tip.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
     def forward(self, inputs):
         route = self.conv_module(inputs)
@@ -256,11 +256,11 @@ class PPYOLOFPN(nn.Module):
         layer = getattr(self, name)
         return layer
 
-    def add_param_group(self, param_groups, base_lr, base_wd):
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         for i, ch_in in enumerate(self.in_channels[::-1]):
-            self.yolo_blocks[i].add_param_group(param_groups, base_lr, base_wd)
+            self.yolo_blocks[i].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
             if i < self.num_blocks - 1:
-                self.routes[i].add_param_group(param_groups, base_lr, base_wd)
+                self.routes[i].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
     def forward(self, blocks, for_mot=False):
         assert len(blocks) == self.num_blocks
@@ -292,6 +292,88 @@ class PPYOLOFPN(nn.Module):
             return {'yolo_feats': yolo_feats, 'emb_feats': emb_feats}
         else:
             return yolo_feats
+
+
+class PPYOLODetBlockCSP(nn.Module):
+    def __init__(self,
+                 cfg,
+                 ch_in,
+                 ch_out,
+                 act,
+                 norm_type,
+                 name,
+                 data_format='NCHW'):
+        """
+        PPYOLODetBlockCSP layer
+
+        Args:
+            cfg (list): layer configs for this block
+            ch_in (int): input channel
+            ch_out (int): output channel
+            act (str): default mish
+            name (str): block name
+            data_format (str): data format, NCHW or NHWC
+        """
+        super(PPYOLODetBlockCSP, self).__init__()
+        self.data_format = data_format
+        self.conv1 = Conv2dUnit(
+            ch_in,
+            ch_out,
+            1,
+            padding=0,
+            act=act,
+            norm_type=norm_type,
+            name=name + '.left',
+            data_format=data_format)
+        self.conv2 = Conv2dUnit(
+            ch_in,
+            ch_out,
+            1,
+            padding=0,
+            act=act,
+            norm_type=norm_type,
+            name=name + '.right',
+            data_format=data_format)
+        self.conv3 = Conv2dUnit(
+            ch_out * 2,
+            ch_out * 2,
+            1,
+            padding=0,
+            act=act,
+            norm_type=norm_type,
+            name=name,
+            data_format=data_format)
+        self.conv_module = nn.Sequential()
+        for idx, (layer_name, layer, args, kwargs) in enumerate(cfg):
+            kwargs.update(name=name + layer_name, data_format=data_format)
+            layer_name = layer_name.replace('.', '_')
+            self.conv_module.add_module(layer_name, layer(*args, **kwargs))
+
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
+        for layer in self.conv_module:
+            if isinstance(layer, CoordConv):
+                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+            elif isinstance(layer, Conv2dUnit):
+                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+            elif isinstance(layer, SPP):
+                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+            elif isinstance(layer, DropBlock):
+                pass
+        self.conv1.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.conv2.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.conv3.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+
+    def forward(self, inputs):
+        conv_left = self.conv1(inputs)
+        conv_right = self.conv2(inputs)
+        conv_left = self.conv_module(conv_left)
+        if self.data_format == 'NCHW':
+            conv = torch.cat([conv_left, conv_right], 1)
+        else:
+            conv = torch.cat([conv_left, conv_right], -1)
+
+        conv = self.conv3(conv)
+        return conv, conv
 
 
 class PPYOLOPAN(nn.Module):
@@ -340,8 +422,8 @@ class PPYOLOPAN(nn.Module):
             dropblock_cfg = []
 
         # fpn
-        self.fpn_blocks = []
-        self.fpn_routes = []
+        self.fpn_blocks = torch.nn.ModuleList()
+        self.fpn_routes = torch.nn.ModuleList()
         fpn_channels = []
         for i, ch_in in enumerate(self.in_channels[::-1]):
             if i > 0:
@@ -352,12 +434,12 @@ class PPYOLOPAN(nn.Module):
                 base_cfg += [
                     # name, layer, args
                     [
-                        '{}.0'.format(j), ConvBNLayer, [channel, channel, 1],
+                        '{}.0'.format(j), Conv2dUnit, [channel, channel, 1],
                         dict(
                             padding=0, act=act, norm_type=norm_type)
                     ],
                     [
-                        '{}.1'.format(j), ConvBNLayer, [channel, channel, 3],
+                        '{}.1'.format(j), Conv2dUnit, [channel, channel, 3],
                         dict(
                             padding=1, act=act, norm_type=norm_type)
                     ]
@@ -371,46 +453,23 @@ class PPYOLOPAN(nn.Module):
 
             cfg = base_cfg[:4] + dropblock_cfg + base_cfg[4:]
             name = 'fpn.{}'.format(i)
-            fpn_block = self.add_sublayer(
-                name,
-                PPYOLODetBlockCSP(cfg, ch_in, channel, act, norm_type, name,
-                                  data_format))
+            fpn_block = PPYOLODetBlockCSP(cfg, ch_in, channel, act, norm_type, name, data_format)
             self.fpn_blocks.append(fpn_block)
             fpn_channels.append(channel * 2)
             if i < self.num_blocks - 1:
                 name = 'fpn_transition.{}'.format(i)
-                route = self.add_sublayer(
-                    name,
-                    ConvBNLayer(
-                        ch_in=channel * 2,
-                        ch_out=channel,
-                        filter_size=1,
-                        stride=1,
-                        padding=0,
-                        act=act,
-                        norm_type=norm_type,
-                        data_format=data_format,
-                        name=name))
+                route = Conv2dUnit(channel * 2, channel, filter_size=1, stride=1, padding=0,
+                                   act=act, norm_type=norm_type, data_format=data_format, name=name)
                 self.fpn_routes.append(route)
         # pan
-        self.pan_blocks = []
-        self.pan_routes = []
+        self.pan_blocks_temp = []
+        self.pan_routes_temp = []
         self._out_channels = [512 // (2**(self.num_blocks - 2)), ]
         for i in reversed(range(self.num_blocks - 1)):
             name = 'pan_transition.{}'.format(i)
-            route = self.add_sublayer(
-                name,
-                ConvBNLayer(
-                    ch_in=fpn_channels[i + 1],
-                    ch_out=fpn_channels[i + 1],
-                    filter_size=3,
-                    stride=2,
-                    padding=1,
-                    act=act,
-                    norm_type=norm_type,
-                    data_format=data_format,
-                    name=name))
-            self.pan_routes = [route, ] + self.pan_routes
+            route = Conv2dUnit(fpn_channels[i + 1], fpn_channels[i + 1], filter_size=3, stride=2, padding=1,
+                               act=act, norm_type=norm_type, data_format=data_format, name=name)
+            self.pan_routes_temp = [route, ] + self.pan_routes_temp
             base_cfg = []
             ch_in = fpn_channels[i] + fpn_channels[i + 1]
             channel = 512 // (2**i)
@@ -418,12 +477,12 @@ class PPYOLOPAN(nn.Module):
                 base_cfg += [
                     # name, layer, args
                     [
-                        '{}.0'.format(j), ConvBNLayer, [channel, channel, 1],
+                        '{}.0'.format(j), Conv2dUnit, [channel, channel, 1],
                         dict(
                             padding=0, act=act, norm_type=norm_type)
                     ],
                     [
-                        '{}.1'.format(j), ConvBNLayer, [channel, channel, 3],
+                        '{}.1'.format(j), Conv2dUnit, [channel, channel, 3],
                         dict(
                             padding=1, act=act, norm_type=norm_type)
                     ]
@@ -431,15 +490,31 @@ class PPYOLOPAN(nn.Module):
 
             cfg = base_cfg[:4] + dropblock_cfg + base_cfg[4:]
             name = 'pan.{}'.format(i)
-            pan_block = self.add_sublayer(
-                name,
-                PPYOLODetBlockCSP(cfg, ch_in, channel, act, norm_type, name,
-                                  data_format))
+            pan_block = PPYOLODetBlockCSP(cfg, ch_in, channel, act, norm_type, name, data_format)
 
-            self.pan_blocks = [pan_block, ] + self.pan_blocks
+            self.pan_blocks_temp = [pan_block, ] + self.pan_blocks_temp
             self._out_channels.append(channel * 2)
 
+        self.pan_blocks = torch.nn.ModuleList()
+        self.pan_routes = torch.nn.ModuleList()
+        for module in self.pan_blocks_temp:
+            self.pan_blocks.append(module)
+        for module in self.pan_routes_temp:
+            self.pan_routes.append(module)
+        delattr(self, "pan_blocks_temp")
+        delattr(self, "pan_routes_temp")
+
         self._out_channels = self._out_channels[::-1]
+
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
+        for i, ch_in in enumerate(self.in_channels[::-1]):
+            self.fpn_blocks[i].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+            if i < self.num_blocks - 1:
+                self.fpn_routes[i].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        for module in self.pan_blocks:
+            module.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        for module in self.pan_routes:
+            module.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
     def forward(self, blocks, for_mot=False):
         assert len(blocks) == self.num_blocks
@@ -453,9 +528,9 @@ class PPYOLOPAN(nn.Module):
         for i, block in enumerate(blocks):
             if i > 0:
                 if self.data_format == 'NCHW':
-                    block = paddle.concat([route, block], axis=1)
+                    block = torch.cat([route, block], 1)
                 else:
-                    block = paddle.concat([route, block], axis=-1)
+                    block = torch.cat([route, block], -1)
             route, tip = self.fpn_blocks[i](block)
             fpn_feats.append(tip)
 
@@ -465,8 +540,7 @@ class PPYOLOPAN(nn.Module):
 
             if i < self.num_blocks - 1:
                 route = self.fpn_routes[i](route)
-                route = F.interpolate(
-                    route, scale_factor=2., data_format=self.data_format)
+                route = F.interpolate(route, scale_factor=2., mode='nearest')
 
         pan_feats = [fpn_feats[-1], ]
         route = fpn_feats[self.num_blocks - 1]
@@ -474,9 +548,9 @@ class PPYOLOPAN(nn.Module):
             block = fpn_feats[i]
             route = self.pan_routes[i](route)
             if self.data_format == 'NCHW':
-                block = paddle.concat([route, block], axis=1)
+                block = torch.cat([route, block], 1)
             else:
-                block = paddle.concat([route, block], axis=-1)
+                block = torch.cat([route, block], -1)
 
             route, tip = self.pan_blocks[i](block)
             pan_feats.append(tip)
