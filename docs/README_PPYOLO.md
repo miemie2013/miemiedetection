@@ -16,6 +16,14 @@
 
 
 ## 获取预训练模型(转换权重)
+
+读者可以到这个链接下载转换好的*.pth权重文件：
+
+链接：https://pan.baidu.com/s/1ehEqnNYKb9Nz0XNeqAcwDw 
+提取码：qe3i
+
+或者按照下面的步骤获取（需要安装paddlepaddle）：
+
 第一步，需要先安装paddlepaddle来方便读取权重：
 ```
 pip install paddlepaddle-gpu==2.2.1 -i https://pypi.tuna.tsinghua.edu.cn/simple
@@ -36,7 +44,7 @@ wget https://paddledet.bj.bcebos.com/models/pretrained/ResNet101_vd_ssld_pretrai
 注意，带有pretrained字样的模型是在ImageNet上预训练的骨干网路，PPYOLO和PPYOLOv2加载这些权重以训练COCO数据集。其余为COCO上的预训练模型。
 
 
-第二步，转换权重，项目根目录下执行：
+第三步，转换权重，项目根目录下执行：
 
 ```
 python tools/convert_weights.py -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo_r50vd_dcn_2x_coco.pdparams -oc ppyolo_2x.pth -nc 80
@@ -103,6 +111,7 @@ COCOBaseExp的配置项有：
 解除注释，注释掉COCO数据集的配置，就是使用VOC2012数据集了。
 
 voc2012_train.json、voc2012_val.json是我个人转换好的COCO标注格式的注解文件，可以到这个链接下载：
+
 链接：https://pan.baidu.com/s/1ehEqnNYKb9Nz0XNeqAcwDw 
 提取码：qe3i
 
