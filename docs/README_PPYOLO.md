@@ -2,29 +2,17 @@
 
 # PPYOLO & PPYOLOv2
 
-|          模型            | GPU个数 | 每GPU图片个数 |  骨干网络  | 输入尺寸 | Box AP<sup>val</sup> | Box AP<sup>test</sup> | V100 FP32(FPS) | V100 TensorRT FP16(FPS) | 模型下载 | 配置文件 |
-|:------------------------:|:-------:|:-------------:|:----------:| :-------:| :------------------: | :-------------------: | :------------: | :---------------------: | :------: | :------: |
-| PP-YOLO                  |     8      |     24     | ResNet50vd |     608     |         44.8         |         45.2          |      72.9      |          155.6          | [model](https://paddledet.bj.bcebos.com/models/ppyolo_r50vd_dcn_1x_coco.pdparams) | [config](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.3/configs/ppyolo/ppyolo_r50vd_dcn_1x_coco.yml)                   |
-| PP-YOLO                  |     8      |     24     | ResNet50vd |     512     |         43.9         |         44.4          |      89.9      |          188.4          | [model](https://paddledet.bj.bcebos.com/models/ppyolo_r50vd_dcn_1x_coco.pdparams) | [config](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.3/configs/ppyolo/ppyolo_r50vd_dcn_1x_coco.yml)                   |
-| PP-YOLO                  |     8      |     24     | ResNet50vd |     416     |         42.1         |         42.5          |      109.1      |          215.4          | [model](https://paddledet.bj.bcebos.com/models/ppyolo_r50vd_dcn_1x_coco.pdparams) | [config](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.3/configs/ppyolo/ppyolo_r50vd_dcn_1x_coco.yml)                   |
-| PP-YOLO                  |     8      |     24     | ResNet50vd |     320     |         38.9         |         39.3          |      132.2      |          242.2          | [model](https://paddledet.bj.bcebos.com/models/ppyolo_r50vd_dcn_1x_coco.pdparams) | [config](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.3/configs/ppyolo/ppyolo_r50vd_dcn_1x_coco.yml)                   |
-| PP-YOLO_2x               |     8      |     24     | ResNet50vd |     608     |         45.3         |         45.9          |      72.9      |          155.6          | [model](https://paddledet.bj.bcebos.com/models/ppyolo_r50vd_dcn_2x_coco.pdparams) | [config](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.3/configs/ppyolo/ppyolo_r50vd_dcn_2x_coco.yml)                   |
-| PP-YOLO_2x               |     8      |     24     | ResNet50vd |     512     |         44.4         |         45.0          |      89.9      |          188.4          | [model](https://paddledet.bj.bcebos.com/models/ppyolo_r50vd_dcn_2x_coco.pdparams) | [config](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.3/configs/ppyolo/ppyolo_r50vd_dcn_2x_coco.yml)                   |
-| PP-YOLO_2x               |     8      |     24     | ResNet50vd |     416     |         42.7         |         43.2          |      109.1      |          215.4          | [model](https://paddledet.bj.bcebos.com/models/ppyolo_r50vd_dcn_2x_coco.pdparams) | [config](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.3/configs/ppyolo/ppyolo_r50vd_dcn_2x_coco.yml)                   |
-| PP-YOLO_2x               |     8      |     24     | ResNet50vd |     320     |         39.5         |         40.1          |      132.2      |          242.2          | [model](https://paddledet.bj.bcebos.com/models/ppyolo_r50vd_dcn_2x_coco.pdparams) | [config](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.3/configs/ppyolo/ppyolo_r50vd_dcn_2x_coco.yml)                   |
-| PP-YOLO               |     4      |     32     | ResNet18vd |     512     |         29.2         |         29.5          |      357.1      |          657.9          | [model](https://paddledet.bj.bcebos.com/models/ppyolo_r18vd_coco.pdparams) | [config](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.3/configs/ppyolo/ppyolo_r18vd_coco.yml)                   |
-| PP-YOLO               |     4      |     32     | ResNet18vd |     416     |         28.6         |         28.9          |      409.8      |          719.4          | [model](https://paddledet.bj.bcebos.com/models/ppyolo_r18vd_coco.pdparams) | [config](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.3/configs/ppyolo/ppyolo_r18vd_coco.yml)                   |
-| PP-YOLO               |     4      |     32     | ResNet18vd |     320     |         26.2         |         26.4          |      480.7      |          763.4          | [model](https://paddledet.bj.bcebos.com/models/ppyolo_r18vd_coco.pdparams) | [config](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.3/configs/ppyolo/ppyolo_r18vd_coco.yml)                   |
-| PP-YOLOv2               |     8      |     12     | ResNet50vd |     640     |         49.1         |         49.5          |      68.9      |          106.5          | [model](https://paddledet.bj.bcebos.com/models/ppyolov2_r50vd_dcn_365e_coco.pdparams) | [config](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.3/configs/ppyolo/ppyolov2_r50vd_dcn_365e_coco.yml)                   |
-| PP-YOLOv2               |     8      |     12     | ResNet101vd |     640     |         49.7         |         50.3          |     49.5     |         87.0         | [model](https://paddledet.bj.bcebos.com/models/ppyolov2_r101vd_dcn_365e_coco.pdparams) | [config](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.3/configs/ppyolo/ppyolov2_r101vd_dcn_365e_coco.yml)                   |
+|          模型            | GPU个数 | 每GPU图片个数 |  骨干网络  | 输入尺寸 | Box AP<sup>val</sup> | Box AP<sup>test</sup> | inference time(ms) |
+|:------------------------:|:-------:|:-------------:|:----------:| :-------:| :------------------: | :-------------------: |:------------------:|
+| PP-YOLO_2x               |     8      |     24     | ResNet50vd |     608     |         45.3         |         45.9          |       34.49        |
+| PP-YOLO_2x               |     8      |     24     | ResNet50vd |     320     |         39.5         |         40.1          |       10.69        |
+| PP-YOLO               |     4      |     32     | ResNet18vd |     416     |         28.6         |         28.9          |        5.40        |
+| PP-YOLOv2               |     8      |     12     | ResNet50vd |     640     |         49.1         |         49.5          |       42.58        |
+| PP-YOLOv2               |     8      |     12     | ResNet101vd |     640     |         49.7         |         50.3          |       56.81        |
 
 **注意:**
 
-- PP-YOLO模型使用COCO数据集中train2017作为训练集，使用val2017和test-dev2017作为测试集，Box AP<sup>test</sup>为`mAP(IoU=0.5:0.95)`评估结果。
-- PP-YOLO模型训练过程中使用8 GPUs，每GPU batch size为24进行训练，如训练GPU数和batch size不使用上述配置，须参考[FAQ](https://github.com/PaddlePaddle/PaddleDetection/blob/release/2.3/docs/tutorials/FAQ.md)调整学习率和迭代次数。
-- PP-YOLO模型推理速度测试采用单卡V100，batch size=1进行测试，使用CUDA 10.2, CUDNN 7.5.1，TensorRT推理速度测试使用TensorRT 5.1.2.2。
-- PP-YOLO模型FP32的推理速度测试数据为使用`tools/export_model.py`脚本导出模型后，使用`deploy/python/infer.py`脚本中的`--run_benchnark`参数使用Paddle预测库进行推理速度benchmark测试结果, 且测试的均为不包含数据预处理和模型输出后处理(NMS)的数据(与[YOLOv4(AlexyAB)](https://github.com/AlexeyAB/darknet)测试方法一致)。
-- TensorRT FP16的速度测试相比于FP32去除了`yolo_box`(bbox解码)部分耗时，即不包含数据预处理，bbox解码和NMS(与[YOLOv4(AlexyAB)](https://github.com/AlexeyAB/darknet)测试方法一致)。
+- inference time通过tools/eval.py脚本测出，相关命令见下文“评估”小节。测速环境为Ubuntu20.04、GTX 1660TI、torch==1.9.1+cu102。
 
 
 ## 获取预训练模型(转换权重)
@@ -401,24 +389,24 @@ Average forward time: 16.42 ms, Average NMS time: 0.00 ms, Average inference tim
 
 ## 训练COCO数据集
 
-如果从头训练COCO数据集，项目根目录下执行：
+如果读取ImageNet预训练骨干网路训练COCO数据集，项目根目录下执行：
 ```
-python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 8 -b 24 -eb 8
-```
-
-或者
-```
-python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 4 -b 32 -eb 8
+python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 8 -b 24 -eb 8 -c ResNet50_vd_ssld_pretrained.pth
 ```
 
 或者
 ```
-python tools/train.py -f exps/ppyolo/ppyolov2_r50vd_365e.py -d 8 -b 12 -eb 8
+python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 4 -b 32 -eb 8 -c ResNet18_vd_pretrained.pth
 ```
 
 或者
 ```
-python tools/train.py -f exps/ppyolo/ppyolov2_r101vd_365e.py -d 8 -b 12 -eb 8
+python tools/train.py -f exps/ppyolo/ppyolov2_r50vd_365e.py -d 8 -b 12 -eb 8 -c ResNet50_vd_ssld_pretrained.pth
+```
+
+或者
+```
+python tools/train.py -f exps/ppyolo/ppyolov2_r101vd_365e.py -d 8 -b 12 -eb 8 -c ResNet101_vd_ssld_pretrained.pth
 ```
 
 
@@ -441,7 +429,6 @@ python tools/train.py -f exps/ppyolo/ppyolov2_r101vd_365e.py -d 8 -b 12 -eb 8
 - --resume表示的是是否是恢复训练；
 
 
-还没有转换骨干网络ImageNet预训练权重，目前正在实现中。
 
 
 ## 训练自定义数据集
@@ -478,6 +465,10 @@ python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 4 -c PPYOL
 把13.pth替换成你要读取的模型的名字。
 
 迁移学习VOC2012数据集，实测ppyolo_r50vd_2x的AP(0.50:0.95)可以到达0.59+、AP(0.50)可以到达0.82+、AP(small)可以到达0.18+。
+
+
+读者感兴趣的话，可以把命令中的“ -c ppyolo_2x.pth”改成“ -c ResNet50_vd_ssld_pretrained.pth”，即读取ImageNet预训练骨干网路训练VOC2012数据集，并且修改配置文件mmdet.exp.ppyolo.ppyolo_r50vd_2x_base.PPYOLO_R50VD_2x_Exp的self.backbone['freeze_at']为4（因为预训练骨干网路没有使用DCNv2，所以stage5的可变形卷积层也要训练一下）。咩酱实测也能训练出一个较好的效果。
+
 
 
 二、ppyolo_r18vd模型
