@@ -257,6 +257,11 @@ class Trainer:
             logger.info("init prefetcher, this might take one minute or less...")
             self.prefetcher = DataPrefetcher(self.train_loader)
         elif self.archi_name == 'PPYOLO':
+            # 多卡训练时，使用同步bn
+            if self.is_distributed:
+                model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+                logger.info('Using SyncBatchNorm()')
+
             # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
             self.base_lr = self.exp.basic_lr_per_img * self.args.batch_size
             param_groups = []

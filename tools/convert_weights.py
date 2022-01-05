@@ -40,6 +40,12 @@ def make_parser():
     parser.add_argument("-oc", "--output_ckpt", default=None, type=str, help="output checkpoint")
     parser.add_argument("-nc", "--num_classes", default=80, type=int, help="dataset num_classes")
     parser.add_argument(
+        "--only_backbone",
+        default=False,
+        type=bool,
+        help="only convert backbone",
+    )
+    parser.add_argument(
         "--device",
         default="cpu",
         type=str,
@@ -106,6 +112,11 @@ def main(exp, args):
     if getattr(exp, "head", None) is not None:
         if 'num_classes' in exp.head.keys():
             exp.head['num_classes'] = args.num_classes
+
+    # 这些预训练骨干网络没有使用DCNv2
+    no_dcnv2_backbones = ['ResNet50_vd_ssld_pretrained.pdparams', 'ResNet101_vd_ssld_pretrained.pdparams']
+    if args.only_backbone and args.ckpt in no_dcnv2_backbones:
+        exp.backbone['dcn_v2_stages'] = []
 
     model = exp.get_model()
     # 算法名字
@@ -182,7 +193,7 @@ def main(exp, args):
                     v = state_dict[conv_name1 + '.norm._variance']
                     copy_conv_bn(backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv1, w, scale, offset, m, v, use_gpu)
 
-                    if nid == 3:  # DCNv2
+                    if nid == 3 and not args.only_backbone:  # DCNv2
                         conv_unit = backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv2
 
                         offset_w = state_dict[conv_name2 + '.conv_offset.weight']
@@ -272,7 +283,7 @@ def main(exp, args):
                     v = state_dict[conv_name1 + '.norm._variance']
                     copy_conv_bn(backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv1, w, scale, offset, m, v, use_gpu)
 
-                    if nid == 3:  # DCNv2
+                    if nid == 3 and not args.only_backbone:  # DCNv2
                         conv_unit = backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv2
 
                         offset_w = state_dict[conv_name2 + '.conv_offset.weight']
@@ -374,7 +385,7 @@ def main(exp, args):
                         m = state_dict[shortcut_name + '.norm._mean']
                         v = state_dict[shortcut_name + '.norm._variance']
                         copy_conv_bn(backbone.get_block('stage%d_%d' % (2 + nid, kk)).conv3, w, scale, offset, m, v, use_gpu)
-        if isinstance(fpn, PPYOLOFPN):
+        if isinstance(fpn, PPYOLOFPN) and not args.only_backbone:
             for i, ch_in in enumerate(fpn.in_channels[::-1]):
                 yolo_block = fpn.yolo_blocks[i]
                 for j in range(fpn.conv_block_num):
@@ -473,7 +484,7 @@ def main(exp, args):
                     m = state_dict[conv_name + '.batch_norm._mean']
                     v = state_dict[conv_name + '.batch_norm._variance']
                     copy_conv_bn(fpn.routes[i], w, scale, offset, m, v, use_gpu)
-        elif isinstance(fpn, PPYOLOPAN):
+        elif isinstance(fpn, PPYOLOPAN) and not args.only_backbone:
             # fpn
             for i, ch_in in enumerate(fpn.in_channels[::-1]):
                 fpn_block = fpn.fpn_blocks[i]  # PPYOLODetBlockCSP
@@ -599,11 +610,14 @@ def main(exp, args):
                     m = state_dict[conv_name + '.batch_norm._mean']
                     v = state_dict[conv_name + '.batch_norm._variance']
                     copy_conv_bn(pan_block.conv_module[start + 1], w, scale, offset, m, v, use_gpu)
-        if isinstance(head, YOLOv3Head):
+        if isinstance(head, YOLOv3Head) and not args.only_backbone:
             for i in range(len(head.anchors)):
                 w = state_dict["yolo_head.yolo_output.{}.weight".format(i)]
                 b = state_dict["yolo_head.yolo_output.{}.bias".format(i)]
                 copy_conv(head.yolo_outputs[i].conv, w, b, use_gpu)
+        if args.only_backbone:
+            delattr(model, "fpn")
+            delattr(model, "head")
     elif model_class_name == 'FCOS':
         ss = args.ckpt.split('.')
         if ss[-1] == 'pth':
