@@ -509,7 +509,7 @@ python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 1 -b 8 -eb 4 -c ppyolo_r
 python tools/train.py -f exps/ppyolo/ppyolov2_r50vd_365e.py -d 1 -b 6 -eb 2 -c ppyolov2_r50vd_365e.pth
 ```
 
-迁移学习VOC2012数据集，实测ppyolo_r18vd的AP(0.50:0.95)可以到达0.63+、AP(0.50)可以到达0.84+、AP(small)可以到达0.25+。
+迁移学习VOC2012数据集，实测ppyolov2_r50vd的AP(0.50:0.95)可以到达0.63+、AP(0.50)可以到达0.84+、AP(small)可以到达0.25+。
 
 
 
@@ -554,10 +554,28 @@ python tools/onnx_eval.py -an PPYOLO -acn ppyolo_r18vd -m ppyolo_r18vd.onnx -i .
 
 
 
-## 预测
+## 引用
 
 ```
-
+@article{huang2021pp,
+  title={PP-YOLOv2: A Practical Object Detector},
+  author={Huang, Xin and Wang, Xinxin and Lv, Wenyu and Bai, Xiaying and Long, Xiang and Deng, Kaipeng and Dang, Qingqing and Han, Shumin and Liu, Qiwen and Hu, Xiaoguang and others},
+  journal={arXiv preprint arXiv:2104.10419},
+  year={2021}
+}
+@misc{long2020ppyolo,
+title={PP-YOLO: An Effective and Efficient Implementation of Object Detector},
+author={Xiang Long and Kaipeng Deng and Guanzhong Wang and Yang Zhang and Qingqing Dang and Yuan Gao and Hui Shen and Jianguo Ren and Shumin Han and Errui Ding and Shilei Wen},
+year={2020},
+eprint={2007.12099},
+archivePrefix={arXiv},
+primaryClass={cs.CV}
+}
+@misc{ppdet2019,
+title={PaddleDetection, Object detection and instance segmentation toolkit based on PaddlePaddle.},
+author={PaddlePaddle Authors},
+howpublished = {\url{https://github.com/PaddlePaddle/PaddleDetection}},
+year={2019}
+}
 ```
-
 
