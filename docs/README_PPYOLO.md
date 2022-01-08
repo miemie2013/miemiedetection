@@ -57,6 +57,7 @@ python tools/convert_weights.py -f exps/ppyolo/ppyolov2_r101vd_365e.py -c ResNet
 ```
 
 **参数解释:**
+
 - -f表示的是使用的配置文件；
 - -c表示的是读取的源权重文件；
 - -oc表示的是输出（保存）的pytorch权重文件；
@@ -196,6 +197,7 @@ python tools/demo.py image -f exps/ppyolo/ppyolov2_r101vd_365e.py -c ppyolov2_r1
 
 
 **参数解释:**
+
 - -f表示的是使用的配置文件；
 - -c表示的是读取的权重文件；
 - --path表示的是图片的路径；
@@ -205,6 +207,7 @@ python tools/demo.py image -f exps/ppyolo/ppyolov2_r101vd_365e.py -c ppyolov2_r1
 预测完成后控制台会打印结果图片的保存路径，用户可打开查看。
 
 **其它可选的参数:**
+
 - --fp16，自动混合精度预测，使得预测速度更快；
 - --fuse，把模型的卷积层与其之后的bn层合并成一个卷积层，使得预测速度更快（实现中）；
 
@@ -382,6 +385,7 @@ Average forward time: 16.42 ms, Average NMS time: 0.00 ms, Average inference tim
 需要注意的是，PPYOLO和PPYOLOv2使用的是matrix_nms，为SOLOv2中提出的新的后处理算法，已经包含在head里面，所以评估时的代码捕捉不到NMS的时间，所以显示"Average NMS time: 0.00 ms"。
 
 **参数解释:**
+
 - -f表示的是使用的配置文件；
 - -d表示的是显卡数量；
 - -b表示的是评估时的批大小；
@@ -390,6 +394,7 @@ Average forward time: 16.42 ms, Average NMS time: 0.00 ms, Average inference tim
 - --tsize表示的是评估时将图片Resize成--tsize的分辨率；
 
 **其它可选的参数:**
+
 - --fp16，自动混合精度评估，使得预测速度更快；
 - --fuse，把模型的卷积层与其之后的bn层合并成一个卷积层，使得预测速度更快（实现中）；
 
@@ -400,41 +405,43 @@ Average forward time: 16.42 ms, Average NMS time: 0.00 ms, Average inference tim
 
 如果读取ImageNet预训练骨干网路训练COCO数据集，项目根目录下执行：
 ```
-python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 8 -b 24 -eb 8 -c ResNet50_vd_ssld_pretrained.pth
+python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 8 -b 192 -eb 64 -c ResNet50_vd_ssld_pretrained.pth
 ```
 
 或者
 ```
-python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 4 -b 32 -eb 8 -c ResNet18_vd_pretrained.pth
+python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 4 -b 128 -eb 32 -c ResNet18_vd_pretrained.pth
 ```
 
 或者
 ```
-python tools/train.py -f exps/ppyolo/ppyolov2_r50vd_365e.py -d 8 -b 12 -eb 8 -c ResNet50_vd_ssld_pretrained.pth
+python tools/train.py -f exps/ppyolo/ppyolov2_r50vd_365e.py -d 8 -b 96 -eb 64 -c ResNet50_vd_ssld_pretrained.pth
 ```
 
 或者
 ```
-python tools/train.py -f exps/ppyolo/ppyolov2_r101vd_365e.py -d 8 -b 12 -eb 8 -c ResNet101_vd_ssld_pretrained.pth
+python tools/train.py -f exps/ppyolo/ppyolov2_r101vd_365e.py -d 8 -b 96 -eb 64 -c ResNet101_vd_ssld_pretrained.pth
 ```
 
 
-这些是高端玩家才能输入的命令，使用8卡训练，每卡的批大小是24，需要每张卡的显存为32GB或以上。建议8张Tesla V100。咩酱没有试过多卡训练，如果有报错或你发现什么错误，请提出，让咩酱修正多卡部分的代码。
+这些是高端玩家才能输入的命令，比如ppyolov2_r50vd_365e，使用8卡训练，每卡的批大小是12，需要每张卡的显存为32GB或以上。建议8张Tesla V100。咩酱没有试过多卡训练，如果有报错或你发现什么错误，请提出，让咩酱修正多卡部分的代码。
 
 
 有一个细节是miemiedetection的PPYOLO把RandomShape、NormalizeImage、Permute、Gt2YoloTarget这4个预处理步骤放到了sample_transforms中，不像PaddleDetection放到batch_transforms中(配合DataLoader的collate_fn使用)，虽然这样写不美观，但是可以提速n倍。因为用collate_fn实现batch_transforms太耗时了！能不使用batch_transforms尽量不使用batch_transforms！唯一的缺点是对于随机种子玩家，可能需要写额外代码初始化随机种子，决定每个epoch怎么打乱所有图片，以及每个iter怎么选随机尺度。
 
 
 **参数解释:**
+
 - -f表示的是使用的配置文件；
 - -d表示的是显卡数量；
-- -b表示的是训练时的批大小（单张卡）；
-- -eb表示的是评估时的批大小（单张卡）；
+- -b表示的是训练时的批大小（所有卡的）；
+- -eb表示的是评估时的批大小（所有卡的）；
+- -c表示的是读取的权重文件；
 
 **其它可选的参数:**
+
 - --fp16，自动混合精度训练；
 - --num_machines，机器数量，建议单机多卡训练；
-- -c表示的是读取的权重文件；
 - --resume表示的是是否是恢复训练；
 
 

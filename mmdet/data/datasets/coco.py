@@ -576,7 +576,7 @@ class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
 
 
 class FCOS_COCOTrainDataset(torch.utils.data.Dataset):
-    def __init__(self, data_dir, json_file, ann_folder, name, cfg, sample_transforms, batch_size, start_epoch):
+    def __init__(self, data_dir, json_file, ann_folder, name, cfg, sample_transforms, batch_size):
         self.data_dir = data_dir
         self.json_file = json_file
         self.ann_folder = ann_folder
@@ -609,31 +609,16 @@ class FCOS_COCOTrainDataset(torch.utils.data.Dataset):
         # 一轮的步数。丢弃最后几个样本。
         self.train_steps = self.num_record // batch_size
 
-        # mixup、cutmix、mosaic数据增强的步数
-        self.aug_steps = self.train_steps * cfg.aug_epochs
-
-        # 一轮的样本数。丢弃最后几个样本。
-        train_samples = self.train_steps * batch_size
-
-        # 训练多少轮
-        self.max_epoch = cfg.max_epoch
-        # 总共训练多少步
-        self.max_iters = self.train_steps * self.max_epoch
-
+        # mixup、cutmix、mosaic数据增强的轮数
+        self.aug_epochs = cfg.aug_epochs
 
         # 训练样本
-        indexes = [i for i in range(self.num_record)]
-        self.indexes = []
-        while len(self.indexes) < self.max_iters * batch_size:
-            indexes2 = copy.deepcopy(indexes)
-            # 每个epoch之前洗乱
-            np.random.shuffle(indexes2)
-            indexes2 = indexes2[:train_samples]
-            self.indexes += indexes2
-        self.indexes = self.indexes[:self.max_iters * batch_size]
-
-        # 初始化开始的迭代id
-        self.init_iter_id = start_epoch * self.train_steps
+        self.indexes_ori = [i for i in range(self.num_record)]
+        self.indexes = copy.deepcopy(self.indexes_ori)
+        # 每个epoch之前洗乱
+        np.random.shuffle(self.indexes)
+        self.indexes = self.indexes[:self.train_steps * self.batch_size]
+        self._len = len(self.indexes)
 
         # 输出特征图数量
         self.n_layers = len(cfg.head['fpn_stride'])
@@ -641,31 +626,24 @@ class FCOS_COCOTrainDataset(torch.utils.data.Dataset):
 
 
     def __len__(self):
-        return len(self.indexes)
+        return self._len
 
     def set_epoch(self, epoch_id):
         self._epoch = epoch_id
 
+        self.indexes = copy.deepcopy(self.indexes_ori)
+        # 每个epoch之前洗乱
+        np.random.shuffle(self.indexes)
+        self.indexes = self.indexes[:self._len]
+
     def __getitem__(self, idx):
         iter_id = idx // self.batch_size
-        if iter_id < self.init_iter_id:   # 恢复训练时跳过。
-            pimage = np.zeros((1, ), np.float32)
-            im_info = np.zeros((1, ), np.float32)
-            im_id = np.zeros((1, ), np.float32)
-            h = np.zeros((1, ), np.float32)
-            w = np.zeros((1, ), np.float32)
-            is_crowd = np.zeros((1, ), np.float32)
-            gt_class = np.zeros((1, ), np.float32)
-            gt_bbox = np.zeros((1, ), np.float32)
-            gt_score = np.zeros((1, ), np.float32)
-            return pimage, im_info, im_id, h, w, is_crowd, gt_class, gt_bbox, gt_score
-
         img_idx = self.indexes[idx]
         sample = copy.deepcopy(self.records[img_idx])
         sample["curr_iter"] = iter_id
 
         # 为mixup数据增强做准备
-        if self.with_mixup and iter_id <= self.aug_steps:
+        if self.with_mixup and self._epoch <= self.aug_epochs:
             num = len(self.records)
             mix_idx = np.random.randint(0, num)
             while mix_idx == img_idx:   # 为了不选到自己
@@ -674,7 +652,7 @@ class FCOS_COCOTrainDataset(torch.utils.data.Dataset):
             sample['mixup']["curr_iter"] = iter_id
 
         # 为cutmix数据增强做准备
-        if self.with_cutmix and iter_id <= self.aug_steps:
+        if self.with_cutmix and self._epoch <= self.aug_epochs:
             num = len(self.records)
             mix_idx = np.random.randint(0, num)
             while mix_idx == img_idx:   # 为了不选到自己
@@ -683,7 +661,7 @@ class FCOS_COCOTrainDataset(torch.utils.data.Dataset):
             sample['cutmix']["curr_iter"] = iter_id
 
         # 为mosaic数据增强做准备
-        if self.with_mosaic and iter_id <= self.aug_steps:
+        if self.with_mosaic and self._epoch <= self.aug_epochs:
             num = len(self.records)
             mix_idx = np.random.randint(0, num)
             while mix_idx == img_idx:   # 为了不选到自己

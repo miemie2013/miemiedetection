@@ -78,11 +78,13 @@ python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 --fp16
 python tools/train.py -f exps/fcos/fcos_rt_r50_fpn_4x.py -d 1 -b 6 -eb 1 -c fcos_rt_r50_syncbn_fpn_4x.pth
 
 
-实测fcos_rt_r50_fpn_4x的AP(0.50:0.95)可以到达0.xx+、AP(0.50)可以到达0.xx+、AP(small)可以到达0.xx+。
+实测fcos_rt_r50_fpn_4x的AP(0.50:0.95)可以到达0.49+、AP(0.50)可以到达0.71+、AP(small)可以到达0.19+。
 
 
+python tools/train.py -f exps/fcos/fcos_r50_fpn_2x.py -d 1 -b 4 -eb 1 -c fcos_r50_fpn_2x.pth
 
 
+实测fcos_r50_fpn_2x的AP(0.50:0.95)可以到达0.xx+、AP(0.50)可以到达0.xx+、AP(small)可以到达0.xx+。
 
 
 

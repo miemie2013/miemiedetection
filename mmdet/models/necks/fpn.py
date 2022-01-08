@@ -86,15 +86,17 @@ class FPN(torch.nn.Module):
 
         self.upsample = torch.nn.Upsample(scale_factor=2, mode='nearest')
 
-    def add_param_group(self, param_groups, base_lr, base_wd):
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         for i in range(0, self.num_backbone_stages):
-            self.fpn_inner_convs[i].add_param_group(param_groups, base_lr, base_wd)
-            self.fpn_convs[i].add_param_group(param_groups, base_lr, base_wd)
+            self.fpn_inner_convs[i].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+            self.fpn_convs[i].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
         # 生成其它尺度的特征图时如果用的是卷积层
         highest_backbone_level = self.min_level + len(self.spatial_scale) - 1
         if self.has_extra_convs and self.max_level > highest_backbone_level:
+            j = 0
             for i in range(highest_backbone_level + 1, self.max_level + 1):
-                self.extra_convs[i].add_param_group(param_groups, base_lr, base_wd)
+                self.extra_convs[j].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+                j += 1
 
     def forward(self, body_feats):
         '''

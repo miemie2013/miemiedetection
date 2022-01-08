@@ -85,13 +85,13 @@ class FCOSHead(torch.nn.Module):
 
         self.relu = torch.nn.ReLU(inplace=True)
 
-    def add_param_group(self, param_groups, base_lr, base_wd):
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         for lvl in range(0, self.num_convs):
-            self.cls_convs[lvl].add_param_group(param_groups, base_lr, base_wd)
-            self.reg_convs[lvl].add_param_group(param_groups, base_lr, base_wd)
-        self.ctn_pred.add_param_group(param_groups, base_lr, base_wd)
-        self.cls_pred.add_param_group(param_groups, base_lr, base_wd)
-        self.reg_pred.add_param_group(param_groups, base_lr, base_wd)
+            self.cls_convs[lvl].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+            self.reg_convs[lvl].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.ctn_pred.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.cls_pred.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.reg_pred.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
         for i in range(self.n_layers):     # 遍历每个输出层
             param_group_scale = {'params': [self.scales_on_reg[i]]}

@@ -60,7 +60,7 @@ python train2.py -f exps/yolox/yolox_s.py -d 1 -b 2 --fp16 -o
 python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 -eb 2 --fp16 -c yolox_m.pth
 
 
-实测yolox_m的AP(0.50:0.95)可以到达0.62+、AP(small)可以到达0.25+。
+实测yolox_m的AP(0.50:0.95)可以到达0.62+、AP(0.50)可以到达0.84+、AP(small)可以到达0.25+。
 
 
 
@@ -69,7 +69,21 @@ python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 -eb 2 --fp16 -c yolox_m
 python tools/train.py -f exps/yolox/yolox_s.py -d 1 -b 8 -eb 2 --fp16 -c yolox_s.pth
 
 
-实测yolox_s的AP(0.50:0.95)可以到达0.53+、AP(small)可以到达0.22+。
+实测yolox_s的AP(0.50:0.95)可以到达0.53+、AP(0.50)可以到达0.78+、AP(small)可以到达0.21+。
+
+
+
+python tools/train.py -f exps/yolox/nano.py -d 1 -b 32 -eb 8 --fp16 -c yolox_nano.pth
+
+
+实测yolox_nano的AP(0.50:0.95)可以到达0.xx+、AP(0.50)可以到达0.xx+、AP(small)可以到达0.xx+。
+
+
+
+python tools/train.py -f exps/yolox/yolox_tiny.py -d 1 -b 32 -eb 8 --fp16 -c yolox_tiny.pth
+
+
+实测yolox_tiny的AP(0.50:0.95)可以到达0.xx+、AP(0.50)可以到达0.xx+、AP(small)可以到达0.xx+。
 
 
 
