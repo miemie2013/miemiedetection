@@ -226,3 +226,4 @@ log*.txt
 *.npz
 *.zip
 *.pt
+*ocr_result/

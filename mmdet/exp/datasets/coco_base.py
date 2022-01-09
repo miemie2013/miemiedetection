@@ -47,3 +47,13 @@ class COCOBaseExp(BaseExp):
         # self.val_ann = "bh3_letu_val.json"
         # self.train_image_folder = "images"
         # self.val_image_folder = "images"
+
+        # yuanshen_wakuang_dataset
+        # self.num_classes = 3
+        # self.data_dir = '../yuanshen_wakuang_dataset'
+        # self.cls_names = 'class_names/ys_wk_classes.txt'
+        # self.ann_folder = "annotations"
+        # self.train_ann = "annos_train.json"
+        # self.val_ann = "annos_val.json"
+        # self.train_image_folder = "images"
+        # self.val_image_folder = "images"

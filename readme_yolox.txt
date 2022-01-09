@@ -63,6 +63,18 @@ python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 -eb 2 --fp16 -c yolox_m
 实测yolox_m的AP(0.50:0.95)可以到达0.62+、AP(0.50)可以到达0.84+、AP(small)可以到达0.25+。
 
 
+恢复训练：
+python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 -eb 1 --fp16 -c YOLOX_outputs/yolox_m/40.pth --resume
+
+
+python tools/eval.py -f exps/yolox/yolox_m.py -d 1 -b 2 -c YOLOX_outputs/yolox_m/166.pth --conf 0.001
+
+
+python tools/demo.py image -f exps/yolox/yolox_m.py -c YOLOX_outputs/yolox_m/166.pth --path ../yuanshen_wakuang_dataset/images --conf 0.25 --nms 0.45 --tsize 640 --save_result --device gpu
+
+
+
+
 
 
 复现ppdet版yolox_s迁移学习:（可以加--fp16， -eb表示验证时的批大小）
