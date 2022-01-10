@@ -288,3 +288,13 @@ python tools/onnx_eval.py -an PPYOLO -acn ppyolo_r18vd -m ppyolo_r18vd.onnx -i .
 
 
 
+
+
+----------------------- 导出为TensorRT -----------------------
+python tools_trt/export_trt.py -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pth --conf 0.15 --tsize 416
+
+
+
+
+
+
