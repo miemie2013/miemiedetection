@@ -16,12 +16,12 @@ class PPYOLO(object):
         self.fpn = fpn
         self.head = head
 
-    def forward(self, x, network, state_dict, im_size=None):
-        body_feats = self.backbone.forward(x, network, state_dict)
-        # fpn_feats = self.fpn(body_feats)
-        # out = self.head(fpn_feats, im_size)
-        # return out
-        return body_feats
+    def __call__(self, x, network, state_dict, im_size=None):
+        body_feats = self.backbone(x, network, state_dict)
+        fpn_feats = self.fpn(body_feats, network, state_dict)
+        out = self.head(fpn_feats, im_size, network, state_dict)
+        return out
+        # return body_feats
 
 
 

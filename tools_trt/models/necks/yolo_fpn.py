@@ -179,8 +179,8 @@ class PPYOLOFPN(object):
             dropblock_cfg = []
 
         self._out_channels = []
-        self.yolo_blocks = torch.nn.ModuleList()
-        self.routes = torch.nn.ModuleList()
+        self.yolo_blocks = []
+        self.routes = []
         for i, ch_in in enumerate(self.in_channels[::-1]):
             if i > 0:
                 ch_in += 512 // (2**i)
@@ -256,7 +256,7 @@ class PPYOLOFPN(object):
         layer = getattr(self, name)
         return layer
 
-    def __call__(self, blocks, for_mot=False):
+    def __call__(self, blocks, network, state_dict, for_mot=False):
         assert len(blocks) == self.num_blocks
         blocks = blocks[::-1]
         yolo_feats = []

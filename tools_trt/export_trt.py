@@ -90,8 +90,10 @@ def build_network(network, weights, exp, args, state_dict):
     model = PPYOLO(backbone, None, None)
 
     input_tensor = network.add_input(name="image", dtype=trt.float32, shape=(1, 3, 416, 416))
-    out = model.forward(input_tensor, network, state_dict)
-    out.name = ModelData.OUTPUT_NAME
+    out = model(input_tensor, network, state_dict)
+    # out[0].name = 's16'
+    # out[1].name = 's32'
+    out.name = 's32'
     network.mark_output(tensor=out)
 
 
@@ -178,18 +180,6 @@ def do_inference_v2(context, bindings, inputs, outputs, stream):
     # Return only the host outputs.
     return [out.host for out in outputs]
 
-# Loads a random test case from pytorch's DataLoader
-def load_random_test_case(pagelocked_buffer):
-    # Select an image at random to be the test case.
-    data, target = next(iter(self.test_loader))
-    from random import randint
-    case_num = randint(0, len(data) - 1)
-    test_case = data.numpy()[case_num].ravel().astype(np.float32)
-    test_name = target.numpy()[case_num]
-    img, expected_output = test_case, test_name
-    # Copy to the pagelocked input buffer
-    np.copyto(pagelocked_buffer, img)
-    return expected_output
 
 @logger.catch
 def main(exp, args):
@@ -214,13 +204,29 @@ def main(exp, args):
     inputs, outputs, bindings, stream = allocate_buffers(engine)
     context = engine.create_execution_context()
 
-    # case_num = load_random_test_case(mnist_model, pagelocked_buffer=inputs[0].host)
+
+    dic2 = np.load('../tools/data.npz')
+    img = dic2['img']
+    aaa1 = dic2['aaa1']
+    aaa2 = dic2['aaa2']
+    aaa3 = dic2['aaa3']
+    pool = dic2['pool']
+    stage2_0 = dic2['stage2_0']
+    s8 = dic2['s8']
+    s16 = dic2['s16']
+    s32 = dic2['s32']
+    img = img.ravel().astype(np.float32)
+
+    # she zhi shu ru.
+    np.copyto(inputs[0].host, img)
+
     # For more information on performing inference, refer to the introductory samples.
     # The common.do_inference function will return a list of outputs - we only have one in this case.
     [output] = do_inference_v2(context, bindings=bindings, inputs=inputs, outputs=outputs, stream=stream)
-    pred = np.argmax(output)
-    print("Test Case: " + str(case_num))
-    print("Prediction: " + str(pred))
+    # output = np.reshape(output, (1, 32, 208, 208))
+    output = np.reshape(output, s8.shape)
+    ddd = np.sum((output - s8) ** 2)
+    print('ddd=%.6f' % ddd)
     print()
 
 

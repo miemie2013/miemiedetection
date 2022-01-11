@@ -8,6 +8,7 @@
 #
 # ================================================================
 from tools_trt.models.custom_layers import Conv2dUnit
+import tensorrt as trt
 
 
 
@@ -309,18 +310,49 @@ class BasicBlock(object):
                 self.conv3 = Conv2dUnit(in_c, filters2, 1, stride=stride, norm_type=norm_type, freeze_norm=freeze_norm, norm_decay=norm_decay, lr=lr, act=None, name=block_name+'_branch1')
         # self.act = torch.nn.ReLU()
 
-    def __call__(self, input_tensor):
-        x = self.conv1(input_tensor)
-        x = self.conv2(x)
+    def __call__(self, input_tensor, network, state_dict, pre_name):
+        conv_name = pre_name + '.conv1'
+        w = state_dict[conv_name + '.conv.weight']
+        scale = state_dict[conv_name + '.bn.weight']
+        offset = state_dict[conv_name + '.bn.bias']
+        m = state_dict[conv_name + '.bn.running_mean']
+        v = state_dict[conv_name + '.bn.running_var']
+        weights = [w, scale, offset, m, v]
+        x = self.conv1(input_tensor, network, weights)
+
+        conv_name = pre_name + '.conv2'
+        w = state_dict[conv_name + '.conv.weight']
+        scale = state_dict[conv_name + '.bn.weight']
+        offset = state_dict[conv_name + '.bn.bias']
+        m = state_dict[conv_name + '.bn.running_mean']
+        v = state_dict[conv_name + '.bn.running_var']
+        weights = [w, scale, offset, m, v]
+        x = self.conv2(x, network, weights)
+
         if self.stride == 2 or self.is_first:
             if not self.is_first:
-                input_tensor = self.avg_pool(input_tensor)
-            shortcut = self.conv3(input_tensor)
+                # input_tensor = self.avg_pool(input_tensor)
+                avg_pool = network.add_pooling_nd(input=input_tensor, type=trt.PoolingType.AVERAGE, window_size=trt.DimsHW(2, 2))
+                avg_pool.padding_nd = trt.DimsHW(0, 0)
+                avg_pool.stride_nd = trt.DimsHW(2, 2)
+                input_tensor = avg_pool.get_output(0)
+
+            conv_name = pre_name + '.conv3'
+            w = state_dict[conv_name + '.conv.weight']
+            scale = state_dict[conv_name + '.bn.weight']
+            offset = state_dict[conv_name + '.bn.bias']
+            m = state_dict[conv_name + '.bn.running_mean']
+            v = state_dict[conv_name + '.bn.running_var']
+            weights = [w, scale, offset, m, v]
+            shortcut = self.conv3(input_tensor, network, weights)
         else:
             shortcut = input_tensor
-        x = x + shortcut
-        x = self.act(x)
-        return x
+        # x = x + shortcut
+        add = network.add_elementwise(x, shortcut, trt.ElementWiseOperation.SUM)
+        x = add.get_output(0)
+        # x = self.act(x)
+        act = network.add_activation(input=x, type=trt.ActivationType.RELU)
+        return act.get_output(0)
 
 
 class Resnet18Vd(object):
@@ -362,42 +394,58 @@ class Resnet18Vd(object):
         self.stage5_0 = BasicBlock(256, [512, 512], norm_type, freeze_norm, norm_decay, lr_mult_list[3], stride=2, block_name='res5a')
         self.stage5_1 = BasicBlock(512, [512, 512], norm_type, freeze_norm, norm_decay, lr_mult_list[3], stride=1, block_name='res5b')
 
-    def forward(self, input_tensor, network, state_dict):
+    def __call__(self, input_tensor, network, state_dict):
         w = state_dict['backbone.stage1_conv1_1.conv.weight']
         scale = state_dict['backbone.stage1_conv1_1.bn.weight']
         offset = state_dict['backbone.stage1_conv1_1.bn.bias']
         m = state_dict['backbone.stage1_conv1_1.bn.running_mean']
         v = state_dict['backbone.stage1_conv1_1.bn.running_var']
         weights = [w, scale, offset, m, v]
-        x = self.stage1_conv1_1.forward(input_tensor, network, weights)
-        # x = self.stage1_conv1_2.forward(x, network, weights)
-        # x = self.stage1_conv1_3.forward(x, network, weights)
+        x = self.stage1_conv1_1(input_tensor, network, weights)
+        w = state_dict['backbone.stage1_conv1_2.conv.weight']
+        scale = state_dict['backbone.stage1_conv1_2.bn.weight']
+        offset = state_dict['backbone.stage1_conv1_2.bn.bias']
+        m = state_dict['backbone.stage1_conv1_2.bn.running_mean']
+        v = state_dict['backbone.stage1_conv1_2.bn.running_var']
+        weights = [w, scale, offset, m, v]
+        x = self.stage1_conv1_2(x, network, weights)
+        w = state_dict['backbone.stage1_conv1_3.conv.weight']
+        scale = state_dict['backbone.stage1_conv1_3.bn.weight']
+        offset = state_dict['backbone.stage1_conv1_3.bn.bias']
+        m = state_dict['backbone.stage1_conv1_3.bn.running_mean']
+        v = state_dict['backbone.stage1_conv1_3.bn.running_var']
+        weights = [w, scale, offset, m, v]
+        x = self.stage1_conv1_3(x, network, weights)
+
         # x = self.pool(x)
-        #
-        # # stage2
-        # x = self.stage2_0(x)
-        # s4 = self.stage2_1(x)
-        # # stage3
-        # x = self.stage3_0(s4)
-        # s8 = self.stage3_1(x)
-        # # stage4
-        # x = self.stage4_0(s8)
-        # s16 = self.stage4_1(x)
-        # # stage5
-        # x = self.stage5_0(s16)
-        # s32 = self.stage5_1(x)
-        #
-        # outs = []
-        # if 2 in self.feature_maps:
-        #     outs.append(s4)
-        # if 3 in self.feature_maps:
-        #     outs.append(s8)
-        # if 4 in self.feature_maps:
-        #     outs.append(s16)
-        # if 5 in self.feature_maps:
-        #     outs.append(s32)
-        # return outs
-        return x
+        pool = network.add_pooling_nd(input=x, type=trt.PoolingType.MAX, window_size=trt.DimsHW(3, 3))
+        pool.padding_nd = trt.DimsHW(1, 1)
+        pool.stride_nd = trt.DimsHW(2, 2)
+        x = pool.get_output(0)
+
+        # stage2
+        x = self.stage2_0(x, network, state_dict, 'backbone.stage2_0')
+        s4 = self.stage2_1(x, network, state_dict, 'backbone.stage2_1')
+        # stage3
+        x = self.stage3_0(s4, network, state_dict, 'backbone.stage3_0')
+        s8 = self.stage3_1(x, network, state_dict, 'backbone.stage3_1')
+        # stage4
+        x = self.stage4_0(s8, network, state_dict, 'backbone.stage4_0')
+        s16 = self.stage4_1(x, network, state_dict, 'backbone.stage4_1')
+        # stage5
+        x = self.stage5_0(s16, network, state_dict, 'backbone.stage5_0')
+        s32 = self.stage5_1(x, network, state_dict, 'backbone.stage5_1')
+
+        outs = []
+        if 2 in self.feature_maps:
+            outs.append(s4)
+        if 3 in self.feature_maps:
+            outs.append(s8)
+        if 4 in self.feature_maps:
+            outs.append(s16)
+        if 5 in self.feature_maps:
+            outs.append(s32)
+        return outs
 
     def get_block(self, name):
         layer = getattr(self, name)

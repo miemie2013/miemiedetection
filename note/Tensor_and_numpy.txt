@@ -8,10 +8,9 @@ tcls = (tcls <= 0.).to(tcls)
 1.pytorch张量转numpy：
 
 
-ndarray = input.cpu().detach().numpy()
 import numpy as np
 dic = {}
-dic['img'] = ndarray
+dic['img'] = input.cpu().detach().numpy()
 np.savez('data', **dic)
 
 

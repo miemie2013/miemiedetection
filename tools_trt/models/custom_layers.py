@@ -348,8 +348,9 @@ class Conv2dUnit(object):
             pass
         else:
             raise NotImplementedError("Activation \'{}\' is not implemented.".format(act))
+        self.fuse = True
 
-    def forward(self, x, network, weights):
+    def __call__(self, x, network, weights):
         # if self.use_dcn:
         #     pass
         # else:
@@ -366,24 +367,59 @@ class Conv2dUnit(object):
         m = m.cpu().detach().numpy()
         v = v.cpu().detach().numpy()
         b = np.zeros((self.conv['filters'], )).astype(np.float32)
-        conv = network.add_convolution(input=x, num_output_maps=self.conv['filters'], kernel_shape=(self.conv['filter_size'], self.conv['filter_size']),
-                                       kernel=w, bias=b)
-        conv.stride = (self.conv['stride'], self.conv['stride'])
-        conv.padding = (self.conv['padding'], self.conv['padding'])
 
-        # relu = network.add_activation(input=conv.get_output(0), type=trt.ActivationType.RELU)
+        '''
+        fuse conv + bn:
+        z = w * x + b
+        y = scale * (z - m) / std + offset
+          = scale * (w * x + b - m) / std + offset
+          = scale * w * x / std + scale * (b - m) / std + offset
 
-        # bn = network.add(input=conv.get_output(0), type=trt.PoolingType.MAX, window_size=(2, 2))
-        # bn.stride = (2, 2)
+        when b == 0,
+        y = scale * w * x / std + scale * ( - m) / std + offset
+          = scale * w * x / std + offset - scale * m / std
+
+        new_w = scale * w / std
+        new_b = offset - scale * m / std
+        '''
+        if self.fuse:
+            eps = 1e-5
+            std = np.sqrt(v + eps)
+            scale_std = scale / std
+            new_b = offset - scale_std * m
+            new_w = w * np.reshape(scale_std, (-1, 1, 1, 1))
+            conv = network.add_convolution_nd(input=x, num_output_maps=self.conv['filters'], kernel_shape=(self.conv['filter_size'], self.conv['filter_size']),
+                                              kernel=new_w, bias=new_b)
+            conv.stride_nd = (self.conv['stride'], self.conv['stride'])
+            conv.padding_nd = (self.conv['padding'], self.conv['padding'])
+            x = conv.get_output(0)
+        else:
+            conv = network.add_convolution_nd(input=x, num_output_maps=self.conv['filters'], kernel_shape=(self.conv['filter_size'], self.conv['filter_size']),
+                                              kernel=w, bias=b)
+            conv.stride_nd = (self.conv['stride'], self.conv['stride'])
+            conv.padding_nd = (self.conv['padding'], self.conv['padding'])
+            x = conv.get_output(0)
+
+
         # if self.bn:
         #     x = self.bn(x)
         # if self.gn:
         #     x = self.gn(x)
         # if self.af:
         #     x = self.af(x)
-        # if self.act:
-        #     x = self.act(x)
-        return conv.get_output(0)
+        if self.act == 'relu':
+            act = network.add_activation(input=x, type=trt.ActivationType.RELU)
+            x = act.get_output(0)
+        # elif self.act == 'leaky':
+        #     act = network.add_activation(input=x, type=trt.ActivationType.LEAKY_RELU)
+        #     x = act.get_output(0)
+        # elif self.act == 'mish':
+        #     self.act = act
+        elif self.act is None:
+            pass
+        else:
+            raise NotImplementedError("Activation \'{}\' is not implemented.".format(self.act))
+        return x
 
 
 class CoordConv2(torch.nn.Module):
