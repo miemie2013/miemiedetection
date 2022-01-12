@@ -36,6 +36,15 @@ AIStudio主页：[asasasaaawws](https://aistudio.baidu.com/aistudio/personalcent
 
 欢迎在GitHub或上面的平台关注我（求粉）~
 
+
+## 打赏
+
+如果你觉得这个仓库对你很有帮助，可以给我打钱↓
+![Example 0](weixin/sk.png)
+
+咩酱爱你哟！
+
+
 ## 引用
 
 ```latex
