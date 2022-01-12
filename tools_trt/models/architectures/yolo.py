@@ -17,11 +17,27 @@ class PPYOLO(object):
         self.head = head
 
     def __call__(self, x, network, state_dict, im_size=None):
-        body_feats = self.backbone(x, network, state_dict)
-        fpn_feats = self.fpn(body_feats, network, state_dict)
-        out = self.head(fpn_feats, im_size, network, state_dict)
-        return out
-        # return body_feats
+        backbone_dic = {}
+        fpn_dic = {}
+        head_dic = {}
+        others = {}
+        for key, value in state_dict.items():
+            if 'tracked' in key:
+                continue
+            if 'backbone' in key:
+                backbone_dic[key] = value
+            elif 'fpn' in key:
+                fpn_dic[key] = value
+            elif 'head' in key:
+                head_dic[key] = value
+            else:
+                others[key] = value
+
+        body_feats = self.backbone(x, network, backbone_dic)
+        fpn_feats = self.fpn(body_feats, network, fpn_dic)
+        out = self.head(fpn_feats, im_size, network, head_dic)
+        # return out
+        return fpn_feats[1]
 
 
 

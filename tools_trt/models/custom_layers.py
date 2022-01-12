@@ -350,75 +350,77 @@ class Conv2dUnit(object):
             raise NotImplementedError("Activation \'{}\' is not implemented.".format(act))
         self.fuse = True
 
-    def __call__(self, x, network, weights):
-        # if self.use_dcn:
-        #     pass
-        # else:
-        #     x = self.conv(x)
-        # conv1_w = weights['conv1.weight'].numpy()
-        # conv1_b = weights['conv1.bias'].numpy()
-        # conv1 = network.add_convolution(input=input_tensor, num_output_maps=20, kernel_shape=(5, 5), kernel=conv1_w, bias=conv1_b)
-
-
-        w, scale, offset, m, v = weights
-        w = w.cpu().detach().numpy()
-        scale = scale.cpu().detach().numpy()
-        offset = offset.cpu().detach().numpy()
-        m = m.cpu().detach().numpy()
-        v = v.cpu().detach().numpy()
-        b = np.zeros((self.conv['filters'], )).astype(np.float32)
-
-        '''
-        fuse conv + bn:
-        z = w * x + b
-        y = scale * (z - m) / std + offset
-          = scale * (w * x + b - m) / std + offset
-          = scale * w * x / std + scale * (b - m) / std + offset
-
-        when b == 0,
-        y = scale * w * x / std + scale * ( - m) / std + offset
-          = scale * w * x / std + offset - scale * m / std
-
-        new_w = scale * w / std
-        new_b = offset - scale * m / std
-        '''
-        if self.fuse:
-            eps = 1e-5
-            std = np.sqrt(v + eps)
-            scale_std = scale / std
-            new_b = offset - scale_std * m
-            new_w = w * np.reshape(scale_std, (-1, 1, 1, 1))
-            conv = network.add_convolution_nd(input=x, num_output_maps=self.conv['filters'], kernel_shape=(self.conv['filter_size'], self.conv['filter_size']),
-                                              kernel=new_w, bias=new_b)
-            conv.stride_nd = (self.conv['stride'], self.conv['stride'])
-            conv.padding_nd = (self.conv['padding'], self.conv['padding'])
-            x = conv.get_output(0)
-        else:
+    def __call__(self, x, network, weights, only_conv=False):
+        if only_conv:
+            w, b = weights
+            w = w.cpu().detach().numpy()
+            b = b.cpu().detach().numpy()
             conv = network.add_convolution_nd(input=x, num_output_maps=self.conv['filters'], kernel_shape=(self.conv['filter_size'], self.conv['filter_size']),
                                               kernel=w, bias=b)
             conv.stride_nd = (self.conv['stride'], self.conv['stride'])
             conv.padding_nd = (self.conv['padding'], self.conv['padding'])
             x = conv.get_output(0)
-
-
-        # if self.bn:
-        #     x = self.bn(x)
-        # if self.gn:
-        #     x = self.gn(x)
-        # if self.af:
-        #     x = self.af(x)
-        if self.act == 'relu':
-            act = network.add_activation(input=x, type=trt.ActivationType.RELU)
-            x = act.get_output(0)
-        # elif self.act == 'leaky':
-        #     act = network.add_activation(input=x, type=trt.ActivationType.LEAKY_RELU)
-        #     x = act.get_output(0)
-        # elif self.act == 'mish':
-        #     self.act = act
-        elif self.act is None:
-            pass
         else:
-            raise NotImplementedError("Activation \'{}\' is not implemented.".format(self.act))
+            w, scale, offset, m, v = weights
+            w = w.cpu().detach().numpy()
+            scale = scale.cpu().detach().numpy()
+            offset = offset.cpu().detach().numpy()
+            m = m.cpu().detach().numpy()
+            v = v.cpu().detach().numpy()
+            b = np.zeros((self.conv['filters'], )).astype(np.float32)
+
+            '''
+            fuse conv + bn:
+            z = w * x + b
+            y = scale * (z - m) / std + offset
+              = scale * (w * x + b - m) / std + offset
+              = scale * w * x / std + scale * (b - m) / std + offset
+    
+            when b == 0,
+            y = scale * w * x / std + scale * ( - m) / std + offset
+              = scale * w * x / std + offset - scale * m / std
+    
+            new_w = scale * w / std
+            new_b = offset - scale * m / std
+            '''
+            if self.fuse:
+                eps = 1e-5
+                std = np.sqrt(v + eps)
+                scale_std = scale / std
+                new_b = offset - scale_std * m
+                new_w = w * np.reshape(scale_std, (-1, 1, 1, 1))
+                conv = network.add_convolution_nd(input=x, num_output_maps=self.conv['filters'], kernel_shape=(self.conv['filter_size'], self.conv['filter_size']),
+                                                  kernel=new_w, bias=new_b)
+                conv.stride_nd = (self.conv['stride'], self.conv['stride'])
+                conv.padding_nd = (self.conv['padding'], self.conv['padding'])
+                x = conv.get_output(0)
+            else:
+                conv = network.add_convolution_nd(input=x, num_output_maps=self.conv['filters'], kernel_shape=(self.conv['filter_size'], self.conv['filter_size']),
+                                                  kernel=w, bias=b)
+                conv.stride_nd = (self.conv['stride'], self.conv['stride'])
+                conv.padding_nd = (self.conv['padding'], self.conv['padding'])
+                x = conv.get_output(0)
+
+
+            # if self.bn:
+            #     x = self.bn(x)
+            # if self.gn:
+            #     x = self.gn(x)
+            # if self.af:
+            #     x = self.af(x)
+            if self.act == 'relu':
+                act = network.add_activation(input=x, type=trt.ActivationType.RELU)
+                x = act.get_output(0)
+            elif self.act == 'leaky':
+                act = network.add_activation(input=x, type=trt.ActivationType.LEAKY_RELU)
+                act.alpha = 0.1
+                x = act.get_output(0)
+            # elif self.act == 'mish':
+            #     self.act = act
+            elif self.act is None:
+                pass
+            else:
+                raise NotImplementedError("Activation \'{}\' is not implemented.".format(self.act))
         return x
 
 
@@ -638,7 +640,7 @@ class DropBlock2(torch.nn.Module):
         return output
 
 
-class DropBlock(torch.nn.Module):
+class DropBlock(object):
     def __init__(self, block_size, keep_prob, name, data_format='NCHW'):
         """
         DropBlock layer, see https://arxiv.org/abs/1810.12890
@@ -649,34 +651,13 @@ class DropBlock(torch.nn.Module):
             name (str): layer name
             data_format (str): data format, NCHW or NHWC
         """
-        super(DropBlock, self).__init__()
         self.block_size = block_size
         self.keep_prob = keep_prob
         self.name = name
         self.data_format = data_format
 
-    def forward(self, x):
-        if not self.training or self.keep_prob == 1:
-            return x
-        else:
-            gamma = (1. - self.keep_prob) / (self.block_size**2)
-            if self.data_format == 'NCHW':
-                shape = x.shape[2:]
-            else:
-                shape = x.shape[1:3]
-            for s in shape:
-                gamma *= s / (s - self.block_size + 1)
-
-            matrix = torch.rand(x.shape, device=x.device)
-            matrix = (matrix < gamma).float()
-            mask_inv = F.max_pool2d(
-                matrix,
-                self.block_size,
-                stride=1,
-                padding=self.block_size // 2)
-            mask = 1. - mask_inv
-            y = x * mask * (mask.numel() / mask.sum())
-            return y
+    def __call__(self, x):
+        return x
 
 
 class PointGenerator(object):

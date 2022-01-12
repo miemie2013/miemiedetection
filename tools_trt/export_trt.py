@@ -79,15 +79,14 @@ def build_network(network, weights, exp, args, state_dict):
         Backbone = Resnet18Vd
     backbone = Backbone(**exp.backbone)
 
-    # Fpn = None
-    # if exp.fpn_type == 'PPYOLOFPN':
-    #     Fpn = PPYOLOFPN
-    # elif exp.fpn_type == 'PPYOLOPAN':
-    #     Fpn = PPYOLOPAN
-    # fpn = Fpn(**exp.fpn)
-    # head = YOLOv3Head(loss=None, nms_cfg=exp.nms_cfg, **exp.head)
-    # model = PPYOLO(backbone, fpn, head)
-    model = PPYOLO(backbone, None, None)
+    Fpn = None
+    if exp.fpn_type == 'PPYOLOFPN':
+        Fpn = PPYOLOFPN
+    elif exp.fpn_type == 'PPYOLOPAN':
+        Fpn = PPYOLOPAN
+    fpn = Fpn(**exp.fpn)
+    head = YOLOv3Head(loss=None, nms_cfg=exp.nms_cfg, **exp.head)
+    model = PPYOLO(backbone, fpn, head)
 
     input_tensor = network.add_input(name="image", dtype=trt.float32, shape=(1, 3, 416, 416))
     out = model(input_tensor, network, state_dict)
@@ -96,39 +95,6 @@ def build_network(network, weights, exp, args, state_dict):
     out.name = 's32'
     network.mark_output(tensor=out)
 
-
-    # Configure the network layers based on the weights provided.
-    # input_tensor = network.add_input(name="image", dtype=trt.float32, shape=(1, 3, 416, 416))
-    #
-    # conv1_w = np.random.randn(20, 1, 5, 5)
-    # conv1_b = np.random.randn(20, )
-    # conv1 = network.add_convolution(input=input_tensor, num_output_maps=20, kernel_shape=(5, 5), kernel=conv1_w, bias=conv1_b)
-    # conv1.stride = (1, 1)
-    # conv1.padding = (2, 2)
-    #
-    # pool1 = network.add_pooling(input=conv1.get_output(0), type=trt.PoolingType.MAX, window_size=(2, 2))
-    # pool1.stride = (2, 2)
-    #
-    # conv2_w = weights['conv2.weight'].numpy()
-    # conv2_b = weights['conv2.bias'].numpy()
-    # conv2 = network.add_convolution(pool1.get_output(0), 50, (5, 5), conv2_w, conv2_b)
-    # conv2.stride = (1, 1)
-    #
-    # pool2 = network.add_pooling(conv2.get_output(0), trt.PoolingType.MAX, (2, 2))
-    # pool2.stride = (2, 2)
-    #
-    # fc1_w = weights['fc1.weight'].numpy()
-    # fc1_b = weights['fc1.bias'].numpy()
-    # fc1 = network.add_fully_connected(input=pool2.get_output(0), num_outputs=500, kernel=fc1_w, bias=fc1_b)
-    #
-    # relu1 = network.add_activation(input=fc1.get_output(0), type=trt.ActivationType.RELU)
-    #
-    # fc2_w = weights['fc2.weight'].numpy()
-    # fc2_b = weights['fc2.bias'].numpy()
-    # fc2 = network.add_fully_connected(relu1.get_output(0), ModelData.OUTPUT_SIZE, fc2_w, fc2_b)
-    #
-    # fc2.get_output(0).name = ModelData.OUTPUT_NAME
-    # network.mark_output(tensor=fc2.get_output(0))
 
 
 # Simple helper data class that's a little nicer to use than a 2-tuple.
@@ -207,14 +173,8 @@ def main(exp, args):
 
     dic2 = np.load('../tools/data.npz')
     img = dic2['img']
-    aaa1 = dic2['aaa1']
-    aaa2 = dic2['aaa2']
-    aaa3 = dic2['aaa3']
-    pool = dic2['pool']
-    stage2_0 = dic2['stage2_0']
-    s8 = dic2['s8']
-    s16 = dic2['s16']
-    s32 = dic2['s32']
+    fpn_feats0 = dic2['fpn_feats0']
+    fpn_feats1 = dic2['fpn_feats1']
     img = img.ravel().astype(np.float32)
 
     # she zhi shu ru.
@@ -224,8 +184,8 @@ def main(exp, args):
     # The common.do_inference function will return a list of outputs - we only have one in this case.
     [output] = do_inference_v2(context, bindings=bindings, inputs=inputs, outputs=outputs, stream=stream)
     # output = np.reshape(output, (1, 32, 208, 208))
-    output = np.reshape(output, s8.shape)
-    ddd = np.sum((output - s8) ** 2)
+    output = np.reshape(output, fpn_feats1.shape)
+    ddd = np.sum((output - fpn_feats1) ** 2)
     print('ddd=%.6f' % ddd)
     print()
 

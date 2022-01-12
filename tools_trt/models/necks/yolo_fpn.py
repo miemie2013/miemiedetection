@@ -2,16 +2,10 @@
 # -*- encoding: utf-8 -*-
 # Copyright (c) 2014-2021 Megvii Inc. All rights reserved.
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+import tensorrt as trt
+from tools_trt.models.custom_layers import paddle_yolo_box, CoordConv, Conv2dUnit, SPP, DropBlock
 
-from mmdet.models.backbones.darknet import Darknet
-from mmdet.models.network_blocks import BaseConv
-
-from mmdet.models.custom_layers import paddle_yolo_box, CoordConv, Conv2dUnit, SPP, DropBlock
-
-class YOLOFPN(nn.Module):
+class YOLOFPN(object):
     """
     YOLOFPN module. Darknet 53 is the default backbone of this model.
     """
@@ -86,7 +80,7 @@ class YOLOFPN(nn.Module):
         return outputs
 
 
-class PPYOLODetBlock(nn.Module):
+class PPYOLODetBlock(object):
     def __init__(self, cfg, name, data_format='NCHW'):
         """
         PPYOLODetBlock layer
@@ -97,11 +91,10 @@ class PPYOLODetBlock(nn.Module):
             data_format (str): data format, NCHW or NHWC
         """
         super(PPYOLODetBlock, self).__init__()
-        self.conv_module = nn.Sequential()
+        self.conv_module = []
         for idx, (conv_name, layer, args, kwargs) in enumerate(cfg[:-1]):
             kwargs.update(name='{}.{}'.format(name, conv_name), data_format=data_format)
-            # self.conv_module.add_sublayer(conv_name, layer(*args, **kwargs))
-            self.conv_module.add_module(conv_name, layer(*args, **kwargs))
+            self.conv_module.append(layer(*args, **kwargs))
 
         # 要保存中间结果route，所以最后的self.tip层不放进self.conv_module里
         conv_name, layer, args, kwargs = cfg[-1]
@@ -120,9 +113,33 @@ class PPYOLODetBlock(nn.Module):
                 pass
         self.tip.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
-    def forward(self, inputs):
-        route = self.conv_module(inputs)
-        tip = self.tip(route)
+    def __call__(self, inputs, network, state_dict, pre_name):
+        route = inputs
+        for i, layer in enumerate(self.conv_module):
+            if isinstance(layer, CoordConv):
+                route = layer(route)
+            elif isinstance(layer, Conv2dUnit):
+                conv_name = pre_name + '.conv_module.route'
+                w = state_dict[conv_name + '.conv.weight']
+                scale = state_dict[conv_name + '.bn.weight']
+                offset = state_dict[conv_name + '.bn.bias']
+                m = state_dict[conv_name + '.bn.running_mean']
+                v = state_dict[conv_name + '.bn.running_var']
+                weights = [w, scale, offset, m, v]
+                route = layer(route, network, weights)
+            elif isinstance(layer, SPP):
+                route = layer(route)
+            elif isinstance(layer, DropBlock):
+                route = layer(route)
+
+        conv_name = pre_name + '.tip'
+        w = state_dict[conv_name + '.conv.weight']
+        scale = state_dict[conv_name + '.bn.weight']
+        offset = state_dict[conv_name + '.bn.bias']
+        m = state_dict[conv_name + '.bn.running_mean']
+        v = state_dict[conv_name + '.bn.running_var']
+        weights = [w, scale, offset, m, v]
+        tip = self.tip(route, network, weights)
         return route, tip
 
 
@@ -268,10 +285,14 @@ class PPYOLOFPN(object):
         for i, block in enumerate(blocks):
             if i > 0:
                 if self.data_format == 'NCHW':
-                    block = torch.cat([route, block], 1)
+                    # block = torch.cat([route, block], 1)
+                    concat = network.add_concatenation([route, block])
+                    # concat.resize_mode = trt.ResizeMode.NEAREST
+                    # concat.scales = (2.0, 2.0)
+                    block = concat.get_output(0)
                 else:
                     block = torch.cat([route, block], -1)
-            route, tip = self.yolo_blocks[i](block)
+            route, tip = self.yolo_blocks[i](block, network, state_dict, 'fpn.yolo_blocks.%d'%i)
             yolo_feats.append(tip)
 
             if for_mot:
@@ -279,8 +300,22 @@ class PPYOLOFPN(object):
                 emb_feats.append(route)
 
             if i < self.num_blocks - 1:
-                route = self.routes[i](route)
-                route = F.interpolate(route, scale_factor=2., mode='nearest')
+                conv_name = 'fpn.routes.%d'%i
+                w = state_dict[conv_name + '.conv.weight']
+                scale = state_dict[conv_name + '.bn.weight']
+                offset = state_dict[conv_name + '.bn.bias']
+                m = state_dict[conv_name + '.bn.running_mean']
+                v = state_dict[conv_name + '.bn.running_var']
+                weights = [w, scale, offset, m, v]
+                route = self.routes[i](route, network, weights)
+
+                # route = F.interpolate(route, scale_factor=2., mode='nearest')
+                interpolate = network.add_resize(input=route)
+                interpolate.resize_mode = trt.ResizeMode.NEAREST
+                # interpolate.align_corners = True
+                interpolate.scales = (1.0, 1.0, 2.0, 2.0)
+                # interpolate.scales = (26, 26)
+                route = interpolate.get_output(0)
 
         if for_mot:
             return {'yolo_feats': yolo_feats, 'emb_feats': emb_feats}
@@ -288,7 +323,7 @@ class PPYOLOFPN(object):
             return yolo_feats
 
 
-class PPYOLODetBlockCSP(nn.Module):
+class PPYOLODetBlockCSP(object):
     def __init__(self,
                  cfg,
                  ch_in,
@@ -370,7 +405,7 @@ class PPYOLODetBlockCSP(nn.Module):
         return conv, conv
 
 
-class PPYOLOPAN(nn.Module):
+class PPYOLOPAN(object):
     def __init__(self,
                  in_channels=[512, 1024, 2048],
                  norm_type='bn',
