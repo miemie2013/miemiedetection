@@ -17,6 +17,7 @@ torch版本建议1.9.1+cu102或者更高；torchvision版本建议0.10.1+cu102�
 - [YOLOX](docs/README_YOLOX.md)
 - [PPYOLO](docs/README_PPYOLO.md)
 - [PPYOLOv2](docs/README_PPYOLO.md)
+- [FCOS](docs/README_FCOS.md)
 
 ## 传送门
 
@@ -46,6 +47,7 @@ AIStudio主页：[asasasaaawws](https://aistudio.baidu.com/aistudio/personalcent
 ## 打赏
 
 如果你觉得这个仓库对你很有帮助，可以给我打钱↓
+
 ![Example 0](weixin/sk.png)
 
 咩酱爱你哟！
