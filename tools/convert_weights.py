@@ -9,7 +9,9 @@ from loguru import logger
 
 import cv2
 import torch
-import paddle.fluid as fluid
+# import paddle.fluid as fluid
+import pickle
+import six
 
 # add python path of this repo to sys.path
 import sys
@@ -133,7 +135,9 @@ def main(exp, args):
     if model_class_name == 'YOLOX':
         pass
     elif model_class_name == 'PPYOLO':
-        state_dict = fluid.io.load_program_state(args.ckpt)
+        with open(args.ckpt, 'rb') as f:
+            state_dict = pickle.load(f) if six.PY2 else pickle.load(f, encoding='latin1')
+        # state_dict = fluid.io.load_program_state(args.ckpt)
         backbone_dic = {}
         fpn_dic = {}
         head_dic = {}
@@ -763,7 +767,9 @@ def main(exp, args):
                     head.scales_on_reg[1].data = torch.Tensor(scale_1)
                     head.scales_on_reg[0].data = torch.Tensor(scale_2)
         elif ss[-1] == 'pdparams':
-            state_dict = fluid.io.load_program_state(args.ckpt)
+            with open(args.ckpt, 'rb') as f:
+                state_dict = pickle.load(f) if six.PY2 else pickle.load(f, encoding='latin1')
+            # state_dict = fluid.io.load_program_state(args.ckpt)
             backbone_dic = {}
             scale_on_reg_dic = {}
             fpn_dic = {}

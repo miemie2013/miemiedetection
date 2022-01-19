@@ -6,6 +6,11 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 
 ----------------------- 转换权重 -----------------------
+wget https://cloudstor.aarnet.edu.au/plus/s/TlnlXUr6lNNSyoZ/download
+wget https://paddledet.bj.bcebos.com/models/fcos_r50_fpn_multiscale_2x_coco.pdparams
+
+
+
 python tools/convert_weights.py -f exps/fcos/fcos_rt_r50_fpn_4x.py -c FCOS_RT_MS_R_50_4x_syncbn.pth -oc fcos_rt_r50_syncbn_fpn_4x.pth -nc 80
 
 
