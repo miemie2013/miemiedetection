@@ -1,7 +1,5 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
-using namespace cv;
-
 #include <vector>
 
 void pretty_print(cv::Mat& img, int max_h = 6, int max_w = 6) {
@@ -10,13 +8,25 @@ void pretty_print(cv::Mat& img, int max_h = 6, int max_w = 6) {
     int width = img.cols;
     printf("height:%d\t", height);
     printf("width:%d\n", width);
-    for (int row = 0; row < height; row++) {
-        const uchar* ptr = img.ptr(row);
-        for (int col = 0; col < width; col++) {
+    for (int y = 0; y < height; y++) {
+        const uchar* ptr = img.ptr(y);
+        for (int x = 0; x < width; x++) {
             int a = ptr[0];
             int b = ptr[1];
             int c = ptr[2];
+            if ((x < max_w) && (y < max_h)) {
+                printf("[%d, %d, %d] ", a, b, c);
+            }
+            if ((x == max_w) && (y < max_h)) {
+                printf("...");
+            }
             ptr += 3;
+        }
+
+        if (y < max_h) {
+            printf("\n");
+        }else if (y == max_h) {
+            printf("...\n");
         }
     }
     printf("------------------------\n");
@@ -26,15 +36,16 @@ void pretty_print(cv::Mat& img, int max_h = 6, int max_w = 6) {
 
 int main(int argc, char** argv)
 {
-	Mat src = imread("D://GitHub/miemiedetection/assets/dog.jpg");
+    // 和python版opencv一样，读出来的图片是BGR格式。
+	cv::Mat src = cv::imread("../../assets/dog.jpg");
 	if (src.empty())
 	{
 		printf("could not load image…\n");
 		return -1;
 	}
     pretty_print(src);
-	namedWindow("test opencv setup");
-	imshow("test opencv setup", src);
-	waitKey(0);
+	cv::namedWindow("test opencv setup");
+	cv::imshow("test opencv setup", src);
+    cv::waitKey(0);
 	return 0;
 }
