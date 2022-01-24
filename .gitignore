@@ -227,3 +227,9 @@ log*.txt
 *.zip
 *.pt
 *ocr_result/
+
+# Visual Studio
+demo/win10_ppyolo_opencv/.vs/
+demo/win10_ppyolo_opencv/x64/
+
+
