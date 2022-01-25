@@ -21,9 +21,21 @@
     <ClCompile Include="mmdet\tensor.cpp">
       <Filter>Resource Files</Filter>
     </ClCompile>
+    <ClCompile Include="mmdet\convolution.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mmdet\utils.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mmdet\tensor.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="mmdet\convolution.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="mmdet\utils.h">
       <Filter>Resource Files</Filter>
     </ClInclude>
   </ItemGroup>

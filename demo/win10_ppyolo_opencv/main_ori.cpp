@@ -1,10 +1,6 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <vector>
-#include <cassert>
-#include <string>
-#include <stdio.h>
-#include "mmdet/utils.h"
 #include "mmdet/tensor.h"
 #include "mmdet/convolution.h"
 
@@ -78,83 +74,59 @@ void print_shape(cv::Mat& img) {
     printf("C:%d\n", C);
 }
 
+/***************** Mat转vector **********************/
+template<typename _Tp>
+vector<_Tp> convertMat2Vector(const cv::Mat& mat)
+{
+    return (vector<_Tp>)(mat.reshape(1, 1));//通道数不变，按行转为一行
+}
+
+/****************** vector转Mat *********************/
+template<typename _Tp>
+cv::Mat convertVector2Mat(vector<_Tp> v, int channels, int rows)
+{
+    cv::Mat mat = cv::Mat(v);//将vector变成单列的mat
+    cv::Mat dest = mat.reshape(channels, rows).clone();//PS：必须clone()一份，否则返回出错
+    return dest;
+}
+
 int main(int argc, char** argv)
 {
-    vector<string> param_names;
-    vector<string> param_values;
-    mmdet::Utils utils;
-    utils.readTxt("conv2d.txt", param_names, param_values);
+    // 和python版opencv一样，读出来的图片是BGR格式。
+	cv::Mat image = cv::imread("../../assets/dog.jpg");
+	if (image.empty())
+	{
+		printf("could not load image…\n");
+		return -1;
+	}
+    pretty_print(image);
+	//cv::namedWindow("test opencv setup");
+	//cv::imshow("test opencv setup", image);
 
+    // https://blog.csdn.net/qq_31112205/article/details/105364025
 
-    // 测试用例1
-    int stride = 1;
-    int padding = 0;
-    int shape_[4] = { 2, 1, 1, 1 };
-    cv::Mat imm(4, shape_, CV_32FC1, cv::Scalar(255.0));         // 创建四维Mat对象。32F表示32位浮点数。
-    vector<int> shape;
-    for (int j = 0; j < 4; j++) {
-        shape.push_back(shape_[j]);
-    }
+    /**cv::Mat kern = (cv::Mat_<char>(3, 3) << 0, -1, 0,
+        -1, 5, -1,
+        0, -1, 0);**/
+    int shape[4] = { 1, 3, 3, 3 };
+    cv::Mat imm(4, shape, CV_32FC1, cv::Scalar(255.0));         // 创建四维Mat对象。32F表示32位浮点数。
     mmdet::Tensor* input_tensor = new mmdet::Tensor(imm, shape);
+    pretty_print4D(input_tensor->mat, input_tensor->shape);
 
-    int kernel_shape_[4] = { 1, 1, 1, 1 };
-    cv::Mat kernel_(4, kernel_shape_, CV_32FC1, cv::Scalar(3.2));         // 卷积核
-    vector<int> kernel_shape;
-    for (int j = 0; j < 4; j++) {
-        kernel_shape.push_back(kernel_shape_[j]);
-    }
+    int kernel_shape[4] = { 2, 3, 1, 1 };
+    cv::Mat kernel_(4, kernel_shape, CV_32FC1, cv::Scalar(3.2));         // 卷积核
     mmdet::Tensor* kernel = new mmdet::Tensor(kernel_, kernel_shape);
 
 
-
-    vector<string> ss = utils.split(param_values.at(0), ',');
-    printf("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr\n");
-    printf("%f\n", input_tensor->at(0, 0, 0, 0));
-    for (int j = 0; j < ss.size(); j++) {
-        // 发现不能正确写入
-        /*float* p = (float*)(input_tensor->mat.data + j);
-        float qqq = std::stof(ss.at(j));
-        printf("%f\n", qqq);
-        *p = qqq;*/
-        int n, c, h, w;
-        float value;
-        input_tensor->set(n, c, h, w, value);
-    }
-    printf("%f\n", input_tensor->at(0, 0, 0, 0));
-    printf("%f\n", input_tensor->at(1, 0, 0, 0));
-
-
-
-
-
-
-    mmdet::Convolution* conv = new mmdet::Convolution(kernel, stride, padding);
+    mmdet::Convolution* conv = new mmdet::Convolution(kernel, 1, 0);
     mmdet::Tensor* dstImage = conv->forward(input_tensor);
+    pretty_print4D(dstImage->mat, dstImage->shape);
 
-    // 结果写进txt
-    FILE* fp1;
-    errno_t err;
-    err = fopen_s(&fp1, "cpp_conv.txt", "w"); //若return 1 , 则将指向这个文件的文件流给fp1
-
-    int aa, bb, cc, dd;
-    printf("zzzzzzzzzzzzzzzzzzzzzzzzz\n");
-    printf("%d\n", dstImage->shape.at(0));
-    printf("%d\n", dstImage->shape.at(1));
-    printf("%d\n", dstImage->shape.at(2));
-    printf("%d\n", dstImage->shape.at(3));
-    for (aa = 0; aa < dstImage->shape[0]; aa++) {
-        for (bb = 0; bb < dstImage->shape[1]; bb++) {
-            for (cc = 0; cc < dstImage->shape[2]; cc++) {
-                for (dd = 0; dd < dstImage->shape[3]; dd++) {
-                    fprintf(fp1, "%f,", dstImage->at(aa, bb, cc, dd));
-                    printf("%f\n", dstImage->at(aa, bb, cc, dd));
-                }
-            }
-        }
-    }
-    //关闭文件
-    fclose(fp1);
+    //cv::Mat dstImage;
 
 
+    //cv::filter2D(image, dstImage, image.depth(), kern);
+    //cv::imshow("dstImage", dstImage);
+    //cv::waitKey(0);
 	return 0;
 }

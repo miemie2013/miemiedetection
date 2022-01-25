@@ -231,5 +231,8 @@ log*.txt
 # Visual Studio
 demo/win10_ppyolo_opencv/.vs/
 demo/win10_ppyolo_opencv/x64/
+demo/win10_ppyolo_opencv/conv2d.txt
+demo/win10_ppyolo_opencv/conv2d.npz
+demo/win10_ppyolo_opencv/cpp_conv.txt
 
 

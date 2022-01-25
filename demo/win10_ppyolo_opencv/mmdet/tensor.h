@@ -2,36 +2,36 @@
 #define __TENSOR_H_
 
 #include <vector>
+#include <iostream>
+#include <opencv2/opencv.hpp>
+#include "utils.h"
+using namespace std;
+
 
 namespace mmdet {
 
+
 class Tensor
 {
-	int dim0;
-	int dim1;
-	int dim2;
-	int dim3;
-	int dim4;
-	int dim5;
-	int dim6;
 public:
-	Tensor(int dim0=-1, int dim1=-1, int dim2=-1, int dim3=-1, int dim4=-1, int dim5=-1, int dim6=-1)
+	int dims;
+	int elements;
+	vector<int> shape;
+	cv::Mat mat;
+	Tensor(cv::Mat& mat, vector<int>& shape)
 	{
-		this->dim0 = dim0;
-		this->dim1 = dim1;
-		this->dim2 = dim2;
-		this->dim3 = dim3;
-		this->dim4 = dim4;
-		this->dim5 = dim5;
-		this->dim6 = dim6;
+		this->mat = mat;
+		this->shape = shape;
 	}
-
-
-	void reshape() {
-		;
+	float at(int n, int c, int h, int w) {
+		int id = this->mat.step[0] * n + this->mat.step[1] * c + this->mat.step[2] * h + this->mat.step[3] * w;
+		float* p = (float*)(this->mat.data + id);
+		return *p;
 	}
-	int getDim0() {
-		return this->dim0;
+	void set(int n, int c, int h, int w, float value) {
+		int id = this->mat.step[0] * n + this->mat.step[1] * c + this->mat.step[2] * h + this->mat.step[3] * w;
+		float* p = (float*)(this->mat.data + id);
+		*p = value;
 	}
 };
 

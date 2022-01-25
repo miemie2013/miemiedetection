@@ -143,10 +143,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="mmdet\convolution.cpp" />
     <ClCompile Include="mmdet\tensor.cpp" />
+    <ClCompile Include="mmdet\utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="mmdet\convolution.h" />
     <ClInclude Include="mmdet\tensor.h" />
+    <ClInclude Include="mmdet\utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
