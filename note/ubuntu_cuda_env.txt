@@ -1,0 +1,204 @@
+
+
+======= 安装系统时不要勾选更新，否则linux内核太新安装不上显卡驱动！！！ =======
+
+1.先安装Anaconda3
+sudo sh Anaconda3*.sh
+
+
+安装路径输入：
+/home/miemie2013/anaconda3
+
+环境变量：
+sudo gedit ~/.bashrc
+
+export PYTHON_HOME=~/anaconda3
+export CUDA_HOME=/usr/local/cuda-11.4
+export PATH=${PYTHON_HOME}/bin:${CUDA_HOME}/bin:$PATH
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CUDA_HOME}/lib64
+
+source ~/.bashrc
+
+
+
+2.安装gcc-8、CUDA10.2不支持gcc-9(但是可以加上--override跳过检查gcc版本)
+(如果安装cuda11，建议直接安装gcc-9)
+
+
+sudo apt-get autoremove gcc gcc-9
+
+sudo apt-get autoremove g++ g++-9
+
+sudo apt-get update
+
+sudo apt install gcc-8
+
+sudo apt install g++-8
+
+
+sudo rm -rf /usr/bin/gcc
+sudo rm -rf /usr/bin/g++
+sudo rm -rf /usr/bin/cc
+sudo ln -s /usr/bin/gcc-8 /usr/bin/gcc
+sudo ln -s /usr/bin/g++-8 /usr/bin/g++
+sudo ln -s /usr/bin/gcc-8 /usr/bin/cc
+
+
+
+如果要改回gcc-9，则
+
+sudo apt-get autoremove gcc gcc-8
+
+sudo apt-get autoremove g++ g++-8
+
+sudo apt-get update
+
+sudo apt install gcc-9
+
+sudo apt install g++-9
+
+
+sudo rm -rf /usr/bin/gcc
+sudo rm -rf /usr/bin/g++
+sudo rm -rf /usr/bin/cc
+sudo ln -s /usr/bin/gcc-9 /usr/bin/gcc
+sudo ln -s /usr/bin/g++-9 /usr/bin/g++
+sudo ln -s /usr/bin/gcc-9 /usr/bin/cc
+
+
+
+
+======= 显卡驱动和cuda交替安装，一直报错一直交替安装，最后能成功安装 ===========
+
+3.cuda两个东西的下载地址
+https://developer.nvidia.com/cuda-toolkit-archive
+https://developer.nvidia.com/rdp/cudnn-archive
+
+
+sudo apt-get install openssh-server
+
+service ssh start
+
+sudo apt-get install make
+
+
+
+sudo service lightdm stop
+
+
+
+预告：如果按照下面命令安装cuda失败，日志文件/var/log/cuda-installer.log里有
+[ERROR]: Unable to determine libdir
+则重启电脑再安装。
+
+
+安装cuda，注意，不要勾选Driver。(加上--override跳过检查gcc版本)
+
+
+(CUDA11.4支持gcc-9)
+sudo sh cuda_11.4.3_470.82.01_linux.run
+
+
+(CUDA10.2不支持gcc-9，加上--override跳过检查gcc版本)
+sudo sh cuda_10.2.89_440.33.01_linux.run --override
+
+
+cuda安装命令第二部错误：Installation failed. See log at /var/log/cuda-installer.log for details.解决办法(即你勾选了Driver，不要勾选Driver。)
+[ERROR]: Install of driver component failed.
+[ERROR]: Install of 450.51.05 failed, quitting
+https://blog.csdn.net/DK_csdn1/article/details/121288000
+
+
+buding：
+sudo chmod a+x cuda_10.2.1_linux.run
+
+sudo sh cuda_10.2.1_linux.run
+
+sudo chmod a+x cuda_10.2.2_linux.run
+
+sudo sh cuda_10.2.2_linux.run
+
+
+sudo service lightdm start
+
+
+解压cudnn-10.0-linux-x64-v7.6.2.24.tgz
+
+复制文件用：
+sudo nautilus
+
+sudo cp ~/cuda/include/cudnn.h /usr/local/cuda-10.2/include/cudnn.h
+sudo cp ~/cuda/lib64/libcudnn.so /usr/local/cuda-10.2/lib64/libcudnn.so
+sudo cp ~/cuda/lib64/libcudnn.so.7 /usr/local/cuda-10.2/lib64/libcudnn.so.7
+sudo cp ~/cuda/lib64/libcudnn.so.7.6.2 /usr/local/cuda-10.2/lib64/libcudnn.so.7.6.2
+sudo cp ~/cuda/lib64/libcudnn_static.a /usr/local/cuda-10.2/lib64/libcudnn_static.a
+
+
+
+
+
+4.最后安装显卡驱动
+https://blog.csdn.net/menglanzeng/article/details/90551672
+
+
+sudo gedit /etc/modprobe.d/blacklist-nouveau.conf
+
+blacklist nouveau option nouveau modeset=0
+
+sudo update-initramfs -u
+
+
+https://blog.csdn.net/ksws0292756/article/details/79160742
+
+sudo gedit /etc/modprobe.d/blacklist.conf
+
+
+blacklist rivafb
+blacklist vga16fb
+blacklist nouveau
+blacklist nvidiafb
+blacklist rivatv
+
+
+sudo update-initramfs -u
+
+sudo apt-get --purge remove   nvidia-*
+
+重启电脑。
+
+sudo apt update
+sudo apt install dkms build-essential linux-headers-generic
+
+
+sudo service lightdm stop
+
+chmod +x ./NVIDIA-Linux-x86_64-470.94.run
+sudo ./NVIDIA-Linux-x86_64-470.94.run -no-x-check -no-nouveau-check -no-opengl-files
+
+sudo service lightdm start
+
+报错:
+ERROR: Unable to find the development tool `cc` in your path
+
+sudo rm -rf /usr/bin/cc
+sudo ln -s /usr/bin/gcc-9 /usr/bin/cc
+
+报错
+The kernel was built with gcc (Ubuntu 9.3.0-17ubuntu1~20.04) 9.3.0, GNU ld   
+  (GNU Binutils for Ubuntu) 2.34, but the current compiler version is cc       
+  (Ubuntu 8.4.0-3ubuntu2) 8.4.0.
+
+换一个更新的驱动，比如NVIDIA-Linux-x86_64-470.94.run
+
+
+安装好了输入
+nvidia-smi
+
+
+
+
+
+
+
+
+
