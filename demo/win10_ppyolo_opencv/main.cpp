@@ -95,7 +95,7 @@ int main(int argc, char** argv)
     for (int j = 0; j < 4; j++) {
         shape.push_back(shape_[j]);
     }
-    mmdet::Tensor* input_tensor = new mmdet::Tensor(imm, shape);
+    mmdet::Tensor<float>* input_tensor = new mmdet::Tensor<float>(imm, shape);
 
     int kernel_shape_[4] = { 1, 1, 1, 1 };
     cv::Mat kernel_(4, kernel_shape_, CV_32FC1, cv::Scalar(3.2));         // 卷积核
@@ -103,7 +103,7 @@ int main(int argc, char** argv)
     for (int j = 0; j < 4; j++) {
         kernel_shape.push_back(kernel_shape_[j]);
     }
-    mmdet::Tensor* kernel = new mmdet::Tensor(kernel_, kernel_shape);
+    mmdet::Tensor<float>* kernel = new mmdet::Tensor<float>(kernel_, kernel_shape);
 
 
 
@@ -112,13 +112,13 @@ int main(int argc, char** argv)
     printf("%f\n", input_tensor->at(0, 0, 0, 0));
     for (int j = 0; j < ss.size(); j++) {
         // 发现不能正确写入
-        /*float* p = (float*)(input_tensor->mat.data + j);
+        float* p = (float*)(input_tensor->mat.data + j);
         float qqq = std::stof(ss.at(j));
         printf("%f\n", qqq);
-        *p = qqq;*/
-        int n, c, h, w;
-        float value;
-        input_tensor->set(n, c, h, w, value);
+        //*p = qqq;
+        //int n, c, h, w;
+        //float value;
+        //input_tensor->set(n, c, h, w, value);
     }
     printf("%f\n", input_tensor->at(0, 0, 0, 0));
     printf("%f\n", input_tensor->at(1, 0, 0, 0));
@@ -129,7 +129,7 @@ int main(int argc, char** argv)
 
 
     mmdet::Convolution* conv = new mmdet::Convolution(kernel, stride, padding);
-    mmdet::Tensor* dstImage = conv->forward(input_tensor);
+    mmdet::Tensor<float>* dstImage = conv->forward(input_tensor);
 
     // 结果写进txt
     FILE* fp1;

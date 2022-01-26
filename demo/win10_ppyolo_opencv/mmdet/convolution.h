@@ -15,8 +15,8 @@ class Convolution
 public:
 	int stride;
 	int padding;
-	mmdet::Tensor* kernel;
-	Convolution(mmdet::Tensor* kernel, int stride, int padding)
+	mmdet::Tensor<float>* kernel;
+	Convolution(mmdet::Tensor<float>* kernel, int stride, int padding)
 	{
 		this->kernel = kernel;
 		this->stride = stride;
@@ -24,7 +24,7 @@ public:
 	}
 
 
-	mmdet::Tensor* forward(mmdet::Tensor* x) {
+	mmdet::Tensor<float>* forward(mmdet::Tensor<float>* x) {
 		int N = x->shape.at(0);
 		int C = x->shape.at(1);
 		int H = x->shape.at(2);
@@ -51,7 +51,7 @@ public:
 		for (int j = 0; j < 4; j++) {
 			dstImage_shape.push_back(dstImage_shape_[j]);
 		}
-		mmdet::Tensor* out = new mmdet::Tensor(out_, dstImage_shape);
+		mmdet::Tensor<float>* out = new mmdet::Tensor<float>(out_, dstImage_shape);
 
 
 
