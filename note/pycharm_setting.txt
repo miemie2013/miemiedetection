@@ -1,0 +1,10 @@
+
+字体：
+File -> Settings -> Editor -> Font -> 字体选JetBrains Mono, 大小15, 行距0.9
+
+注释颜色：
+File -> Settings -> Editor -> Color Scheme -> Python -> Line Comment -> 设置为6A8759
+
+
+
+
