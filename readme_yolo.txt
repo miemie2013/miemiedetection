@@ -219,11 +219,19 @@ PPYOLO把RandomShape、NormalizeImage、Permute、Gt2YoloTarget这4个预处理�
 python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 4 -c ppyolo_2x.pth
 
 
+2机2卡训练：
+python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -b 8 -eb 4 -c ppyolo_2x.pth --dist-url tcp://192.168.0.104:12312 --num_machines 2 --machine_rank 0
+
+
 实测ppyolo_r50vd_2x的AP(0.50:0.95)可以到达0.59+、AP(0.50)可以到达0.82+、AP(small)可以到达0.18+。
 
 
 复现paddle版ppyolo_r18vd迁移学习:（可以加--fp16， -eb表示验证时的批大小）
 python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 1 -b 8 -eb 4 -c ppyolo_r18vd.pth
+
+
+2机2卡训练：
+python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -b 8 -eb 4 -c ppyolo_r18vd.pth --dist-url tcp://192.168.0.104:12312 --num_machines 2 --machine_rank 0
 
 
 实测ppyolo_r18vd的AP(0.50:0.95)可以到达0.39+、AP(0.50)可以到达0.65+、AP(small)可以到达0.06+。
