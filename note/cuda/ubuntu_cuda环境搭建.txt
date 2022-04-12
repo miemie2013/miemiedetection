@@ -1,0 +1,133 @@
+
+
+
+2021.12.25  zhuang cuda10.1
+sudo apt install nvidia-cuda-toolkitsss
+
+
+sudo apt-get remove gcc gcc-9
+
+sudo apt-get remove g++
+
+sudo apt-get update
+
+sudo apt install gcc-8
+
+sudo apt install g++-8
+
+ 
+
+sudo ln -s /usr/bin/gcc-8 /usr/bin/gcc
+
+sudo ln -s /usr/bin/g++-8 /usr/bin/g++
+
+
+cuda两个东西的下载地址
+https://developer.nvidia.com/cuda-toolkit-archive
+https://developer.nvidia.com/rdp/cudnn-archive
+
+
+sshserver gcc make cuda cudnn anaconda3 huanjingbianliang 显卡驱动
+
+sudo apt-get install openssh-server
+
+service ssh start
+
+sudo apt-get install gcc
+
+sudo apt-get install make
+
+
+
+sudo service lightdm stop
+
+sudo sh cuda_11.1.0_455.23.05_linux.run
+
+
+sudo sh cuda_10.2.89_440.33.01_linux.run
+
+
+cuda安装命令第二部错误：Installation failed. See log at /var/log/cuda-installer.log for details.解决办法
+[ERROR]: Install of driver component failed.
+[ERROR]: Install of 450.51.05 failed, quitting
+https://blog.csdn.net/DK_csdn1/article/details/121288000
+
+
+buding：
+sudo chmod a+x cuda_10.2.1_linux.run
+
+sudo sh cuda_10.2.1_linux.run
+
+sudo chmod a+x cuda_10.2.2_linux.run
+
+sudo sh cuda_10.2.2_linux.run
+
+
+sudo service lightdm start
+
+
+解压cudnn-10.0-linux-x64-v7.6.2.24.tgz
+
+fuzhiwenjian yong：
+sudo nautilus
+
+sudo cp ~/cuda/include/cudnn.h /usr/local/cuda-10.2/include/cudnn.h
+sudo cp ~/cuda/lib64/libcudnn.so /usr/local/cuda-10.2/lib64/libcudnn.so
+sudo cp ~/cuda/lib64/libcudnn.so.7 /usr/local/cuda-10.2/lib64/libcudnn.so.7
+sudo cp ~/cuda/lib64/libcudnn.so.7.6.2 /usr/local/cuda-10.2/lib64/libcudnn.so.7.6.2
+sudo cp ~/cuda/lib64/libcudnn_static.a /usr/local/cuda-10.2/lib64/libcudnn_static.a
+
+
+sudo sh Ana*.sh
+
+anzhuang lujing shuru：
+/home/miemie2013/anaconda3
+
+
+sudo gedit ~/.bashrc
+
+export PYTHON_HOME=~/anaconda3
+export CUDA_HOME=/usr/local/cuda-10.2
+export PATH=${PYTHON_HOME}/bin:${CUDA_HOME}/bin:$PATH
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CUDA_HOME}/lib64
+export TENSORRT_HOME=~/TensorRT-8.0.1.6
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${TENSORRT_HOME}/lib
+
+source ~/.bashrc
+
+
+
+最后安装显卡驱动
+https://blog.csdn.net/menglanzeng/article/details/90551672
+
+
+sudo gedit /etc/modprobe.d/blacklist-nouveau.conf
+
+blacklist nouveau option nouveau modeset=0
+
+sudo update-initramfs -u
+
+
+sudo service lightdm stop
+sudo sh NV*.run -no-opengl-files
+sudo service lightdm start
+
+安装好了输入
+nvidia-smi
+
+
+
+
+安装(tf2.0banben gezhong baocuo)
+pip install --user torch-1.2.0-cp37-cp37m-manylinux1_x86_64.whl
+
+pip install --user tensorflow_gpu-1.14.0rc1-cp37-cp37m-manylinux1_x86_64.whl
+
+pip install --user opencv_python-4.1.0.25-cp37-cp37m-manylinux1_x86_64.whl
+
+pip install --user keras
+
+
+
+
+

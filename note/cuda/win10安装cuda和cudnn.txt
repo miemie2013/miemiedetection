@@ -1,0 +1,87 @@
+
+https://blog.csdn.net/a598285361/article/details/112276032
+
+先安装python-3.6.6-amd64.exe
+
+
+cuda两个东西的下载地址
+https://developer.nvidia.com/cuda-toolkit-archive
+https://developer.nvidia.com/rdp/cudnn-archive
+需要下载（先下载下面2个）
+cuda_7.5.18_win10.exe（安装不了cuda_9.0再下载）
+cuda_8.0.61_win10.exe（安装不了cuda_9.0再下载）
+cuda_9.0.176_win10.exe
+cudnn-9.0-windows10-x64-v7.3.1.20.zip（这个是我在csdn下的，
+地址https://download.csdn.net/download/xjp_xujiping/10701346）
+
+
+
+
+插曲：（可以跳过）
+https://blog.csdn.net/qq_37296487/article/details/83028394
+出现Non 7z Archive，换低版本的CUDA
+
+
+
+
+
+直接安装cuda_9.0.176_win10.exe可能会失败，需要先安装
+cuda_7.5.18_win10.exe、cuda_8.0.61_win10.exe，再安装
+cuda_9.0.176_win10.exe（3个版本可以共存，这时候path环境变量是9.0版本）
+安装好后，一般有环境变量如下
+CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0
+CUDA_PATH_V9_0=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0
+NVCUDASAMPLES_ROOT=C:\ProgramData\NVIDIA Corporation\CUDA Samples\v9.0
+NVCUDASAMPLES9_0_ROOT=C:\ProgramData\NVIDIA Corporation\CUDA Samples\v9.0
+NVTOOLSEXT_PATH=C:\Program Files\NVIDIA Corporation\NvToolsExt\
+
+Path后接
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\bin
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\libnvvp
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\lib\x64
+
+
+打开cmd输入
+nvcc -V
+显示版本是release 9.0就成功了
+
+
+
+然后解压
+cudnn-9.0-windows10-x64-v7.3.1.20.zip
+解压复制到cuda安装目录。
+
+
+
+第一：（在cmd中使用，tf推荐是1.12.2版本）
+pip install tensorflow-gpu==1.12.2
+pip install keras
+pip install opencv-python
+pip install Pillow
+
+卸载tensorflow-gpu
+pip uninstall tensorflow-gpu==1.12.2
+
+
+
+
+第二：（在PyCharm中使用）
+File->Settings->Project Interpreter->点齿轮，Add
+->点击Existing environment->选择D:\Python36\python.exe
+->勾选Make available to all projects->OK->Apply->OK
+或者：（不推荐，需要重新安装）
+打开PyCharm，点击右下角的Terminal，输入
+pip install tensorflow-gpu==1.12.2
+pip install keras
+pip install opencv-python
+pip install Pillow
+即可在PyCharm中使用
+
+
+
+
+
+
+
+
+

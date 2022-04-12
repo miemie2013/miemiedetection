@@ -1,0 +1,9 @@
+
+
+ubuntu默认都安装了python2和python3，输入python默认是用python2，现在改为python3：
+sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 100
+sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 150
+
+
+如果要切换回python2，执行：
+sudo update-alternatives --config python
