@@ -407,8 +407,6 @@ class YOLOv3Loss(nn.Module):
         gbox = torch.cat([gxy, gwh], -1)  # [N, 50, 4]  所有gt的左上角+右下角xy坐标，除以图片宽高进行归一化。
 
         iou = bboxes_iou_batch(pbox, gbox, xyxy=True)   # [N, 3*h*w, 50]  每张图片 每个预测框和每个gt两两之间的iou
-        # iou.requires_grad = False
-        iou = iou.detach()
         iou_max, _ = iou.max(2)  # [N, 3*h*w]   预测框与所有gt最高的iou
         iou_mask = (iou_max <= self.ignore_thresh).to(pbox)   # [N, 3*h*w]   候选负样本处为1
         iou_mask.requires_grad = False

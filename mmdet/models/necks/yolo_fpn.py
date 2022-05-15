@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from mmdet.models.backbones.darknet import Darknet
 from mmdet.models.network_blocks import BaseConv
 
-from mmdet.models.custom_layers import paddle_yolo_box, CoordConv, Conv2dUnit, SPP, DropBlock
+from mmdet.models.custom_layers import paddle_yolo_box, CoordConv, SPP, DropBlock, ConvBNLayer
 
 class YOLOFPN(nn.Module):
     """
@@ -100,7 +100,6 @@ class PPYOLODetBlock(nn.Module):
         self.conv_module = nn.Sequential()
         for idx, (conv_name, layer, args, kwargs) in enumerate(cfg[:-1]):
             kwargs.update(name='{}.{}'.format(name, conv_name), data_format=data_format)
-            # self.conv_module.add_sublayer(conv_name, layer(*args, **kwargs))
             self.conv_module.add_module(conv_name, layer(*args, **kwargs))
 
         # 要保存中间结果route，所以最后的self.tip层不放进self.conv_module里
@@ -112,12 +111,14 @@ class PPYOLODetBlock(nn.Module):
         for layer in self.conv_module:
             if isinstance(layer, CoordConv):
                 layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            elif isinstance(layer, Conv2dUnit):
+            elif isinstance(layer, ConvBNLayer):
                 layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
             elif isinstance(layer, SPP):
                 layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
             elif isinstance(layer, DropBlock):
                 pass
+            else:
+                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
         self.tip.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
     def forward(self, inputs):
@@ -168,7 +169,7 @@ class PPYOLOFPN(nn.Module):
         if self.coord_conv:
             ConvLayer = CoordConv
         else:
-            ConvLayer = Conv2dUnit
+            ConvLayer = ConvBNLayer
 
         if self.drop_block:
             dropblock_cfg = [[
@@ -179,8 +180,8 @@ class PPYOLOFPN(nn.Module):
             dropblock_cfg = []
 
         self._out_channels = []
-        self.yolo_blocks = torch.nn.ModuleList()
-        self.routes = torch.nn.ModuleList()
+        self.yolo_blocks = []
+        self.routes = []
         for i, ch_in in enumerate(self.in_channels[::-1]):
             if i > 0:
                 ch_in += 512 // (2**i)
@@ -194,15 +195,13 @@ class PPYOLOFPN(nn.Module):
                         dict(
                             padding=0,
                             norm_type=norm_type,
-                            act='leaky',
                             freeze_norm=freeze_norm)
                     ],
                     [
-                        'conv{}'.format(2 * j + 1), Conv2dUnit,
+                        'conv{}'.format(2 * j + 1), ConvBNLayer,
                         [c_out, c_out * 2, 3], dict(
                             padding=1,
                             norm_type=norm_type,
-                            act='leaky',
                             freeze_norm=freeze_norm)
                     ],
                 ]
@@ -210,10 +209,10 @@ class PPYOLOFPN(nn.Module):
 
             base_cfg += [[
                 'route', ConvLayer, [c_in, c_out, 1], dict(
-                    padding=0, norm_type=norm_type, act='leaky', freeze_norm=freeze_norm)
+                    padding=0, norm_type=norm_type, freeze_norm=freeze_norm)
             ], [
                 'tip', ConvLayer, [c_out, c_out * 2, 3], dict(
-                    padding=1, norm_type=norm_type, act='leaky', freeze_norm=freeze_norm)
+                    padding=1, norm_type=norm_type, freeze_norm=freeze_norm)
             ]]
 
             if self.conv_block_num == 2:
@@ -242,14 +241,24 @@ class PPYOLOFPN(nn.Module):
                 else:
                     spp_cfg = []
                 cfg = spp_cfg + dropblock_cfg + base_cfg
-            name = 'yolo_block.{}'.format(i)
+            name = 'yolo_block_{}'.format(i)
             yolo_block = PPYOLODetBlock(cfg, name)
+            self.add_module(name, yolo_block)
             self.yolo_blocks.append(yolo_block)
             self._out_channels.append(channel * 2)
             if i < self.num_blocks - 1:
-                name = 'yolo_transition.{}'.format(i)
-                route = Conv2dUnit(channel, 256 // (2**i), filter_size=1, stride=1, padding=0, act='leaky',
-                                   norm_type=norm_type, freeze_norm=freeze_norm, name=name)
+                name = 'yolo_transition_{}'.format(i)
+                route = ConvBNLayer(
+                        ch_in=channel,
+                        ch_out=256 // (2**i),
+                        filter_size=1,
+                        stride=1,
+                        padding=0,
+                        norm_type=norm_type,
+                        freeze_norm=freeze_norm,
+                        data_format=data_format,
+                        name=name)
+                self.add_module(name, route)
                 self.routes.append(route)
 
     def get_block(self, name):
@@ -316,7 +325,7 @@ class PPYOLODetBlockCSP(nn.Module):
         """
         super(PPYOLODetBlockCSP, self).__init__()
         self.data_format = data_format
-        self.conv1 = Conv2dUnit(
+        self.conv1 = ConvBNLayer(
             ch_in,
             ch_out,
             1,
@@ -325,7 +334,7 @@ class PPYOLODetBlockCSP(nn.Module):
             norm_type=norm_type,
             name=name + '.left',
             data_format=data_format)
-        self.conv2 = Conv2dUnit(
+        self.conv2 = ConvBNLayer(
             ch_in,
             ch_out,
             1,
@@ -334,7 +343,7 @@ class PPYOLODetBlockCSP(nn.Module):
             norm_type=norm_type,
             name=name + '.right',
             data_format=data_format)
-        self.conv3 = Conv2dUnit(
+        self.conv3 = ConvBNLayer(
             ch_out * 2,
             ch_out * 2,
             1,
@@ -353,12 +362,14 @@ class PPYOLODetBlockCSP(nn.Module):
         for layer in self.conv_module:
             if isinstance(layer, CoordConv):
                 layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            elif isinstance(layer, Conv2dUnit):
+            elif isinstance(layer, ConvBNLayer):
                 layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
             elif isinstance(layer, SPP):
                 layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
             elif isinstance(layer, DropBlock):
                 pass
+            else:
+                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
         self.conv1.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
         self.conv2.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
         self.conv3.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
@@ -422,8 +433,8 @@ class PPYOLOPAN(nn.Module):
             dropblock_cfg = []
 
         # fpn
-        self.fpn_blocks = torch.nn.ModuleList()
-        self.fpn_routes = torch.nn.ModuleList()
+        self.fpn_blocks = []
+        self.fpn_routes = []
         fpn_channels = []
         for i, ch_in in enumerate(self.in_channels[::-1]):
             if i > 0:
@@ -434,12 +445,12 @@ class PPYOLOPAN(nn.Module):
                 base_cfg += [
                     # name, layer, args
                     [
-                        '{}.0'.format(j), Conv2dUnit, [channel, channel, 1],
+                        '{}.0'.format(j), ConvBNLayer, [channel, channel, 1],
                         dict(
                             padding=0, act=act, norm_type=norm_type)
                     ],
                     [
-                        '{}.1'.format(j), Conv2dUnit, [channel, channel, 3],
+                        '{}.1'.format(j), ConvBNLayer, [channel, channel, 3],
                         dict(
                             padding=1, act=act, norm_type=norm_type)
                     ]
@@ -452,24 +463,43 @@ class PPYOLOPAN(nn.Module):
                 ]
 
             cfg = base_cfg[:4] + dropblock_cfg + base_cfg[4:]
-            name = 'fpn.{}'.format(i)
+            name = 'fpn_{}'.format(i)
             fpn_block = PPYOLODetBlockCSP(cfg, ch_in, channel, act, norm_type, name, data_format)
+            self.add_module(name, fpn_block)
             self.fpn_blocks.append(fpn_block)
             fpn_channels.append(channel * 2)
             if i < self.num_blocks - 1:
-                name = 'fpn_transition.{}'.format(i)
-                route = Conv2dUnit(channel * 2, channel, filter_size=1, stride=1, padding=0,
-                                   act=act, norm_type=norm_type, data_format=data_format, name=name)
+                name = 'fpn_transition_{}'.format(i)
+                route = ConvBNLayer(
+                        ch_in=channel * 2,
+                        ch_out=channel,
+                        filter_size=1,
+                        stride=1,
+                        padding=0,
+                        act=act,
+                        norm_type=norm_type,
+                        data_format=data_format,
+                        name=name)
+                self.add_module(name, route)
                 self.fpn_routes.append(route)
         # pan
-        self.pan_blocks_temp = []
-        self.pan_routes_temp = []
+        self.pan_blocks = []
+        self.pan_routes = []
         self._out_channels = [512 // (2**(self.num_blocks - 2)), ]
         for i in reversed(range(self.num_blocks - 1)):
-            name = 'pan_transition.{}'.format(i)
-            route = Conv2dUnit(fpn_channels[i + 1], fpn_channels[i + 1], filter_size=3, stride=2, padding=1,
-                               act=act, norm_type=norm_type, data_format=data_format, name=name)
-            self.pan_routes_temp = [route, ] + self.pan_routes_temp
+            name = 'pan_transition_{}'.format(i)
+            route = ConvBNLayer(
+                    ch_in=fpn_channels[i + 1],
+                    ch_out=fpn_channels[i + 1],
+                    filter_size=3,
+                    stride=2,
+                    padding=1,
+                    act=act,
+                    norm_type=norm_type,
+                    data_format=data_format,
+                    name=name)
+            self.add_module(name, route)
+            self.pan_routes = [route, ] + self.pan_routes
             base_cfg = []
             ch_in = fpn_channels[i] + fpn_channels[i + 1]
             channel = 512 // (2**i)
@@ -477,32 +507,23 @@ class PPYOLOPAN(nn.Module):
                 base_cfg += [
                     # name, layer, args
                     [
-                        '{}.0'.format(j), Conv2dUnit, [channel, channel, 1],
+                        '{}.0'.format(j), ConvBNLayer, [channel, channel, 1],
                         dict(
                             padding=0, act=act, norm_type=norm_type)
                     ],
                     [
-                        '{}.1'.format(j), Conv2dUnit, [channel, channel, 3],
+                        '{}.1'.format(j), ConvBNLayer, [channel, channel, 3],
                         dict(
                             padding=1, act=act, norm_type=norm_type)
                     ]
                 ]
 
             cfg = base_cfg[:4] + dropblock_cfg + base_cfg[4:]
-            name = 'pan.{}'.format(i)
+            name = 'pan_{}'.format(i)
             pan_block = PPYOLODetBlockCSP(cfg, ch_in, channel, act, norm_type, name, data_format)
-
-            self.pan_blocks_temp = [pan_block, ] + self.pan_blocks_temp
+            self.add_module(name, pan_block)
+            self.pan_blocks = [pan_block, ] + self.pan_blocks
             self._out_channels.append(channel * 2)
-
-        self.pan_blocks = torch.nn.ModuleList()
-        self.pan_routes = torch.nn.ModuleList()
-        for module in self.pan_blocks_temp:
-            self.pan_blocks.append(module)
-        for module in self.pan_routes_temp:
-            self.pan_routes.append(module)
-        delattr(self, "pan_blocks_temp")
-        delattr(self, "pan_routes_temp")
 
         self._out_channels = self._out_channels[::-1]
 

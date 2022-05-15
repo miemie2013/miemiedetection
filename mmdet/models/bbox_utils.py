@@ -78,4 +78,40 @@ def bbox_iou(box1, box2, giou=False, diou=False, ciou=False, eps=1e-9):
         return iou
 
 
+def bbox_center(boxes):
+    """Get bbox centers from boxes.
+    Args:
+        boxes (Tensor): boxes with shape (..., 4), "xmin, ymin, xmax, ymax" format.
+    Returns:
+        Tensor: boxes centers with shape (..., 2), "cx, cy" format.
+    """
+    boxes_cx = (boxes[..., 0] + boxes[..., 2]) / 2
+    boxes_cy = (boxes[..., 1] + boxes[..., 3]) / 2
+    return torch.stack([boxes_cx, boxes_cy], dim=-1)
+
+
+def batch_distance2bbox(points, distance, max_shapes=None):
+    """Decode distance prediction to bounding box for batch.
+    Args:
+        points (Tensor): [B, ..., 2], "xy" format
+        distance (Tensor): [B, ..., 4], "ltrb" format
+        max_shapes (Tensor): [B, 2], "h,w" format, Shape of the image.
+    Returns:
+        Tensor: Decoded bboxes, "x1y1x2y2" format.
+    """
+    lt, rb = torch.split(distance, 2, -1)
+    # while tensor add parameters, parameters should be better placed on the second place
+    x1y1 = -lt + points
+    x2y2 = rb + points
+    out_bbox = torch.cat([x1y1, x2y2], -1)
+    if max_shapes is not None:
+        max_shapes = max_shapes.flip(-1).tile([1, 2])
+        delta_dim = out_bbox.ndim - max_shapes.ndim
+        for _ in range(delta_dim):
+            max_shapes.unsqueeze_(1)
+        out_bbox = torch.where(out_bbox < max_shapes, out_bbox, max_shapes)
+        out_bbox = torch.where(out_bbox > 0, out_bbox, torch.zeros_like(out_bbox))
+    return out_bbox
+
+
 

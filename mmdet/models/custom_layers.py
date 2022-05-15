@@ -211,6 +211,12 @@ def get_norm(norm_type):
     return bn, sync_bn, gn, af
 
 
+from collections import namedtuple
+
+class ShapeSpec(
+        namedtuple("_ShapeSpec", ["channels", "height", "width", "stride"])):
+    def __new__(cls, channels=None, height=None, width=None, stride=None):
+        return super(ShapeSpec, cls).__new__(cls, channels, height, width, stride)
 
 
 class Mish(torch.nn.Module):
@@ -515,6 +521,105 @@ class Conv2dUnit(torch.nn.Module):
         return x
 
 
+def batch_norm(ch,
+               norm_type='bn',
+               norm_decay=0.,
+               freeze_norm=False,
+               initializer=None,
+               data_format='NCHW'):
+    norm_lr = 0. if freeze_norm else 1.
+
+    if norm_type in ['sync_bn', 'bn']:
+        norm_layer = nn.BatchNorm2d(ch, affine=True)
+
+    norm_params = norm_layer.parameters()
+    if freeze_norm:
+        for param in norm_params:
+            param.requires_grad_(False)
+
+    return norm_layer
+
+
+class ConvBNLayer(nn.Module):
+    def __init__(self,
+                 ch_in,
+                 ch_out,
+                 filter_size=3,
+                 stride=1,
+                 groups=1,
+                 padding=0,
+                 norm_type='bn',
+                 norm_decay=0.,
+                 act="leaky",
+                 freeze_norm=False,
+                 data_format='NCHW',
+                 name=''):
+        super(ConvBNLayer, self).__init__()
+
+        self.conv = nn.Conv2d(
+            in_channels=ch_in,
+            out_channels=ch_out,
+            kernel_size=filter_size,
+            stride=stride,
+            padding=padding,
+            groups=groups,
+            bias=False)
+        self.batch_norm = batch_norm(
+            ch_out,
+            norm_type=norm_type,
+            norm_decay=norm_decay,
+            freeze_norm=freeze_norm,
+            data_format=data_format)
+        self.norm_decay = norm_decay
+        self.freeze_norm = freeze_norm
+
+        self.act = act
+
+    def forward(self, inputs):
+        out = self.conv(inputs)
+        out = self.batch_norm(out)
+        if self.act == 'leaky':
+            out = F.leaky_relu(out, 0.1)
+        else:
+            out = getattr(F, self.act)(out)
+        return out
+
+    def fix_bn(self):
+        if self.batch_norm is not None:
+            if self.freeze_norm:
+                self.batch_norm.eval()
+
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
+        if isinstance(self.conv, torch.nn.Conv2d):
+            if self.conv.weight.requires_grad:
+                param_group_conv = {'params': [self.conv.weight]}
+                param_group_conv['lr'] = base_lr * 1.0
+                param_group_conv['base_lr'] = base_lr * 1.0
+                param_group_conv['weight_decay'] = base_wd
+                param_group_conv['need_clip'] = need_clip
+                param_group_conv['clip_norm'] = clip_norm
+                param_groups.append(param_group_conv)
+        if self.batch_norm is not None:
+            if not self.freeze_norm:
+                if self.batch_norm.weight.requires_grad:
+                    param_group_norm_weight = {'params': [self.batch_norm.weight]}
+                    param_group_norm_weight['lr'] = base_lr * 1.0
+                    param_group_norm_weight['base_lr'] = base_lr * 1.0
+                    param_group_norm_weight['weight_decay'] = self.norm_decay
+                    param_group_norm_weight['need_clip'] = need_clip
+                    param_group_norm_weight['clip_norm'] = clip_norm
+                    param_groups.append(param_group_norm_weight)
+                if self.batch_norm.bias.requires_grad:
+                    param_group_norm_bias = {'params': [self.batch_norm.bias]}
+                    param_group_norm_bias['lr'] = base_lr * 1.0
+                    param_group_norm_bias['base_lr'] = base_lr * 1.0
+                    param_group_norm_bias['weight_decay'] = self.norm_decay
+                    param_group_norm_bias['need_clip'] = need_clip
+                    param_group_norm_bias['clip_norm'] = clip_norm
+                    param_groups.append(param_group_norm_bias)
+
+
+
 class CoordConv2(torch.nn.Module):
     def __init__(self, coord_conv=True):
         super(CoordConv2, self).__init__()
@@ -565,7 +670,6 @@ class CoordConv(torch.nn.Module):
                  norm_type,
                  freeze_norm=False,
                  name='',
-                 act='leaky',
                  data_format='NCHW'):
         """
         PPYOLO专用的CoordConv，强制绑定一个Conv + BN + LeakyRELU.
@@ -582,13 +686,14 @@ class CoordConv(torch.nn.Module):
 
         """
         super(CoordConv, self).__init__()
-        self.conv = Conv2dUnit(
+        self.conv = ConvBNLayer(
             ch_in + 2,
             ch_out,
             filter_size=filter_size,
+            padding=padding,
             norm_type=norm_type,
             freeze_norm=freeze_norm,
-            act=act,
+            data_format=data_format,
             name=name)
         self.data_format = data_format
 
@@ -629,7 +734,7 @@ class SPP(torch.nn.Module):
                  ch_out,
                  k,
                  pool_size,
-                 norm_type,
+                 norm_type='bn',
                  freeze_norm=False,
                  name='',
                  act='leaky',
@@ -654,7 +759,7 @@ class SPP(torch.nn.Module):
         for size in pool_size:
             pool = nn.MaxPool2d(kernel_size=size, stride=1, padding=size // 2, ceil_mode=False)
             self.pool.append(pool)
-        self.conv = Conv2dUnit(
+        self.conv = ConvBNLayer(
             ch_in,
             ch_out,
             k,
@@ -770,6 +875,7 @@ class DropBlock(torch.nn.Module):
             mask = 1. - mask_inv
             y = x * mask * (mask.numel() / mask.sum())
             return y
+        # return x
 
 
 class PointGenerator(object):

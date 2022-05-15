@@ -1,7 +1,0 @@
-
-
-mmdet/data/datasets文件夹不见了，把它加回来，里面的coco.py的代码也改了一下，构造函数增加了参数ann_folder="annotations",
-
-
-
-
