@@ -47,6 +47,7 @@ class PPYOLOTrainCollater():
         target0 = []
         target1 = []
         target2 = []
+        im_ids = []
         for i, sample in enumerate(samples):
             images.append(sample['image'].astype(np.float32))
             gt_bbox.append(sample['gt_bbox'].astype(np.float32))
@@ -54,21 +55,24 @@ class PPYOLOTrainCollater():
             target1.append(sample['target1'].astype(np.float32))
             if self.n_layers == 3:
                 target2.append(sample['target2'].astype(np.float32))
+            im_ids.append(sample['im_id'].astype(np.int32))
         images = np.stack(images, axis=0)
         gt_bbox = np.stack(gt_bbox, axis=0)
         target0 = np.stack(target0, axis=0)
         target1 = np.stack(target1, axis=0)
+        im_ids = np.stack(im_ids, axis=0)
 
         images = torch.Tensor(images)
         gt_bbox = torch.Tensor(gt_bbox)
         target0 = torch.Tensor(target0)
         target1 = torch.Tensor(target1)
+        im_ids = torch.Tensor(im_ids)
         if self.n_layers == 3:
             target2 = np.stack(target2, axis=0)
 
             target2 = torch.Tensor(target2)
-            return images, gt_bbox, target0, target1, target2
-        return images, gt_bbox, target0, target1
+            return images, gt_bbox, target0, target1, target2, im_ids
+        return images, gt_bbox, target0, target1, im_ids
 
 
 class PPYOLO_Method_Exp(COCOBaseExp):
@@ -102,20 +106,18 @@ class PPYOLO_Method_Exp(COCOBaseExp):
 
         # ---------------- model config ---------------- #
         self.output_dir = "PPYOLO_outputs"
-        self.backbone_type = 'Resnet50Vd'
+        self.backbone_type = 'ResNet'
         self.backbone = dict(
-            norm_type='bn',
-            feature_maps=[3, 4, 5],
-            dcn_v2_stages=[5],
-            downsample_in3x3=True,   # 注意这个细节，是在3x3卷积层下采样的。
-            freeze_at=0,
-            fix_bn_mean_var_at=0,
+            depth=50,
+            variant='d',
+            return_idx=[1, 2, 3],
+            dcn_v2_stages=[3],
+            freeze_at=-1,
             freeze_norm=False,
             norm_decay=0.,
         )
         self.fpn_type = 'PPYOLOFPN'
         self.fpn = dict(
-            in_channels=[512, 1024, 2048],
             coord_conv=True,
             drop_block=True,
             block_size=3,
@@ -264,21 +266,17 @@ class PPYOLO_Method_Exp(COCOBaseExp):
         # ---------------- dataloader config ---------------- #
         # 默认是4。如果报错“OSError: [WinError 1455] 页面文件太小,无法完成操作”，设置为2或0解决。
         self.data_num_workers = 2
+        self.eval_data_num_workers = 2
 
     def get_model(self):
-        from mmdet.models import Resnet50Vd, Resnet101Vd, Resnet18Vd, IouLoss, IouAwareLoss, YOLOv3Loss, YOLOv3Head, PPYOLO
+        from mmdet.models import ResNet, IouLoss, IouAwareLoss, YOLOv3Loss, YOLOv3Head, PPYOLO
         from mmdet.models.necks.yolo_fpn import PPYOLOFPN, PPYOLOPAN
         if getattr(self, "model", None) is None:
             Backbone = None
-            if self.backbone_type == 'Resnet50Vd':
-                Backbone = Resnet50Vd
-            elif self.backbone_type == 'Resnet101Vd':
-                Backbone = Resnet101Vd
-            elif self.backbone_type == 'Resnet18Vd':
-                Backbone = Resnet18Vd
+            if self.backbone_type == 'ResNet':
+                Backbone = ResNet
             backbone = Backbone(**self.backbone)
             # 冻结骨干网络
-            backbone.freeze()
             backbone.fix_bn()
             Fpn = None
             if self.fpn_type == 'PPYOLOFPN':
@@ -296,7 +294,7 @@ class PPYOLO_Method_Exp(COCOBaseExp):
         return self.model
 
     def get_data_loader(
-        self, batch_size, is_distributed, cache_img=False
+        self, batch_size, is_distributed, num_gpus, cache_img=False
     ):
         from mmdet.data import (
             PPYOLO_COCOTrainDataset,
@@ -320,6 +318,8 @@ class PPYOLO_Method_Exp(COCOBaseExp):
                 json_file=self.train_ann,
                 ann_folder=self.ann_folder,
                 name=self.train_image_folder,
+                max_epoch=self.max_epoch,
+                num_gpus=num_gpus,
                 cfg=self,
                 sample_transforms=sample_transforms,
                 batch_size=batch_size,
@@ -331,7 +331,7 @@ class PPYOLO_Method_Exp(COCOBaseExp):
         if is_distributed:
             batch_size = batch_size // dist.get_world_size()
 
-        sampler = InfiniteSampler(len(self.dataset), shuffle=False, seed=self.seed if self.seed else 0)
+        sampler = InfiniteSampler(len(self.dataset), shuffle=True, seed=self.seed if self.seed else 0)
 
         batch_sampler = torch.utils.data.sampler.BatchSampler(
             sampler=sampler,
@@ -414,7 +414,7 @@ class PPYOLO_Method_Exp(COCOBaseExp):
             sampler = torch.utils.data.SequentialSampler(val_dataset)
 
         dataloader_kwargs = {
-            "num_workers": self.data_num_workers,
+            "num_workers": self.eval_data_num_workers,
             "pin_memory": True,
             "sampler": sampler,
         }

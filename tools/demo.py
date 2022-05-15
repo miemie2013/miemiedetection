@@ -18,7 +18,7 @@ sys.path.insert(0, parent_path)
 
 from mmdet.data.data_augment import *
 from mmdet.exp import get_exp
-from mmdet.utils import fuse_model, get_model_info, postprocess, vis, get_classes, vis2
+from mmdet.utils import fuse_model, get_model_info, postprocess, vis, get_classes, vis2, load_ckpt
 
 IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
 
@@ -275,6 +275,93 @@ class PPYOLOPredictor(object):
         return vis_res
 
 
+class PPYOLOEPredictor(object):
+    def __init__(
+        self,
+        model,
+        exp,
+        trt_file=None,
+        device="cpu",
+        fp16=False,
+        legacy=False,
+    ):
+        self.model = model
+        self.cls_names = get_classes(exp.cls_names)
+        self.num_classes = exp.num_classes
+        self.confthre = exp.nms_cfg['score_threshold']
+        self.test_size = exp.test_size
+        self.device = device
+        self.fp16 = fp16
+
+        # 预测时的数据预处理
+        self.context = exp.context
+        self.to_rgb = exp.decodeImage['to_rgb']
+        target_size = self.test_size[0]
+        resizeImage = ResizeImage(target_size=target_size, interp=exp.resizeImage['interp'])
+        normalizeImage = NormalizeImage(**exp.normalizeImage)
+        permute = Permute(**exp.permute)
+        self.preproc = PPYOLOEValTransform(self.context, self.to_rgb, resizeImage, normalizeImage, permute)
+
+        # TensorRT
+        if trt_file is not None:
+            from torch2trt import TRTModule
+
+            model_trt = TRTModule()
+            model_trt.load_state_dict(torch.load(trt_file))
+
+            x = torch.ones(1, 3, exp.test_size[0], exp.test_size[1]).cuda()
+            self.model(x)
+            self.model = model_trt
+
+    def inference(self, img):
+        img_info = {"id": 0}
+        if isinstance(img, str):
+            img_info["file_name"] = os.path.basename(img)
+            img = cv2.imread(img)
+        else:
+            img_info["file_name"] = None
+
+        height, width = img.shape[:2]
+        img_info["height"] = height
+        img_info["width"] = width
+        img_info["raw_img"] = img
+
+        img, scale_factor = self.preproc(img)
+        img = torch.from_numpy(img)
+        scale_factor = torch.from_numpy(scale_factor)
+        img = img.float()
+        scale_factor = scale_factor.float()
+        if self.device == "gpu":
+            img = img.cuda()
+            scale_factor = scale_factor.cuda()
+            if self.fp16:
+                img = img.half()  # to FP16
+                scale_factor = scale_factor.half()  # to FP16
+
+        with torch.no_grad():
+            t0 = time.time()
+            outputs = self.model(img, scale_factor)
+            logger.info("Infer time: {:.4f}s".format(time.time() - t0))
+        return outputs, img_info
+
+    def visual(self, output, img_info, cls_conf=0.35):
+        output = output[0]
+        img = img_info["raw_img"]
+        # matrixNMS返回的结果为-1时表示没有物体
+        if output[0][0] < -0.5:
+            return img
+        output = output.cpu()
+
+        bboxes = output[:, 2:6]
+
+        cls = output[:, 0]
+        scores = output[:, 1]
+
+        # vis_res = vis2(img, bboxes, scores, cls, cls_conf, self.cls_names)
+        vis_res = vis(img, bboxes, scores, cls, cls_conf, self.cls_names)
+        return vis_res
+
+
 class FCOSPredictor(object):
     def __init__(
         self,
@@ -458,6 +545,13 @@ def main(exp, args):
             exp.nms_cfg['post_threshold'] = args.conf
         if args.tsize is not None:
             exp.test_size = (args.tsize, args.tsize)
+    elif archi_name == 'PPYOLOE':
+        # PPYOLOE使用的是multiclass_nms，修改multiclass_nms的配置。
+        if args.conf is not None:
+            exp.nms_cfg['score_threshold'] = args.conf
+        if args.tsize is not None:
+            exp.test_size = [args.tsize, args.tsize]
+            exp.head['eval_size'] = exp.test_size
     elif archi_name == 'FCOS':
         # FCOS暂时使用的是matrix_nms，修改matrix_nms的配置。
         if args.conf is not None:
@@ -489,7 +583,7 @@ def main(exp, args):
             logger.info("loading checkpoint")
             ckpt = torch.load(ckpt_file, map_location="cpu")
             # load the model state dict
-            model.load_state_dict(ckpt["model"])
+            model = load_ckpt(model, ckpt["model"])
             logger.info("loaded checkpoint done.")
 
         # 卷积层和bn层合并为一个卷积层
@@ -524,7 +618,7 @@ def main(exp, args):
             logger.info("loading checkpoint")
             ckpt = torch.load(ckpt_file, map_location="cpu")
             # load the model state dict
-            model.load_state_dict(ckpt["model"])
+            model = load_ckpt(model, ckpt["model"])
             logger.info("loaded checkpoint done.")
 
         # 卷积层和bn层合并为一个卷积层
@@ -547,6 +641,39 @@ def main(exp, args):
             model, exp, trt_file,
             args.device, args.fp16, args.legacy,
         )
+    elif archi_name == 'PPYOLOE':
+        # 加载模型权重
+        if not args.trt:
+            if args.ckpt is None:
+                ckpt_file = os.path.join(file_name, "best_ckpt.pth")
+            else:
+                ckpt_file = args.ckpt
+            logger.info("loading checkpoint")
+            ckpt = torch.load(ckpt_file, map_location="cpu")
+            # load the model state dict
+            model = load_ckpt(model, ckpt["model"])
+            logger.info("loaded checkpoint done.")
+
+        # 卷积层和bn层合并为一个卷积层
+        if args.fuse:
+            logger.info("\tFusing model...")
+            model = fuse_model(model)
+
+        if args.trt:
+            assert not args.fuse, "TensorRT model is not support model fusing!"
+            trt_file = os.path.join(file_name, "model_trt.pth")
+            assert os.path.exists(
+                trt_file
+            ), "TensorRT model is not found!\n Run python3 tools/trt.py first!"
+            model.head.decode_in_inference = False
+            logger.info("Using TensorRT to inference")
+        else:
+            trt_file = None
+
+        predictor = PPYOLOEPredictor(
+            model, exp, trt_file,
+            args.device, args.fp16, args.legacy,
+        )
     elif archi_name == 'FCOS':
         # 加载模型权重
         if not args.trt:
@@ -557,7 +684,7 @@ def main(exp, args):
             logger.info("loading checkpoint")
             ckpt = torch.load(ckpt_file, map_location="cpu")
             # load the model state dict
-            model.load_state_dict(ckpt["model"])
+            model = load_ckpt(model, ckpt["model"])
             logger.info("loaded checkpoint done.")
 
         # 卷积层和bn层合并为一个卷积层

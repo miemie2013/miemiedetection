@@ -11,6 +11,7 @@ import torch.nn.functional as F
 __all__ = [
     "filter_box",
     "postprocess",
+    "my_multiclass_nms",
     "bboxes_iou",
     "matrix_iou",
     "adjust_box_anns",
@@ -70,6 +71,73 @@ def postprocess(prediction, num_classes, conf_thre=0.7, nms_thre=0.45, class_agn
             )
 
         detections = detections[nms_out_index]
+        if output[i] is None:
+            output[i] = detections
+        else:
+            output[i] = torch.cat((output[i], detections))
+
+    return output
+
+# 参考自mmdet/utils/boxes.py的postprocess()。为了保持和matrix_nms()一样的返回风格，重新写一下。
+def my_multiclass_nms(bboxes, scores, score_threshold=0.7, nms_threshold=0.45, nms_top_k=1000, keep_top_k=100, class_agnostic=False):
+    '''
+    :param bboxes:   shape = [N, A,  4]   "左上角xy + 右下角xy"格式
+    :param scores:   shape = [N, A, 80]
+    :param score_threshold:
+    :param nms_threshold:
+    :param nms_top_k:
+    :param keep_top_k:
+    :param class_agnostic:
+    :return:
+    '''
+
+    # 每张图片的预测结果
+    output = [None for _ in range(len(bboxes))]
+    # 每张图片分开遍历
+    for i, (xyxy, score) in enumerate(zip(bboxes, scores)):
+        '''
+        :var xyxy:    shape = [A, 4]   "左上角xy + 右下角xy"格式
+        :var score:   shape = [A, 80]
+        '''
+
+        # 每个预测框最高得分的分数和对应的类别id
+        class_conf, class_pred = torch.max(score, 1, keepdim=True)
+
+        # 分数超过阈值的预测框为True
+        conf_mask = (class_conf.squeeze() >= score_threshold).squeeze()
+        # 这样排序 (x1, y1, x2, y2, 得分, 类别id)
+        detections = torch.cat((xyxy, class_conf, class_pred.float()), 1)
+        # 只保留超过阈值的预测框
+        detections = detections[conf_mask]
+        if not detections.size(0):
+            continue
+
+        # 使用torchvision自带的nms、batched_nms
+        if class_agnostic:
+            nms_out_index = torchvision.ops.nms(
+                detections[:, :4],
+                detections[:, 4],
+                nms_threshold,
+            )
+        else:
+            nms_out_index = torchvision.ops.batched_nms(
+                detections[:, :4],
+                detections[:, 4],
+                detections[:, 5],
+                nms_threshold,
+            )
+
+        detections = detections[nms_out_index]
+
+        # 保留得分最高的keep_top_k个
+        sort_inds = torch.argsort(detections[:, 4], descending=True)
+        if keep_top_k > 0 and len(sort_inds) > keep_top_k:
+            sort_inds = sort_inds[:keep_top_k]
+        detections = detections[sort_inds, :]
+
+        # 为了保持和matrix_nms()一样的返回风格 cls、score、xyxy。
+        detections = torch.cat((detections[:, 5:6], detections[:, 4:5], detections[:, :4]), 1)
+
         if output[i] is None:
             output[i] = detections
         else:
@@ -145,6 +213,9 @@ def bboxes_iou_batch(bboxes_a, bboxes_b, xyxy=True):
     Return:
       (tensor) iou, Shape: [N, A, B].
     """
+    # 使用混合精度训练时，iou可能出现nan，所以转成torch.float32
+    bboxes_a = bboxes_a.to(torch.float32)
+    bboxes_b = bboxes_b.to(torch.float32)
     N = bboxes_a.shape[0]
     A = bboxes_a.shape[1]
     B = bboxes_b.shape[1]
@@ -186,3 +257,9 @@ def bboxes_iou_batch(bboxes_a, bboxes_b, xyxy=True):
 
     union = area_a + area_b - inter + 1e-9
     return inter / union  # [N, A, B]
+
+def iou_similarity(box1, box2):
+    # 使用混合精度训练时，iou可能出现nan，所以转成torch.float32
+    box1 = box1.to(torch.float32)
+    box2 = box2.to(torch.float32)
+    return bboxes_iou_batch(box1, box2, xyxy=True)

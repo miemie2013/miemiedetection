@@ -86,6 +86,11 @@ def make_parser():
         default=None,
         nargs=argparse.REMAINDER,
     )
+    parser.add_argument(
+        "--save_npz",
+        default=1,
+        type=int,
+        help="save_npz.")
     return parser
 
 

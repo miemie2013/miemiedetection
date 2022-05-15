@@ -314,6 +314,32 @@ class PPYOLOValTransform:
         return pimage, im_size
 
 
+class PPYOLOEValTransform:
+    def __init__(self, context, to_rgb, resizeImage, normalizeImage, permute):
+        self.context = context
+        self.to_rgb = to_rgb
+        self.resizeImage = resizeImage
+        self.normalizeImage = normalizeImage
+        self.permute = permute
+
+    def __call__(self, img):
+        if self.to_rgb:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        context = self.context
+        sample = {}
+        sample['image'] = img
+        sample['h'] = img.shape[0]
+        sample['w'] = img.shape[1]
+
+        sample = self.resizeImage(sample, context)
+        sample = self.normalizeImage(sample, context)
+        sample = self.permute(sample, context)
+
+        pimage = np.expand_dims(sample['image'], axis=0)
+        scale_factor = np.array([[sample['scale_factor'][1], sample['scale_factor'][0]]]).astype(np.float32)
+        return pimage, scale_factor
+
+
 class FCOSValTransform:
     def __init__(self, context, to_rgb, normalizeImage, resizeImage, permute, padBatch):
         self.context = context
@@ -2484,7 +2510,9 @@ class RandomShapeSingle(BaseOperator):
         sample['image'] = im
         if self.resize_box and 'gt_bbox' in sample and len(sample['gt_bbox']) > 0:
             scale_array = np.array([scale_x, scale_y] * 2, dtype=np.float32)
-            sample['gt_bbox'] = np.clip(sample['gt_bbox'] * scale_array, 0, float(shape) - 1)
+            # 注意，旧版本的ppdet中float(shape)需要-1，但是PPYOLOE（新版本的ppdet）中不需要-1
+            # sample['gt_bbox'] = np.clip(sample['gt_bbox'] * scale_array, 0, float(shape) - 1)
+            sample['gt_bbox'] = np.clip(sample['gt_bbox'] * scale_array, 0, float(shape))
         return sample
 
 
@@ -2771,6 +2799,98 @@ class Gt2YoloTargetSingle(BaseOperator):
                             target[idx, 6 + cls, gj, gi] = 1.
             sample['target{}'.format(i)] = target
         return sample
+
+
+class PadGT(BaseOperator):
+    def __init__(self, return_gt_mask=True):
+        super(PadGT, self).__init__()
+        self.return_gt_mask = return_gt_mask
+
+    def __call__(self, samples, context=None):
+        num_max_boxes = max([len(s['gt_bbox']) for s in samples])
+        for sample in samples:
+            if self.return_gt_mask:
+                sample['pad_gt_mask'] = np.zeros(
+                    (num_max_boxes, 1), dtype=np.float32)
+            if num_max_boxes == 0:
+                continue
+
+            num_gt = len(sample['gt_bbox'])
+            pad_gt_class = np.zeros((num_max_boxes, 1), dtype=np.int32)
+            pad_gt_bbox = np.zeros((num_max_boxes, 4), dtype=np.float32)
+            if num_gt > 0:
+                pad_gt_class[:num_gt] = sample['gt_class']
+                pad_gt_bbox[:num_gt] = sample['gt_bbox']
+            sample['gt_class'] = pad_gt_class
+            sample['gt_bbox'] = pad_gt_bbox
+            # pad_gt_mask
+            if 'pad_gt_mask' in sample:
+                sample['pad_gt_mask'][:num_gt] = 1
+            # gt_score
+            if 'gt_score' in sample:
+                pad_gt_score = np.zeros((num_max_boxes, 1), dtype=np.float32)
+                if num_gt > 0:
+                    pad_gt_score[:num_gt] = sample['gt_score']
+                sample['gt_score'] = pad_gt_score
+            if 'is_crowd' in sample:
+                pad_is_crowd = np.zeros((num_max_boxes, 1), dtype=np.int32)
+                if num_gt > 0:
+                    pad_is_crowd[:num_gt] = sample['is_crowd']
+                sample['is_crowd'] = pad_is_crowd
+            if 'difficult' in sample:
+                pad_diff = np.zeros((num_max_boxes, 1), dtype=np.int32)
+                if num_gt > 0:
+                    pad_diff[:num_gt] = sample['difficult']
+                sample['difficult'] = pad_diff
+        return samples
+
+
+class PadGTSingle(BaseOperator):
+    def __init__(self, num_max_boxes=200, return_gt_mask=True):
+        super(PadGTSingle, self).__init__()
+        self.num_max_boxes = num_max_boxes
+        self.return_gt_mask = return_gt_mask
+
+    def __call__(self, sample, context=None):
+        samples = [sample]
+        num_max_boxes = self.num_max_boxes
+        for sample in samples:
+            if self.return_gt_mask:
+                sample['pad_gt_mask'] = np.zeros(
+                    (num_max_boxes, 1), dtype=np.float32)
+            if num_max_boxes == 0:
+                continue
+
+            num_gt = len(sample['gt_bbox'])
+            # miemie2013 add it.
+            num_gt = min(num_gt, num_max_boxes)
+            pad_gt_class = np.zeros((num_max_boxes, 1), dtype=np.int32)
+            pad_gt_bbox = np.zeros((num_max_boxes, 4), dtype=np.float32)
+            if num_gt > 0:
+                pad_gt_class[:num_gt] = sample['gt_class'][:num_gt]
+                pad_gt_bbox[:num_gt] = sample['gt_bbox'][:num_gt]
+            sample['gt_class'] = pad_gt_class
+            sample['gt_bbox'] = pad_gt_bbox
+            # pad_gt_mask
+            if 'pad_gt_mask' in sample:
+                sample['pad_gt_mask'][:num_gt] = 1
+            # gt_score
+            if 'gt_score' in sample:
+                pad_gt_score = np.zeros((num_max_boxes, 1), dtype=np.float32)
+                if num_gt > 0:
+                    pad_gt_score[:num_gt] = sample['gt_score'][:num_gt]
+                sample['gt_score'] = pad_gt_score
+            if 'is_crowd' in sample:
+                pad_is_crowd = np.zeros((num_max_boxes, 1), dtype=np.int32)
+                if num_gt > 0:
+                    pad_is_crowd[:num_gt] = sample['is_crowd'][:num_gt]
+                sample['is_crowd'] = pad_is_crowd
+            if 'difficult' in sample:
+                pad_diff = np.zeros((num_max_boxes, 1), dtype=np.int32)
+                if num_gt > 0:
+                    pad_diff[:num_gt] = sample['difficult'][:num_gt]
+                sample['difficult'] = pad_diff
+        return samples[0]
 
 
 class Gt2FCOSTarget(BaseOperator):
@@ -3722,9 +3842,14 @@ def get_sample_transforms(cfg):
         elif preprocess_name == 'permute':
             preprocess = Permute(**cfg.permute)    # 图片从HWC格式变成CHW格式
         elif preprocess_name == 'randomShape':
-            preprocess = RandomShapeSingle(random_inter=cfg.randomShape['random_inter'])  # 多尺度训练。随机选一个尺度。也随机选一种插值方式。
+            resize_box = False
+            if 'resize_box' in cfg.randomShape.keys():
+                resize_box = cfg.randomShape['resize_box']
+            preprocess = RandomShapeSingle(random_inter=cfg.randomShape['random_inter'], resize_box=resize_box)  # 多尺度训练。随机选一个尺度。也随机选一种插值方式。
         elif preprocess_name == 'gt2YoloTarget':
             preprocess = Gt2YoloTargetSingle(**cfg.gt2YoloTarget)   # 填写target张量。
+        elif preprocess_name == 'padGT':
+            preprocess = PadGTSingle(**cfg.padGT)   #
         else:
             raise NotImplementedError("Transform \'{}\' is not implemented.".format(preprocess_name))
         sample_transforms.append(preprocess)
@@ -3756,6 +3881,8 @@ def get_batch_transforms(cfg):
             preprocess = Gt2Solov2Target(**cfg.gt2Solov2Target)     # 填写target张量。
         elif preprocess_name == 'gt2RepPointsTargetSingle':
             preprocess = Gt2RepPointsTargetSingle(**cfg.gt2RepPointsTargetSingle)     # 填写target张量。
+        elif preprocess_name == 'padGT':
+            preprocess = PadGT(**cfg.padGT)   #
         else:
             raise NotImplementedError("Transform \'{}\' is not implemented.".format(preprocess_name))
         batch_transforms.append(preprocess)

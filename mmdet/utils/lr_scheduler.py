@@ -105,6 +105,18 @@ class LRScheduler:
                 milestones,
                 gamma,
             )
+        elif name == "warm_cosinedecay":  # cosine decay lr schedule
+            warmup_total_iters = self.iters_per_epoch * self.warmup_epochs
+            warmup_lr_start = getattr(self, "warmup_lr_start", 0)
+            cosinedecay_epochs = getattr(self, "cosinedecay_epochs", self.total_epochs)
+            cosinedecay_iters = self.iters_per_epoch * cosinedecay_epochs
+            lr_func = partial(
+                warm_cosinedecay,
+                self.lr,
+                warmup_total_iters,
+                warmup_lr_start,
+                cosinedecay_iters,
+            )
         else:
             raise ValueError("Scheduler version {} not supported.".format(name))
         return lr_func
@@ -178,6 +190,29 @@ def warm_piecewisedecay(
     else:
         for milestone in milestones:
             lr *= gamma if iters >= milestone else 1.0
+    return lr
+
+def warm_cosinedecay(
+    lr,
+    warmup_total_iters,
+    warmup_lr_start,
+    cosinedecay_iters,
+    iters,
+):
+    """Cosine learning rate with warm up."""
+    if iters <= warmup_total_iters:
+        lr = (lr - warmup_lr_start) * iters / float(warmup_total_iters) + warmup_lr_start
+    else:
+        min_lr = 0.0
+        no_aug_iter = 0
+        lr = min_lr + 0.5 * (lr - min_lr) * (
+            1.0
+            + math.cos(
+                math.pi
+                * (iters - warmup_total_iters)
+                / (cosinedecay_iters - warmup_total_iters - no_aug_iter)
+            )
+        )
     return lr
 
 

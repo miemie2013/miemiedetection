@@ -70,15 +70,16 @@ class PPYOLODataPrefetcher:
     def preload(self):
         try:
             if self.n_layers == 3:
-                self.next_input, self.gt_bbox, self.target0, self.target1, self.target2 = next(self.loader)
+                self.next_input, self.gt_bbox, self.target0, self.target1, self.target2, self.im_ids = next(self.loader)
             elif self.n_layers == 2:
-                self.next_input, self.gt_bbox, self.target0, self.target1 = next(self.loader)
+                self.next_input, self.gt_bbox, self.target0, self.target1, self.im_ids = next(self.loader)
         except StopIteration:
             self.next_input = None
             self.gt_bbox = None
             self.target0 = None
             self.target1 = None
             self.target2 = None
+            self.im_ids = None
             return
 
         with torch.cuda.stream(self.stream):
@@ -86,6 +87,7 @@ class PPYOLODataPrefetcher:
             self.gt_bbox = self.gt_bbox.cuda(non_blocking=True)
             self.target0 = self.target0.cuda(non_blocking=True)
             self.target1 = self.target1.cuda(non_blocking=True)
+            self.im_ids = self.im_ids.cuda(non_blocking=True)
             if self.n_layers == 3:
                 self.target2 = self.target2.cuda(non_blocking=True)
 
@@ -95,6 +97,7 @@ class PPYOLODataPrefetcher:
         gt_bbox = self.gt_bbox
         target0 = self.target0
         target1 = self.target1
+        im_ids = self.im_ids
         if self.n_layers == 3:
             target2 = self.target2
         if input is not None:
@@ -105,13 +108,77 @@ class PPYOLODataPrefetcher:
             target0.record_stream(torch.cuda.current_stream())
         if target1 is not None:
             target1.record_stream(torch.cuda.current_stream())
+        if im_ids is not None:
+            im_ids.record_stream(torch.cuda.current_stream())
         if self.n_layers == 3:
             if target2 is not None:
                 target2.record_stream(torch.cuda.current_stream())
         self.preload()
         if self.n_layers == 3:
-            return input, gt_bbox, target0, target1, target2
-        return input, gt_bbox, target0, target1
+            return input, gt_bbox, target0, target1, target2, im_ids
+        return input, gt_bbox, target0, target1, im_ids
+
+    def _input_cuda_for_image(self):
+        self.next_input = self.next_input.cuda(non_blocking=True)
+
+    @staticmethod
+    def _record_stream_for_image(input):
+        input.record_stream(torch.cuda.current_stream())
+
+
+class PPYOLOEDataPrefetcher:
+    """
+    xxxDataPrefetcher is inspired by code of following file:
+    https://github.com/NVIDIA/apex/blob/master/examples/imagenet/main_amp.py
+    It could speedup your pytorch dataloader. For more information, please check
+    https://github.com/NVIDIA/apex/issues/304#issuecomment-493562789.
+    """
+
+    def __init__(self, loader, n_layers):
+        self.loader = iter(loader)
+        self.stream = torch.cuda.Stream()
+        self.n_layers = n_layers
+        self.input_cuda = self._input_cuda_for_image
+        self.record_stream = PPYOLOEDataPrefetcher._record_stream_for_image
+        self.preload()
+
+    def preload(self):
+        try:
+            self.next_input, self.gt_class, self.gt_bbox, self.pad_gt_mask, self.im_ids = next(self.loader)
+        except StopIteration:
+            self.next_input = None
+            self.gt_class = None
+            self.gt_bbox = None
+            self.pad_gt_mask = None
+            self.im_ids = None
+            return
+
+        with torch.cuda.stream(self.stream):
+            self.input_cuda()
+            self.gt_class = self.gt_class.cuda(non_blocking=True)
+            self.gt_bbox = self.gt_bbox.cuda(non_blocking=True)
+            self.pad_gt_mask = self.pad_gt_mask.cuda(non_blocking=True)
+            self.im_ids = self.im_ids.cuda(non_blocking=True)
+
+    def next(self):
+        torch.cuda.current_stream().wait_stream(self.stream)
+        input = self.next_input
+        gt_class = self.gt_class
+        gt_bbox = self.gt_bbox
+        pad_gt_mask = self.pad_gt_mask
+        im_ids = self.im_ids
+        if input is not None:
+            self.record_stream(input)
+        if gt_class is not None:
+            gt_class.record_stream(torch.cuda.current_stream())
+        if gt_bbox is not None:
+            gt_bbox.record_stream(torch.cuda.current_stream())
+        if pad_gt_mask is not None:
+            pad_gt_mask.record_stream(torch.cuda.current_stream())
+        if im_ids is not None:
+            im_ids.record_stream(torch.cuda.current_stream())
+        self.preload()
+        return input, gt_class, gt_bbox, pad_gt_mask, im_ids
 
     def _input_cuda_for_image(self):
         self.next_input = self.next_input.cuda(non_blocking=True)

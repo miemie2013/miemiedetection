@@ -19,7 +19,7 @@ sys.path.insert(0, parent_path)
 
 from mmdet.core import launch
 from mmdet.exp import get_exp
-from mmdet.utils import configure_nccl, fuse_model, get_local_rank, get_model_info, setup_logger
+from mmdet.utils import configure_nccl, fuse_model, get_local_rank, get_model_info, setup_logger, load_ckpt
 
 
 def make_parser():
@@ -162,6 +162,17 @@ def main(exp, args, num_gpu):
         # logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
         # logger.info("Model Structure:\n{}".format(str(model)))
         evaluator = exp.get_evaluator(args.batch_size, is_distributed, args.test)
+    elif archi_name == 'PPYOLOE':
+        # PPYOLOE使用的是multiclass_nms，修改multiclass_nms的配置。
+        if args.conf is not None:
+            exp.nms_cfg['score_threshold'] = args.conf
+        if args.tsize is not None:
+            exp.test_size = [args.tsize, args.tsize]
+            exp.head['eval_size'] = exp.test_size
+        model = exp.get_model()
+        # logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
+        # logger.info("Model Structure:\n{}".format(str(model)))
+        evaluator = exp.get_evaluator(args.batch_size, is_distributed, args.test)
     elif archi_name == 'FCOS':
         # FCOS暂时使用的是matrix_nms，修改matrix_nms的配置。
         if args.conf is not None:
@@ -189,7 +200,7 @@ def main(exp, args, num_gpu):
         logger.info("loading checkpoint from {}".format(ckpt_file))
         loc = "cuda:{}".format(rank)
         ckpt = torch.load(ckpt_file, map_location=loc)
-        model.load_state_dict(ckpt["model"])
+        model = load_ckpt(model, ckpt["model"])
         logger.info("loaded checkpoint done.")
 
     if is_distributed:
@@ -220,6 +231,10 @@ def main(exp, args, num_gpu):
         )
     elif archi_name == 'PPYOLO':
         *_, summary = evaluator.evaluate_ppyolo(
+            model, is_distributed, args.fp16, trt_file, exp.test_size
+        )
+    elif archi_name == 'PPYOLOE':
+        *_, summary = evaluator.evaluate_ppyoloe(
             model, is_distributed, args.fp16, trt_file, exp.test_size
         )
     elif archi_name == 'FCOS':

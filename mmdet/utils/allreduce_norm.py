@@ -98,6 +98,11 @@ def all_reduce_norm(module):
     """
     All reduce norm statistics in different devices.
     """
+    '''
+    咩酱：states里有网络所有bn层（不包括同步bn）的weight、bias、均值、方差。
+    所以，当使用torch.nn.SyncBatchNorm.convert_sync_batchnorm()把网络所有bn转换成同步bn时，
+    states会变成一个空字典，会导致all_reduce()方法报错。
+    '''
     states = get_async_norm_states(module)
     states = all_reduce(states, op="mean")
     module.load_state_dict(states, strict=False)

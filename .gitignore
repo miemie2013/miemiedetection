@@ -223,10 +223,14 @@ log*.txt
 *.pdparams
 *.pdopt
 *.pdmodel
+*.pdema
 *.npz
 *.zip
 *.pt
+*.baiduyun.uploading.cfg
 *ocr_result/
+
+!train_ppyolo_in_voc2012/*
 
 # Visual Studio
 demo/win10_ppyolo_opencv/.vs/
