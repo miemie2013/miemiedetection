@@ -14,6 +14,7 @@
 
 import torch
 import torch.nn as nn
+from torch import distributed as dist
 import torch.nn.functional as F
 import numpy as np
 import copy
@@ -26,7 +27,7 @@ from mmdet.models.matrix_nms import matrix_nms
 from mmdet.models.ops import get_static_shape, paddle_distributed_is_initialized, get_act_fn
 from mmdet.models.initializer import bias_init_with_prob, constant_, normal_
 from mmdet.models.losses.iou_losses import GIoULoss
-from mmdet.utils import my_multiclass_nms
+from mmdet.utils import my_multiclass_nms, get_world_size
 
 
 def print_diff(dic, key, tensor):
@@ -481,12 +482,13 @@ class PPYOLOEHead(nn.Module):
         else:
             loss_cls = self._focal_loss(pred_scores, assigned_scores, alpha_l)
 
-        # assigned_scores_sum2 = assigned_scores.sum()
-        assigned_scores_sum = F.relu(assigned_scores.sum() - 1.) + 1.   # y = max(x, 1)
         # 每张卡上的assigned_scores_sum求平均，而且max(x, 1)
-        # if paddle_distributed_is_initialized():
-        #     paddle.distributed.all_reduce(assigned_scores_sum)
-        #     assigned_scores_sum = (assigned_scores_sum / paddle.distributed.get_world_size()).clamp(min=1)
+        assigned_scores_sum = assigned_scores.sum()
+        world_size = get_world_size()
+        if world_size > 1:
+            dist.all_reduce(assigned_scores_sum, op=dist.ReduceOp.SUM)
+            assigned_scores_sum = assigned_scores_sum / world_size
+        assigned_scores_sum = F.relu(assigned_scores_sum - 1.) + 1.  # y = max(x, 1)
         loss_cls /= assigned_scores_sum
 
         loss_l1, loss_iou, loss_dfl = \

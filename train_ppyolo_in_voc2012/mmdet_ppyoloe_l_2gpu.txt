@@ -1,0 +1,1003 @@
+2022-05-16 16:07:23.189 | INFO     | mmdet.core.trainer:before_train:405 - args: Namespace(experiment_name='ppyoloe_crn_l_voc2012', name=None, dist_backend='nccl', dist_url=None, batch_size=8, eval_batch_size=2, devices=2, exp_file='exps/ppyoloe/ppyoloe_crn_l_voc2012.py', resume=False, ckpt='ppyoloe_crn_l_300e_coco.pth', num_machines=1, machine_rank=0, fp16=True, cache=False, occupy=False, opts=[], save_npz=1)
+2022-05-16 16:07:23.193 | INFO     | mmdet.core.trainer:before_train:406 - exp value:
+╒═══════════════════════╤══════════════════════════════════════════════════════════╕
+│ keys                  │ values                                                   │
+╞═══════════════════════╪══════════════════════════════════════════════════════════╡
+│ seed                  │ None                                                     │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ output_dir            │ 'PPYOLOE_outputs'                                        │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ print_interval        │ 20                                                       │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ eval_interval         │ 2                                                        │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ num_classes           │ 20                                                       │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ data_dir              │ '../VOCdevkit/VOC2012'                                   │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ cls_names             │ 'class_names/voc_classes.txt'                            │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ ann_folder            │ 'annotations2'                                           │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ train_ann             │ 'voc2012_train.json'                                     │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ val_ann               │ 'voc2012_val.json'                                       │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ train_image_folder    │ 'JPEGImages'                                             │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ val_image_folder      │ 'JPEGImages'                                             │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ archi_name            │ 'PPYOLOE'                                                │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ max_epoch             │ 16                                                       │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ ema                   │ True                                                     │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ ema_decay             │ 0.9998                                                   │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ weight_decay          │ 0.0005                                                   │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ momentum              │ 0.9                                                      │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ exp_name              │ 'ppyoloe_crn_l_voc2012'                                  │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ scheduler             │ 'warm_cosinedecay'                                       │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ warmup_epochs         │ 1                                                        │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ cosinedecay_epochs    │ 20                                                       │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ basic_lr_per_img      │ 0.00015625                                               │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ start_factor          │ 0.0                                                      │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ eval_height           │ 640                                                      │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ eval_width            │ 640                                                      │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ test_size             │ [640, 640]                                               │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ depth_mult            │ 1.0                                                      │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ width_mult            │ 1.0                                                      │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ backbone_type         │ 'CSPResNet'                                              │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ backbone              │ {'channels': [64, 128, 256, 512, 1024],                  │
+│                       │  'depth_mult': 1.0,                                      │
+│                       │  'freeze_at': 3,                                         │
+│                       │  'layers': [3, 6, 6, 3],                                 │
+│                       │  'return_idx': [1, 2, 3],                                │
+│                       │  'use_large_stem': True,                                 │
+│                       │  'width_mult': 1.0}                                      │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ fpn_type              │ 'CustomCSPPAN'                                           │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ fpn                   │ {'act': 'swish',                                         │
+│                       │  'block_num': 3,                                         │
+│                       │  'depth_mult': 1.0,                                      │
+│                       │  'in_channels': [256, 512, 1024],                        │
+│                       │  'out_channels': [768, 384, 192],                        │
+│                       │  'spp': True,                                            │
+│                       │  'stage_num': 1,                                         │
+│                       │  'width_mult': 1.0}                                      │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ head_type             │ 'PPYOLOEHead'                                            │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ head                  │ {'eval_size': [640, 640],                                │
+│                       │  'fpn_strides': [32, 16, 8],                             │
+│                       │  'grid_cell_offset': 0.5,                                │
+│                       │  'grid_cell_scale': 5.0,                                 │
+│                       │  'in_channels': [768, 384, 192],                         │
+│                       │  'loss_weight': {'class': 1.0, 'dfl': 0.5, 'iou': 2.5},  │
+│                       │  'num_classes': 20,                                      │
+│                       │  'static_assigner_epoch': 4,                             │
+│                       │  'use_varifocal_loss': True}                             │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ static_assigner_type  │ 'ATSSAssigner'                                           │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ static_assigner       │ {'num_classes': 20, 'topk': 9}                           │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ assigner_type         │ 'TaskAlignedAssigner'                                    │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ assigner              │ {'alpha': 1.0, 'beta': 6.0, 'topk': 13}                  │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ nms_cfg               │ {'keep_top_k': 100,                                      │
+│                       │  'nms_threshold': 0.6,                                   │
+│                       │  'nms_top_k': 1000,                                      │
+│                       │  'nms_type': 'multiclass_nms',                           │
+│                       │  'score_threshold': 0.01}                                │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ context               │ {'fields': ['image', 'gt_bbox', 'gt_class', 'gt_score']} │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ decodeImage           │ {'to_rgb': True,                                         │
+│                       │  'with_cutmix': False,                                   │
+│                       │  'with_mixup': False,                                    │
+│                       │  'with_mosaic': False}                                   │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ colorDistort          │ {}                                                       │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ randomExpand          │ {'fill_value': [123.675, 116.28, 103.53]}                │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ randomCrop            │ {}                                                       │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ randomFlipImage       │ {'is_normalized': False}                                 │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ randomShape           │ {'random_inter': True,                                   │
+│                       │  'resize_box': True,                                     │
+│                       │  'sizes': [320,                                          │
+│                       │            352,                                          │
+│                       │            384,                                          │
+│                       │            416,                                          │
+│                       │            448,                                          │
+│                       │            480,                                          │
+│                       │            512,                                          │
+│                       │            544,                                          │
+│                       │            576,                                          │
+│                       │            608,                                          │
+│                       │            640,                                          │
+│                       │            672,                                          │
+│                       │            704,                                          │
+│                       │            736,                                          │
+│                       │            768]}                                         │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ normalizeImage        │ {'is_channel_first': False,                              │
+│                       │  'is_scale': True,                                       │
+│                       │  'mean': [0.485, 0.456, 0.406],                          │
+│                       │  'std': [0.229, 0.224, 0.225]}                           │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ permute               │ {'channel_first': True, 'to_bgr': False}                 │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ padGT                 │ {'num_max_boxes': 200}                                   │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ resizeImage           │ {'interp': 2, 'target_size': 640}                        │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ sample_transforms_seq │ ['decodeImage',                                          │
+│                       │  'colorDistort',                                         │
+│                       │  'randomExpand',                                         │
+│                       │  'randomCrop',                                           │
+│                       │  'randomFlipImage',                                      │
+│                       │  'randomShape',                                          │
+│                       │  'normalizeImage',                                       │
+│                       │  'permute',                                              │
+│                       │  'padGT']                                                │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ batch_transforms_seq  │ []                                                       │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ data_num_workers      │ 1                                                        │
+├───────────────────────┼──────────────────────────────────────────────────────────┤
+│ eval_data_num_workers │ 0                                                        │
+╘═══════════════════════╧══════════════════════════════════════════════════════════╛
+2022-05-16 16:07:23.574 | INFO     | mmdet.core.trainer:before_train:417 - Model Summary: Params: -0.00M, Gflops: -0.00
+2022-05-16 16:07:23.691 | INFO     | mmdet.core.trainer:resume_train:714 - loading checkpoint for fine tuning
+2022-05-16 16:07:23.875 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of yolo_head.pred_cls.0.weight in checkpoint is torch.Size([80, 768, 3, 3]), while shape of yolo_head.pred_cls.0.weight in model is torch.Size([20, 768, 3, 3]).
+2022-05-16 16:07:23.876 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of yolo_head.pred_cls.0.bias in checkpoint is torch.Size([80]), while shape of yolo_head.pred_cls.0.bias in model is torch.Size([20]).
+2022-05-16 16:07:23.876 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of yolo_head.pred_cls.1.weight in checkpoint is torch.Size([80, 384, 3, 3]), while shape of yolo_head.pred_cls.1.weight in model is torch.Size([20, 384, 3, 3]).
+2022-05-16 16:07:23.876 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of yolo_head.pred_cls.1.bias in checkpoint is torch.Size([80]), while shape of yolo_head.pred_cls.1.bias in model is torch.Size([20]).
+2022-05-16 16:07:23.876 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of yolo_head.pred_cls.2.weight in checkpoint is torch.Size([80, 192, 3, 3]), while shape of yolo_head.pred_cls.2.weight in model is torch.Size([20, 192, 3, 3]).
+2022-05-16 16:07:23.876 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of yolo_head.pred_cls.2.bias in checkpoint is torch.Size([80]), while shape of yolo_head.pred_cls.2.bias in model is torch.Size([20]).
+2022-05-16 16:07:24.056 | INFO     | mmdet.data.datasets.coco:__init__:637 - loading annotations into memory...
+2022-05-16 16:07:24.151 | INFO     | mmdet.data.datasets.coco:__init__:637 - Done (t=0.09s)
+2022-05-16 16:07:24.151 | INFO     | pycocotools.coco:__init__:86 - creating index...
+2022-05-16 16:07:24.160 | INFO     | pycocotools.coco:__init__:86 - index created!
+2022-05-16 16:07:24.391 | INFO     | mmdet.data.datasets.coco:data_clean:297 - 5717 samples in train set.
+2022-05-16 16:07:24.760 | INFO     | mmdet.core.trainer:before_train:497 - init prefetcher, this might take one minute or less...
+2022-05-16 16:07:26.187 | INFO     | mmdet.core.trainer:before_train:545 - Using SyncBatchNorm()
+2022-05-16 16:07:27.236 | INFO     | mmdet.data.datasets.coco:__init__:393 - loading annotations into memory...
+2022-05-16 16:07:27.290 | INFO     | mmdet.data.datasets.coco:__init__:393 - Done (t=0.05s)
+2022-05-16 16:07:27.290 | INFO     | pycocotools.coco:__init__:86 - creating index...
+2022-05-16 16:07:27.299 | INFO     | pycocotools.coco:__init__:86 - index created!
+2022-05-16 16:07:27.525 | INFO     | mmdet.data.datasets.coco:data_clean:297 - 5823 samples in val set.
+2022-05-16 16:07:27.527 | INFO     | mmdet.core.trainer:before_train:577 - Training start...
+2022-05-16 16:07:27.533 | INFO     | mmdet.core.trainer:before_train:588 - Total params: 53,352,633
+2022-05-16 16:07:27.533 | INFO     | mmdet.core.trainer:before_train:589 - Trainable params: 32,193,864
+2022-05-16 16:07:27.533 | INFO     | mmdet.core.trainer:before_train:590 - Non-trainable params: 21,158,769
+2022-05-16 16:07:27.534 | INFO     | mmdet.core.trainer:before_epoch:598 - ---> start train epoch1
+2022-05-16 16:07:53.522 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 20/714, mem: 7397Mb, iter_time: 1.299s, data_time: 0.001s, total_loss: 3.5, loss_cls: 3.2, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.1, lr: 0.000035, ETA: 4:06:54
+2022-05-16 16:08:08.919 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 40/714, mem: 7414Mb, iter_time: 0.769s, data_time: 0.001s, total_loss: 2.7, loss_cls: 2.2, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.3, lr: 0.000070, ETA: 3:16:14
+2022-05-16 16:08:17.452 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 60/714, mem: 7415Mb, iter_time: 0.426s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.9, loss_iou: 0.0, loss_dfl: 0.4, loss_l1: 0.2, lr: 0.000105, ETA: 2:37:30
+2022-05-16 16:08:21.988 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 80/714, mem: 7415Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 3.5, loss_cls: 2.6, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.2, lr: 0.000140, ETA: 2:08:37
+2022-05-16 16:08:26.444 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 100/714, mem: 7415Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.7, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000175, ETA: 1:51:07
+2022-05-16 16:08:30.874 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 120/714, mem: 7415Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 2.6, loss_cls: 1.7, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.5, lr: 0.000210, ETA: 1:39:22
+2022-05-16 16:08:35.427 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 140/714, mem: 7415Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.3, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.1, lr: 0.000245, ETA: 1:31:08
+2022-05-16 16:08:40.108 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 160/714, mem: 7415Mb, iter_time: 0.234s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.2, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.4, lr: 0.000280, ETA: 1:25:05
+2022-05-16 16:08:44.617 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 180/714, mem: 7415Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.000315, ETA: 1:20:11
+2022-05-16 16:08:49.050 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 200/714, mem: 7415Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.7, loss_iou: 0.2, loss_dfl: 0.7, loss_l1: 0.4, lr: 0.000350, ETA: 1:16:10
+2022-05-16 16:08:53.557 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 220/714, mem: 7415Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.1, loss_iou: 0.2, loss_dfl: 0.6, loss_l1: 0.3, lr: 0.000385, ETA: 1:12:56
+2022-05-16 16:08:58.119 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 240/714, mem: 7415Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 2.2, loss_cls: 1.4, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.8, lr: 0.000420, ETA: 1:10:17
+2022-05-16 16:09:02.702 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 260/714, mem: 7415Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 2.5, loss_cls: 1.4, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.5, lr: 0.000455, ETA: 1:08:02
+2022-05-16 16:09:07.313 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 280/714, mem: 7415Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.1, lr: 0.000490, ETA: 1:06:07
+2022-05-16 16:09:11.730 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 300/714, mem: 7415Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.7, loss_cls: 1.2, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.2, lr: 0.000525, ETA: 1:04:19
+2022-05-16 16:09:16.321 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 320/714, mem: 7415Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 2.2, loss_cls: 1.1, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.5, lr: 0.000560, ETA: 1:02:50
+2022-05-16 16:09:20.890 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 340/714, mem: 7415Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.8, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.3, lr: 0.000595, ETA: 1:01:31
+2022-05-16 16:09:25.458 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 360/714, mem: 7415Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 3.5, loss_cls: 2.5, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.3, lr: 0.000630, ETA: 1:00:20
+2022-05-16 16:09:30.031 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 380/714, mem: 7415Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.4, loss_iou: 0.1, loss_dfl: 1.2, loss_l1: 0.3, lr: 0.000665, ETA: 0:59:16
+2022-05-16 16:09:34.573 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 400/714, mem: 7415Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.4, lr: 0.000700, ETA: 0:58:17
+2022-05-16 16:09:39.076 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 420/714, mem: 7415Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 3.8, loss_cls: 2.7, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.5, lr: 0.000735, ETA: 0:57:22
+2022-05-16 16:09:43.538 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 440/714, mem: 7415Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 2.5, loss_cls: 1.6, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.5, lr: 0.000770, ETA: 0:56:31
+2022-05-16 16:09:48.048 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 460/714, mem: 7415Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 0.7, loss_l1: 0.4, lr: 0.000805, ETA: 0:55:45
+2022-05-16 16:09:52.436 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 480/714, mem: 7415Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.7, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.5, lr: 0.000840, ETA: 0:54:59
+2022-05-16 16:09:56.975 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 500/714, mem: 7415Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.5, lr: 0.000875, ETA: 0:54:21
+2022-05-16 16:10:01.493 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 520/714, mem: 7415Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 2.9, loss_cls: 2.1, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.2, lr: 0.000910, ETA: 0:53:44
+2022-05-16 16:10:05.911 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 540/714, mem: 7415Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.1, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.5, lr: 0.000945, ETA: 0:53:08
+2022-05-16 16:10:10.386 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 560/714, mem: 7415Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 3.3, loss_cls: 2.0, loss_iou: 0.2, loss_dfl: 1.4, loss_l1: 0.8, lr: 0.000980, ETA: 0:52:35
+2022-05-16 16:10:14.847 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 580/714, mem: 7415Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 3.1, loss_cls: 1.6, loss_iou: 0.3, loss_dfl: 1.5, loss_l1: 0.7, lr: 0.001015, ETA: 0:52:04
+2022-05-16 16:10:19.412 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 600/714, mem: 7415Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 2.7, loss_cls: 1.6, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.5, lr: 0.001050, ETA: 0:51:36
+2022-05-16 16:10:23.913 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 620/714, mem: 7415Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 0.7, loss_l1: 0.6, lr: 0.001085, ETA: 0:51:09
+2022-05-16 16:10:28.448 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 640/714, mem: 7415Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.7, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.001120, ETA: 0:50:44
+2022-05-16 16:10:32.950 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 660/714, mem: 7415Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.5, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.001155, ETA: 0:50:20
+2022-05-16 16:10:37.419 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 680/714, mem: 7415Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 0.7, loss_l1: 0.4, lr: 0.001190, ETA: 0:49:56
+2022-05-16 16:10:41.857 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 1/16, iter: 700/714, mem: 7415Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.1, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.001225, ETA: 0:49:33
+2022-05-16 16:10:45.317 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:10:45.842 | INFO     | mmdet.core.trainer:before_epoch:598 - ---> start train epoch2
+2022-05-16 16:10:50.310 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 20/714, mem: 7415Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 2.9, loss_cls: 1.4, loss_iou: 0.3, loss_dfl: 1.5, loss_l1: 0.6, lr: 0.001250, ETA: 0:49:00
+2022-05-16 16:10:54.827 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 40/714, mem: 7415Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.001250, ETA: 0:48:40
+2022-05-16 16:10:59.304 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 60/714, mem: 7415Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 2.5, loss_cls: 1.3, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.6, lr: 0.001250, ETA: 0:48:21
+2022-05-16 16:11:03.738 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 80/714, mem: 7415Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 2.5, loss_cls: 1.6, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.7, lr: 0.001250, ETA: 0:48:02
+2022-05-16 16:11:08.087 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 100/714, mem: 7415Mb, iter_time: 0.217s, data_time: 0.001s, total_loss: 3.0, loss_cls: 1.9, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.7, lr: 0.001250, ETA: 0:47:42
+2022-05-16 16:11:12.427 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 120/714, mem: 7415Mb, iter_time: 0.217s, data_time: 0.001s, total_loss: 2.7, loss_cls: 1.4, loss_iou: 0.2, loss_dfl: 1.4, loss_l1: 1.0, lr: 0.001250, ETA: 0:47:23
+2022-05-16 16:11:16.893 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 140/714, mem: 7415Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.6, lr: 0.001250, ETA: 0:47:07
+2022-05-16 16:11:21.353 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 160/714, mem: 7415Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.0, loss_iou: 0.3, loss_dfl: 1.1, loss_l1: 0.8, lr: 0.001250, ETA: 0:46:50
+2022-05-16 16:11:25.840 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 180/714, mem: 7415Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 0.6, loss_l1: 0.4, lr: 0.001249, ETA: 0:46:35
+2022-05-16 16:11:30.312 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 200/714, mem: 7415Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 2.1, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.001249, ETA: 0:46:20
+2022-05-16 16:11:34.848 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 220/714, mem: 7415Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 2.7, loss_cls: 1.4, loss_iou: 0.3, loss_dfl: 1.3, loss_l1: 0.7, lr: 0.001249, ETA: 0:46:06
+2022-05-16 16:11:39.239 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 240/714, mem: 7415Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.001249, ETA: 0:45:51
+2022-05-16 16:11:43.600 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 260/714, mem: 7415Mb, iter_time: 0.218s, data_time: 0.001s, total_loss: 1.6, loss_cls: 1.1, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.2, lr: 0.001249, ETA: 0:45:36
+2022-05-16 16:11:48.189 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 280/714, mem: 7415Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.3, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.4, lr: 0.001249, ETA: 0:45:24
+2022-05-16 16:11:52.703 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 300/714, mem: 7415Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.7, lr: 0.001248, ETA: 0:45:11
+2022-05-16 16:11:57.204 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 320/714, mem: 7415Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 3.0, loss_cls: 1.6, loss_iou: 0.3, loss_dfl: 1.5, loss_l1: 0.9, lr: 0.001248, ETA: 0:44:59
+2022-05-16 16:12:01.755 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 340/714, mem: 7415Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 2.6, loss_cls: 1.4, loss_iou: 0.2, loss_dfl: 1.6, loss_l1: 0.6, lr: 0.001248, ETA: 0:44:47
+2022-05-16 16:12:06.161 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 360/714, mem: 7415Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 2.7, loss_cls: 1.5, loss_iou: 0.1, loss_dfl: 1.5, loss_l1: 0.6, lr: 0.001248, ETA: 0:44:35
+2022-05-16 16:12:10.598 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 380/714, mem: 7415Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.7, loss_cls: 1.2, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.001248, ETA: 0:44:23
+2022-05-16 16:12:15.170 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 400/714, mem: 7415Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.7, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.001247, ETA: 0:44:12
+2022-05-16 16:12:19.616 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 420/714, mem: 7415Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 2.1, loss_cls: 1.4, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.001247, ETA: 0:44:00
+2022-05-16 16:12:24.156 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 440/714, mem: 7415Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 2.6, loss_cls: 1.4, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.4, lr: 0.001247, ETA: 0:43:50
+2022-05-16 16:12:28.655 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 460/714, mem: 7415Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 2.1, loss_cls: 1.2, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.6, lr: 0.001246, ETA: 0:43:39
+2022-05-16 16:12:33.175 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 480/714, mem: 7415Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 2.7, loss_cls: 1.6, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.5, lr: 0.001246, ETA: 0:43:29
+2022-05-16 16:12:37.676 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 500/714, mem: 7415Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 2.3, loss_cls: 1.3, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.4, lr: 0.001246, ETA: 0:43:19
+2022-05-16 16:12:42.181 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 520/714, mem: 7415Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 2.6, loss_cls: 1.4, loss_iou: 0.3, loss_dfl: 1.0, loss_l1: 0.6, lr: 0.001245, ETA: 0:43:09
+2022-05-16 16:12:46.723 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 540/714, mem: 7415Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 3.4, loss_cls: 1.9, loss_iou: 0.3, loss_dfl: 1.4, loss_l1: 0.4, lr: 0.001245, ETA: 0:42:59
+2022-05-16 16:12:51.311 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 560/714, mem: 7415Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.001245, ETA: 0:42:50
+2022-05-16 16:12:56.020 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 580/714, mem: 7415Mb, iter_time: 0.235s, data_time: 0.001s, total_loss: 2.5, loss_cls: 1.7, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.001244, ETA: 0:42:42
+2022-05-16 16:13:00.506 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 600/714, mem: 7415Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 2.6, loss_cls: 1.4, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.7, lr: 0.001244, ETA: 0:42:33
+2022-05-16 16:13:04.868 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 620/714, mem: 7415Mb, iter_time: 0.218s, data_time: 0.001s, total_loss: 3.0, loss_cls: 1.8, loss_iou: 0.2, loss_dfl: 1.4, loss_l1: 0.7, lr: 0.001244, ETA: 0:42:23
+2022-05-16 16:13:09.366 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 640/714, mem: 7415Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 3.0, loss_cls: 1.3, loss_iou: 0.3, loss_dfl: 1.6, loss_l1: 0.6, lr: 0.001243, ETA: 0:42:13
+2022-05-16 16:13:13.876 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 660/714, mem: 7415Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.1, lr: 0.001243, ETA: 0:42:04
+2022-05-16 16:13:18.419 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 680/714, mem: 7415Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.5, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.3, lr: 0.001242, ETA: 0:41:56
+2022-05-16 16:13:22.884 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 2/16, iter: 700/714, mem: 7415Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 0.8, loss_l1: 0.5, lr: 0.001242, ETA: 0:41:47
+2022-05-16 16:13:26.199 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:15:41.713 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:490 - Evaluate in main process...
+2022-05-16 16:15:49.014 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:523 - Loading and preparing results...
+2022-05-16 16:15:51.745 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:523 - DONE (t=2.73s)
+2022-05-16 16:15:51.745 | INFO     | pycocotools.coco:loadRes:366 - creating index...
+2022-05-16 16:15:51.980 | INFO     | pycocotools.coco:loadRes:366 - index created!
+2022-05-16 16:15:51.987 | WARNING  | mmdet.evaluators.coco_evaluator:evaluate_prediction:529 - Use standard COCOeval.
+2022-05-16 16:15:51.988 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - Running per image evaluation...
+2022-05-16 16:15:51.988 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - Evaluate annotation type *bbox*
+2022-05-16 16:16:22.018 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - DONE (t=30.03s).
+2022-05-16 16:16:22.018 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:533 - Accumulating evaluation results...
+2022-05-16 16:16:28.543 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:533 - DONE (t=6.52s).
+2022-05-16 16:16:29.358 | INFO     | mmdet.core.trainer:evaluate_and_save_model:757 -
+Average forward time: 23.15 ms, Average NMS time: 0.01 ms, Average inference time: 23.16 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.581
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.783
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.628
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.220
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.434
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.673
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.469
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.694
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.725
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.401
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.611
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.793
+
+2022-05-16 16:16:29.472 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:16:30.150 | INFO     | mmdet.core.trainer:before_epoch:598 - ---> start train epoch3
+2022-05-16 16:16:34.629 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 20/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 0.6, loss_l1: 0.4, lr: 0.001241, ETA: 0:41:33
+2022-05-16 16:16:39.151 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 40/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.3, lr: 0.001240, ETA: 0:41:24
+2022-05-16 16:16:43.642 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 60/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 3.6, loss_cls: 1.9, loss_iou: 0.4, loss_dfl: 1.6, loss_l1: 0.5, lr: 0.001240, ETA: 0:41:16
+2022-05-16 16:16:48.204 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 80/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 3.0, loss_cls: 1.8, loss_iou: 0.3, loss_dfl: 1.1, loss_l1: 0.5, lr: 0.001239, ETA: 0:41:08
+2022-05-16 16:16:52.589 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 100/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.001239, ETA: 0:40:59
+2022-05-16 16:16:57.058 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 120/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 3.2, loss_cls: 1.7, loss_iou: 0.3, loss_dfl: 1.3, loss_l1: 0.6, lr: 0.001238, ETA: 0:40:51
+2022-05-16 16:17:01.446 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 140/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.1, loss_iou: 0.2, loss_dfl: 0.8, loss_l1: 0.5, lr: 0.001238, ETA: 0:40:42
+2022-05-16 16:17:05.876 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 160/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 2.3, loss_cls: 1.4, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.2, lr: 0.001237, ETA: 0:40:34
+2022-05-16 16:17:10.333 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 180/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.5, lr: 0.001237, ETA: 0:40:26
+2022-05-16 16:17:14.778 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 200/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 2.2, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.5, lr: 0.001236, ETA: 0:40:18
+2022-05-16 16:17:19.398 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 220/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.5, lr: 0.001235, ETA: 0:40:11
+2022-05-16 16:17:24.047 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 240/714, mem: 7558Mb, iter_time: 0.232s, data_time: 0.001s, total_loss: 2.1, loss_cls: 1.1, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.5, lr: 0.001235, ETA: 0:40:05
+2022-05-16 16:17:28.465 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 260/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.001234, ETA: 0:39:57
+2022-05-16 16:17:33.038 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 280/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.001234, ETA: 0:39:50
+2022-05-16 16:17:37.665 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 300/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 2.3, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.001233, ETA: 0:39:43
+2022-05-16 16:17:42.272 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 320/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.3, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.4, lr: 0.001232, ETA: 0:39:36
+2022-05-16 16:17:46.803 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 340/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 2.3, loss_cls: 1.4, loss_iou: 0.1, loss_dfl: 1.2, loss_l1: 0.5, lr: 0.001231, ETA: 0:39:29
+2022-05-16 16:17:51.128 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 360/714, mem: 7558Mb, iter_time: 0.216s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.1, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.6, lr: 0.001231, ETA: 0:39:21
+2022-05-16 16:17:55.645 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 380/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.4, loss_l1: 0.6, lr: 0.001230, ETA: 0:39:14
+2022-05-16 16:18:00.208 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 400/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.1, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.2, lr: 0.001229, ETA: 0:39:07
+2022-05-16 16:18:04.700 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 420/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.001229, ETA: 0:39:00
+2022-05-16 16:18:09.116 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 440/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.7, loss_iou: 0.2, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.001228, ETA: 0:38:53
+2022-05-16 16:18:13.606 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 460/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 2.2, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.6, lr: 0.001227, ETA: 0:38:46
+2022-05-16 16:18:18.170 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 480/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.5, lr: 0.001226, ETA: 0:38:40
+2022-05-16 16:18:22.708 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 500/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 2.6, loss_cls: 1.5, loss_iou: 0.2, loss_dfl: 1.4, loss_l1: 0.6, lr: 0.001225, ETA: 0:38:33
+2022-05-16 16:18:27.281 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 520/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.001225, ETA: 0:38:27
+2022-05-16 16:18:31.721 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 540/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.4, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.001224, ETA: 0:38:20
+2022-05-16 16:18:36.347 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 560/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 1.9, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.001223, ETA: 0:38:14
+2022-05-16 16:18:40.709 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 580/714, mem: 7558Mb, iter_time: 0.218s, data_time: 0.001s, total_loss: 2.2, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.3, lr: 0.001222, ETA: 0:38:06
+2022-05-16 16:18:45.302 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 600/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 3.3, loss_cls: 1.8, loss_iou: 0.2, loss_dfl: 1.6, loss_l1: 0.8, lr: 0.001221, ETA: 0:38:00
+2022-05-16 16:18:49.815 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 620/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.2, loss_dfl: 0.8, loss_l1: 0.4, lr: 0.001220, ETA: 0:37:54
+2022-05-16 16:18:54.369 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 640/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.1, loss_iou: 0.3, loss_dfl: 1.3, loss_l1: 0.9, lr: 0.001220, ETA: 0:37:48
+2022-05-16 16:18:59.024 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 660/714, mem: 7558Mb, iter_time: 0.232s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.001219, ETA: 0:37:42
+2022-05-16 16:19:03.652 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 680/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 2.5, loss_cls: 1.5, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.001218, ETA: 0:37:36
+2022-05-16 16:19:08.101 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 3/16, iter: 700/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.2, lr: 0.001217, ETA: 0:37:29
+2022-05-16 16:19:11.371 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:19:11.889 | INFO     | mmdet.core.trainer:before_epoch:598 - ---> start train epoch4
+2022-05-16 16:19:16.530 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 20/714, mem: 7558Mb, iter_time: 0.232s, data_time: 0.001s, total_loss: 3.0, loss_cls: 1.5, loss_iou: 0.3, loss_dfl: 1.6, loss_l1: 0.6, lr: 0.001215, ETA: 0:37:19
+2022-05-16 16:19:21.011 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 40/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 2.0, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.4, lr: 0.001214, ETA: 0:37:13
+2022-05-16 16:19:25.528 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 60/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 2.7, loss_cls: 1.3, loss_iou: 0.3, loss_dfl: 1.3, loss_l1: 0.6, lr: 0.001213, ETA: 0:37:07
+2022-05-16 16:19:30.079 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 80/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.9, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.001212, ETA: 0:37:01
+2022-05-16 16:19:34.726 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 100/714, mem: 7558Mb, iter_time: 0.232s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.2, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.4, lr: 0.001211, ETA: 0:36:55
+2022-05-16 16:19:39.236 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 120/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 2.2, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.001210, ETA: 0:36:49
+2022-05-16 16:19:43.821 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 140/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.001209, ETA: 0:36:43
+2022-05-16 16:19:48.488 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 160/714, mem: 7558Mb, iter_time: 0.233s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.4, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.4, lr: 0.001208, ETA: 0:36:38
+2022-05-16 16:19:53.164 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 180/714, mem: 7558Mb, iter_time: 0.233s, data_time: 0.001s, total_loss: 2.9, loss_cls: 1.5, loss_iou: 0.3, loss_dfl: 1.5, loss_l1: 0.7, lr: 0.001207, ETA: 0:36:32
+2022-05-16 16:19:57.778 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 200/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.2, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.5, lr: 0.001206, ETA: 0:36:27
+2022-05-16 16:20:02.243 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 220/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 3.3, loss_cls: 1.7, loss_iou: 0.3, loss_dfl: 1.5, loss_l1: 1.2, lr: 0.001205, ETA: 0:36:20
+2022-05-16 16:20:06.746 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 240/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.4, lr: 0.001204, ETA: 0:36:14
+2022-05-16 16:20:11.379 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 260/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 2.5, loss_cls: 1.3, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.4, lr: 0.001203, ETA: 0:36:09
+2022-05-16 16:20:15.759 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 280/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 2.2, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.7, lr: 0.001202, ETA: 0:36:02
+2022-05-16 16:20:20.256 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 300/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.7, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.2, lr: 0.001201, ETA: 0:35:56
+2022-05-16 16:20:24.711 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 320/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.7, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.4, lr: 0.001199, ETA: 0:35:50
+2022-05-16 16:20:29.222 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 340/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.001198, ETA: 0:35:45
+2022-05-16 16:20:33.720 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 360/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.6, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.5, lr: 0.001197, ETA: 0:35:39
+2022-05-16 16:20:38.456 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 380/714, mem: 7558Mb, iter_time: 0.236s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.4, lr: 0.001196, ETA: 0:35:34
+2022-05-16 16:20:42.942 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 400/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 2.3, loss_cls: 1.5, loss_iou: 0.2, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.001195, ETA: 0:35:28
+2022-05-16 16:20:47.412 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 420/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.001194, ETA: 0:35:22
+2022-05-16 16:20:51.989 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 440/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.1, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.001192, ETA: 0:35:16
+2022-05-16 16:20:56.474 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 460/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 2.5, loss_cls: 1.3, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.6, lr: 0.001191, ETA: 0:35:10
+2022-05-16 16:21:01.073 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 480/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.9, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 0.8, loss_l1: 0.5, lr: 0.001190, ETA: 0:35:05
+2022-05-16 16:21:05.703 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 500/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.001189, ETA: 0:35:00
+2022-05-16 16:21:10.179 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 520/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.001187, ETA: 0:34:54
+2022-05-16 16:21:14.887 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 540/714, mem: 7558Mb, iter_time: 0.235s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.001186, ETA: 0:34:49
+2022-05-16 16:21:19.508 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 560/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.4, lr: 0.001185, ETA: 0:34:43
+2022-05-16 16:21:24.100 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 580/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 2.3, loss_cls: 1.4, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.7, lr: 0.001184, ETA: 0:34:38
+2022-05-16 16:21:28.488 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 600/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.4, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.4, lr: 0.001182, ETA: 0:34:32
+2022-05-16 16:21:33.051 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 620/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 0.6, loss_l1: 0.8, lr: 0.001181, ETA: 0:34:26
+2022-05-16 16:21:37.538 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 640/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.4, lr: 0.001180, ETA: 0:34:21
+2022-05-16 16:21:42.098 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 660/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.4, lr: 0.001178, ETA: 0:34:15
+2022-05-16 16:21:46.698 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 680/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 2.5, loss_cls: 1.6, loss_iou: 0.2, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.001177, ETA: 0:34:10
+2022-05-16 16:21:51.313 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 4/16, iter: 700/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.001176, ETA: 0:34:05
+2022-05-16 16:21:54.537 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:24:05.795 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:490 - Evaluate in main process...
+2022-05-16 16:24:12.982 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:523 - Loading and preparing results...
+2022-05-16 16:24:15.640 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:523 - DONE (t=2.66s)
+2022-05-16 16:24:15.641 | INFO     | pycocotools.coco:loadRes:366 - creating index...
+2022-05-16 16:24:15.906 | INFO     | pycocotools.coco:loadRes:366 - index created!
+2022-05-16 16:24:15.912 | WARNING  | mmdet.evaluators.coco_evaluator:evaluate_prediction:529 - Use standard COCOeval.
+2022-05-16 16:24:15.913 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - Running per image evaluation...
+2022-05-16 16:24:15.913 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - Evaluate annotation type *bbox*
+2022-05-16 16:24:44.375 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - DONE (t=28.46s).
+2022-05-16 16:24:44.375 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:533 - Accumulating evaluation results...
+2022-05-16 16:24:50.824 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:533 - DONE (t=6.45s).
+2022-05-16 16:24:51.592 | INFO     | mmdet.core.trainer:evaluate_and_save_model:757 -
+Average forward time: 21.95 ms, Average NMS time: 0.01 ms, Average inference time: 21.96 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.604
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.803
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.650
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.231
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.452
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.694
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.481
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.711
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.738
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.428
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.621
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.806
+
+2022-05-16 16:24:51.706 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:24:56.616 | INFO     | mmdet.core.trainer:before_epoch:598 - ---> start train epoch5
+2022-05-16 16:25:01.081 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 20/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 2.1, loss_cls: 1.1, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.6, lr: 0.001173, ETA: 0:33:55
+2022-05-16 16:25:05.661 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 40/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 0.8, loss_l1: 0.4, lr: 0.001172, ETA: 0:33:50
+2022-05-16 16:25:10.257 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 60/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.001170, ETA: 0:33:44
+2022-05-16 16:25:14.740 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 80/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 0.7, loss_l1: 0.5, lr: 0.001169, ETA: 0:33:39
+2022-05-16 16:25:19.116 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 100/714, mem: 7558Mb, iter_time: 0.218s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.4, lr: 0.001168, ETA: 0:33:33
+2022-05-16 16:25:23.538 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 120/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 2.7, loss_cls: 1.5, loss_iou: 0.2, loss_dfl: 1.4, loss_l1: 0.5, lr: 0.001166, ETA: 0:33:27
+2022-05-16 16:25:27.996 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 140/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.5, lr: 0.001165, ETA: 0:33:22
+2022-05-16 16:25:32.422 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 160/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.3, lr: 0.001163, ETA: 0:33:16
+2022-05-16 16:25:36.819 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 180/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.001162, ETA: 0:33:10
+2022-05-16 16:25:41.484 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 200/714, mem: 7558Mb, iter_time: 0.233s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.001160, ETA: 0:33:05
+2022-05-16 16:25:46.050 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 220/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.5, lr: 0.001159, ETA: 0:33:00
+2022-05-16 16:25:50.565 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 240/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.1, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.001157, ETA: 0:32:55
+2022-05-16 16:25:55.040 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 260/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.5, lr: 0.001156, ETA: 0:32:49
+2022-05-16 16:25:59.418 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 280/714, mem: 7558Mb, iter_time: 0.218s, data_time: 0.001s, total_loss: 1.4, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.5, lr: 0.001154, ETA: 0:32:43
+2022-05-16 16:26:03.815 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 300/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.001153, ETA: 0:32:38
+2022-05-16 16:26:08.316 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 320/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 2.9, loss_cls: 1.1, loss_iou: 0.4, loss_dfl: 1.7, loss_l1: 0.6, lr: 0.001151, ETA: 0:32:32
+2022-05-16 16:26:12.842 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 340/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.4, lr: 0.001150, ETA: 0:32:27
+2022-05-16 16:26:17.277 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 360/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.2, lr: 0.001148, ETA: 0:32:22
+2022-05-16 16:26:21.928 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 380/714, mem: 7558Mb, iter_time: 0.232s, data_time: 0.001s, total_loss: 2.2, loss_cls: 1.1, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.6, lr: 0.001146, ETA: 0:32:17
+2022-05-16 16:26:26.415 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 400/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.1, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.5, lr: 0.001145, ETA: 0:32:11
+2022-05-16 16:26:30.785 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 420/714, mem: 7558Mb, iter_time: 0.218s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.001143, ETA: 0:32:06
+2022-05-16 16:26:35.168 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 440/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.001142, ETA: 0:32:00
+2022-05-16 16:26:39.531 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 460/714, mem: 7558Mb, iter_time: 0.218s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.001140, ETA: 0:31:54
+2022-05-16 16:26:44.018 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 480/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.4, lr: 0.001138, ETA: 0:31:49
+2022-05-16 16:26:48.555 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 500/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.4, lr: 0.001137, ETA: 0:31:44
+2022-05-16 16:26:53.086 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 520/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.3, lr: 0.001135, ETA: 0:31:39
+2022-05-16 16:26:57.592 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 540/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.4, lr: 0.001133, ETA: 0:31:33
+2022-05-16 16:27:02.160 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 560/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.001132, ETA: 0:31:28
+2022-05-16 16:27:06.762 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 580/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.3, lr: 0.001130, ETA: 0:31:23
+2022-05-16 16:27:11.251 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 600/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.8, lr: 0.001128, ETA: 0:31:18
+2022-05-16 16:27:15.759 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 620/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.5, lr: 0.001126, ETA: 0:31:13
+2022-05-16 16:27:20.310 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 640/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.1, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.001125, ETA: 0:31:08
+2022-05-16 16:27:24.755 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 660/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.4, lr: 0.001123, ETA: 0:31:02
+2022-05-16 16:27:29.279 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 680/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.7, loss_cls: 1.1, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.001121, ETA: 0:30:57
+2022-05-16 16:27:33.874 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 5/16, iter: 700/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.001119, ETA: 0:30:52
+2022-05-16 16:27:37.200 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:27:37.719 | INFO     | mmdet.core.trainer:before_epoch:598 - ---> start train epoch6
+2022-05-16 16:27:42.217 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 20/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.5, lr: 0.001116, ETA: 0:30:44
+2022-05-16 16:27:46.667 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 40/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.2, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.001115, ETA: 0:30:38
+2022-05-16 16:27:51.162 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 60/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.001113, ETA: 0:30:33
+2022-05-16 16:27:55.726 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 80/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 2.8, loss_cls: 1.3, loss_iou: 0.3, loss_dfl: 1.4, loss_l1: 0.5, lr: 0.001111, ETA: 0:30:28
+2022-05-16 16:28:00.478 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 100/714, mem: 7558Mb, iter_time: 0.237s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.4, lr: 0.001109, ETA: 0:30:24
+2022-05-16 16:28:05.038 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 120/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 1.2, loss_l1: 0.5, lr: 0.001107, ETA: 0:30:18
+2022-05-16 16:28:09.463 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 140/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.5, lr: 0.001106, ETA: 0:30:13
+2022-05-16 16:28:13.946 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 160/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 2.5, loss_cls: 1.3, loss_iou: 0.2, loss_dfl: 1.4, loss_l1: 0.4, lr: 0.001104, ETA: 0:30:08
+2022-05-16 16:28:18.397 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 180/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.2, lr: 0.001102, ETA: 0:30:03
+2022-05-16 16:28:22.801 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 200/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.001100, ETA: 0:29:57
+2022-05-16 16:28:27.425 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 220/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.001098, ETA: 0:29:53
+2022-05-16 16:28:31.919 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 240/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.001096, ETA: 0:29:47
+2022-05-16 16:28:36.420 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 260/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 0.7, loss_l1: 0.5, lr: 0.001094, ETA: 0:29:42
+2022-05-16 16:28:40.865 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 280/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 2.3, loss_cls: 1.3, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.3, lr: 0.001092, ETA: 0:29:37
+2022-05-16 16:28:45.481 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 300/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.2, lr: 0.001090, ETA: 0:29:32
+2022-05-16 16:28:50.078 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 320/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.5, lr: 0.001088, ETA: 0:29:27
+2022-05-16 16:28:54.478 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 340/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.001086, ETA: 0:29:22
+2022-05-16 16:28:58.982 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 360/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.001085, ETA: 0:29:17
+2022-05-16 16:29:03.357 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 380/714, mem: 7558Mb, iter_time: 0.218s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.5, lr: 0.001083, ETA: 0:29:12
+2022-05-16 16:29:07.797 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 400/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.4, lr: 0.001081, ETA: 0:29:07
+2022-05-16 16:29:12.285 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 420/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.001079, ETA: 0:29:02
+2022-05-16 16:29:16.808 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 440/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.001077, ETA: 0:28:57
+2022-05-16 16:29:21.324 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 460/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.001075, ETA: 0:28:52
+2022-05-16 16:29:25.794 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 480/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 2.2, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.4, lr: 0.001073, ETA: 0:28:46
+2022-05-16 16:29:30.379 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 500/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 2.3, loss_cls: 1.1, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.5, lr: 0.001071, ETA: 0:28:42
+2022-05-16 16:29:35.036 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 520/714, mem: 7558Mb, iter_time: 0.232s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.001069, ETA: 0:28:37
+2022-05-16 16:29:39.600 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 540/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.001066, ETA: 0:28:32
+2022-05-16 16:29:44.180 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 560/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.001064, ETA: 0:28:27
+2022-05-16 16:29:48.637 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 580/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.2, lr: 0.001062, ETA: 0:28:22
+2022-05-16 16:29:53.141 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 600/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 3.1, loss_cls: 1.7, loss_iou: 0.3, loss_dfl: 1.4, loss_l1: 0.4, lr: 0.001060, ETA: 0:28:17
+2022-05-16 16:29:57.620 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 620/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 2.1, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.6, lr: 0.001058, ETA: 0:28:12
+2022-05-16 16:30:02.167 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 640/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.001056, ETA: 0:28:07
+2022-05-16 16:30:06.711 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 660/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 2.6, loss_cls: 1.4, loss_iou: 0.2, loss_dfl: 1.5, loss_l1: 0.6, lr: 0.001054, ETA: 0:28:02
+2022-05-16 16:30:11.092 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 680/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.5, lr: 0.001052, ETA: 0:27:57
+2022-05-16 16:30:15.537 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 6/16, iter: 700/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 2.1, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.6, lr: 0.001050, ETA: 0:27:52
+2022-05-16 16:30:18.707 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:32:31.439 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:490 - Evaluate in main process...
+2022-05-16 16:32:38.677 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:523 - Loading and preparing results...
+2022-05-16 16:32:41.922 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:523 - DONE (t=3.24s)
+2022-05-16 16:32:41.922 | INFO     | pycocotools.coco:loadRes:366 - creating index...
+2022-05-16 16:32:42.154 | INFO     | pycocotools.coco:loadRes:366 - index created!
+2022-05-16 16:32:42.160 | WARNING  | mmdet.evaluators.coco_evaluator:evaluate_prediction:529 - Use standard COCOeval.
+2022-05-16 16:32:42.161 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - Running per image evaluation...
+2022-05-16 16:32:42.161 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - Evaluate annotation type *bbox*
+2022-05-16 16:33:10.604 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - DONE (t=28.44s).
+2022-05-16 16:33:10.604 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:533 - Accumulating evaluation results...
+2022-05-16 16:33:17.207 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:533 - DONE (t=6.60s).
+2022-05-16 16:33:18.022 | INFO     | mmdet.core.trainer:evaluate_and_save_model:757 -
+Average forward time: 22.55 ms, Average NMS time: 0.01 ms, Average inference time: 22.56 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.638
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.834
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.689
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.256
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.496
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.722
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.501
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.740
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.767
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.451
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.668
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.834
+
+2022-05-16 16:33:18.135 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:33:23.195 | INFO     | mmdet.core.trainer:before_epoch:598 - ---> start train epoch7
+2022-05-16 16:33:27.779 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 20/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.001046, ETA: 0:27:43
+2022-05-16 16:33:32.207 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 40/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.3, lr: 0.001044, ETA: 0:27:38
+2022-05-16 16:33:36.736 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 60/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.7, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.6, lr: 0.001042, ETA: 0:27:33
+2022-05-16 16:33:41.334 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 80/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.4, lr: 0.001040, ETA: 0:27:28
+2022-05-16 16:33:45.887 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 100/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 2.7, loss_cls: 1.2, loss_iou: 0.3, loss_dfl: 1.5, loss_l1: 0.7, lr: 0.001038, ETA: 0:27:24
+2022-05-16 16:33:50.210 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 120/714, mem: 7558Mb, iter_time: 0.216s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.2, lr: 0.001035, ETA: 0:27:18
+2022-05-16 16:33:54.617 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 140/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.2, lr: 0.001033, ETA: 0:27:13
+2022-05-16 16:33:59.087 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 160/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.001031, ETA: 0:27:08
+2022-05-16 16:34:03.660 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 180/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.2, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.001029, ETA: 0:27:03
+2022-05-16 16:34:08.258 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 200/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.6, lr: 0.001027, ETA: 0:26:59
+2022-05-16 16:34:12.786 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 220/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.5, lr: 0.001024, ETA: 0:26:54
+2022-05-16 16:34:17.305 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 240/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 2.6, loss_cls: 1.4, loss_iou: 0.2, loss_dfl: 1.4, loss_l1: 0.4, lr: 0.001022, ETA: 0:26:49
+2022-05-16 16:34:21.762 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 260/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.001020, ETA: 0:26:44
+2022-05-16 16:34:26.539 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 280/714, mem: 7558Mb, iter_time: 0.238s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.5, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.1, lr: 0.001018, ETA: 0:26:39
+2022-05-16 16:34:31.322 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 300/714, mem: 7558Mb, iter_time: 0.239s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.5, lr: 0.001015, ETA: 0:26:35
+2022-05-16 16:34:36.075 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 320/714, mem: 7558Mb, iter_time: 0.237s, data_time: 0.001s, total_loss: 2.0, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.001013, ETA: 0:26:30
+2022-05-16 16:34:40.811 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 340/714, mem: 7558Mb, iter_time: 0.236s, data_time: 0.001s, total_loss: 0.3, loss_cls: 0.2, loss_iou: 0.0, loss_dfl: 0.2, loss_l1: 0.3, lr: 0.001011, ETA: 0:26:26
+2022-05-16 16:34:45.478 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 360/714, mem: 7558Mb, iter_time: 0.233s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.3, lr: 0.001009, ETA: 0:26:21
+2022-05-16 16:34:50.050 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 380/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.8, loss_iou: 0.0, loss_dfl: 0.7, loss_l1: 0.1, lr: 0.001006, ETA: 0:26:16
+2022-05-16 16:34:54.486 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 400/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.1, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.001004, ETA: 0:26:11
+2022-05-16 16:34:59.061 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 420/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.2, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.3, lr: 0.001002, ETA: 0:26:06
+2022-05-16 16:35:03.695 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 440/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.4, lr: 0.000999, ETA: 0:26:02
+2022-05-16 16:35:08.459 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 460/714, mem: 7558Mb, iter_time: 0.238s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.2, lr: 0.000997, ETA: 0:25:57
+2022-05-16 16:35:12.903 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 480/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.5, lr: 0.000995, ETA: 0:25:52
+2022-05-16 16:35:17.285 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 500/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.4, lr: 0.000992, ETA: 0:25:47
+2022-05-16 16:35:21.829 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 520/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.3, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.5, lr: 0.000990, ETA: 0:25:42
+2022-05-16 16:35:26.335 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 540/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.000988, ETA: 0:25:37
+2022-05-16 16:35:30.729 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 560/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 2.2, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.5, lr: 0.000985, ETA: 0:25:32
+2022-05-16 16:35:35.242 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 580/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.4, lr: 0.000983, ETA: 0:25:28
+2022-05-16 16:35:39.821 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 600/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.8, lr: 0.000981, ETA: 0:25:23
+2022-05-16 16:35:44.290 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 620/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 2.2, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.5, lr: 0.000978, ETA: 0:25:18
+2022-05-16 16:35:48.943 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 640/714, mem: 7558Mb, iter_time: 0.232s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.000976, ETA: 0:25:13
+2022-05-16 16:35:53.589 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 660/714, mem: 7558Mb, iter_time: 0.232s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.5, lr: 0.000973, ETA: 0:25:08
+2022-05-16 16:35:58.086 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 680/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 0.8, loss_cls: 0.4, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.3, lr: 0.000971, ETA: 0:25:04
+2022-05-16 16:36:02.607 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 7/16, iter: 700/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.4, lr: 0.000969, ETA: 0:24:59
+2022-05-16 16:36:05.821 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:36:06.344 | INFO     | mmdet.core.trainer:before_epoch:598 - ---> start train epoch8
+2022-05-16 16:36:10.872 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 20/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.1, lr: 0.000964, ETA: 0:24:50
+2022-05-16 16:36:15.486 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 40/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.3, lr: 0.000962, ETA: 0:24:46
+2022-05-16 16:36:20.085 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 60/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 2.8, loss_cls: 1.6, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.5, lr: 0.000960, ETA: 0:24:41
+2022-05-16 16:36:24.597 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 80/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000957, ETA: 0:24:36
+2022-05-16 16:36:29.107 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 100/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.5, lr: 0.000955, ETA: 0:24:31
+2022-05-16 16:36:33.525 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 120/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.5, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.2, lr: 0.000952, ETA: 0:24:26
+2022-05-16 16:36:38.060 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 140/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.5, loss_l1: 0.6, lr: 0.000950, ETA: 0:24:22
+2022-05-16 16:36:42.550 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 160/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.000947, ETA: 0:24:17
+2022-05-16 16:36:47.032 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 180/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.000945, ETA: 0:24:12
+2022-05-16 16:36:51.450 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 200/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.2, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.4, lr: 0.000942, ETA: 0:24:07
+2022-05-16 16:36:55.845 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 220/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.2, lr: 0.000940, ETA: 0:24:02
+2022-05-16 16:37:00.406 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 240/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.000937, ETA: 0:23:57
+2022-05-16 16:37:05.091 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 260/714, mem: 7558Mb, iter_time: 0.234s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.2, lr: 0.000935, ETA: 0:23:53
+2022-05-16 16:37:09.507 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 280/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.1, lr: 0.000932, ETA: 0:23:48
+2022-05-16 16:37:13.986 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 300/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.1, lr: 0.000930, ETA: 0:23:43
+2022-05-16 16:37:18.634 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 320/714, mem: 7558Mb, iter_time: 0.232s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.3, lr: 0.000927, ETA: 0:23:38
+2022-05-16 16:37:23.231 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 340/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.000925, ETA: 0:23:33
+2022-05-16 16:37:27.752 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 360/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.1, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.3, lr: 0.000922, ETA: 0:23:29
+2022-05-16 16:37:32.333 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 380/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.7, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000920, ETA: 0:23:24
+2022-05-16 16:37:36.764 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 400/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.1, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.9, lr: 0.000917, ETA: 0:23:19
+2022-05-16 16:37:41.267 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 420/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.7, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.1, lr: 0.000914, ETA: 0:23:14
+2022-05-16 16:37:45.543 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 440/714, mem: 7558Mb, iter_time: 0.213s, data_time: 0.001s, total_loss: 0.8, loss_cls: 0.4, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.4, lr: 0.000912, ETA: 0:23:09
+2022-05-16 16:37:50.008 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 460/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 0.5, loss_cls: 0.3, loss_iou: 0.0, loss_dfl: 0.3, loss_l1: 0.2, lr: 0.000909, ETA: 0:23:04
+2022-05-16 16:37:54.423 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 480/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.7, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.000907, ETA: 0:22:59
+2022-05-16 16:37:58.926 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 500/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000904, ETA: 0:22:55
+2022-05-16 16:38:03.419 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 520/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 2.1, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.4, loss_l1: 0.4, lr: 0.000902, ETA: 0:22:50
+2022-05-16 16:38:07.948 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 540/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000899, ETA: 0:22:45
+2022-05-16 16:38:12.585 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 560/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 3.0, loss_cls: 1.4, loss_iou: 0.3, loss_dfl: 1.7, loss_l1: 0.7, lr: 0.000896, ETA: 0:22:40
+2022-05-16 16:38:17.078 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 580/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 2.6, loss_cls: 1.4, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.4, lr: 0.000894, ETA: 0:22:36
+2022-05-16 16:38:21.436 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 600/714, mem: 7558Mb, iter_time: 0.218s, data_time: 0.001s, total_loss: 2.6, loss_cls: 1.4, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.3, lr: 0.000891, ETA: 0:22:31
+2022-05-16 16:38:26.053 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 620/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.2, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.000888, ETA: 0:22:26
+2022-05-16 16:38:30.606 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 640/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.1, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000886, ETA: 0:22:21
+2022-05-16 16:38:35.145 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 660/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.000883, ETA: 0:22:16
+2022-05-16 16:38:39.561 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 680/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000881, ETA: 0:22:12
+2022-05-16 16:38:44.023 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 8/16, iter: 700/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000878, ETA: 0:22:07
+2022-05-16 16:38:47.263 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:41:01.155 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:490 - Evaluate in main process...
+2022-05-16 16:41:08.200 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:523 - Loading and preparing results...
+2022-05-16 16:41:11.539 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:523 - DONE (t=3.34s)
+2022-05-16 16:41:11.540 | INFO     | pycocotools.coco:loadRes:366 - creating index...
+2022-05-16 16:41:11.820 | INFO     | pycocotools.coco:loadRes:366 - index created!
+2022-05-16 16:41:11.826 | WARNING  | mmdet.evaluators.coco_evaluator:evaluate_prediction:529 - Use standard COCOeval.
+2022-05-16 16:41:11.827 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - Running per image evaluation...
+2022-05-16 16:41:11.841 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - Evaluate annotation type *bbox*
+2022-05-16 16:41:40.138 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - DONE (t=28.31s).
+2022-05-16 16:41:40.138 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:533 - Accumulating evaluation results...
+2022-05-16 16:41:46.807 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:533 - DONE (t=6.67s).
+2022-05-16 16:41:47.601 | INFO     | mmdet.core.trainer:evaluate_and_save_model:757 -
+Average forward time: 22.31 ms, Average NMS time: 0.01 ms, Average inference time: 22.32 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.648
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.841
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.697
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.259
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.506
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.733
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.506
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.746
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.775
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.439
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.679
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.842
+
+2022-05-16 16:41:47.718 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:41:52.616 | INFO     | mmdet.core.trainer:before_epoch:598 - ---> start train epoch9
+2022-05-16 16:41:57.071 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 20/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000873, ETA: 0:21:59
+2022-05-16 16:42:01.536 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 40/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.000871, ETA: 0:21:54
+2022-05-16 16:42:06.166 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 60/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 2.3, loss_cls: 1.0, loss_iou: 0.3, loss_dfl: 1.3, loss_l1: 0.5, lr: 0.000868, ETA: 0:21:49
+2022-05-16 16:42:10.716 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 80/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.4, lr: 0.000865, ETA: 0:21:44
+2022-05-16 16:42:15.200 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 100/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.5, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.1, lr: 0.000863, ETA: 0:21:40
+2022-05-16 16:42:19.799 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 120/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.000860, ETA: 0:21:35
+2022-05-16 16:42:24.236 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 140/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 0.8, loss_cls: 0.4, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.2, lr: 0.000857, ETA: 0:21:30
+2022-05-16 16:42:28.742 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 160/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.000855, ETA: 0:21:25
+2022-05-16 16:42:33.290 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 180/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.3, lr: 0.000852, ETA: 0:21:21
+2022-05-16 16:42:37.826 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 200/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.4, lr: 0.000849, ETA: 0:21:16
+2022-05-16 16:42:42.280 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 220/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.7, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000847, ETA: 0:21:11
+2022-05-16 16:42:46.848 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 240/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 2.1, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.3, lr: 0.000844, ETA: 0:21:06
+2022-05-16 16:42:51.240 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 260/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.4, lr: 0.000841, ETA: 0:21:02
+2022-05-16 16:42:55.672 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 280/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.000838, ETA: 0:20:57
+2022-05-16 16:43:00.055 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 300/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 2.3, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.4, loss_l1: 0.5, lr: 0.000836, ETA: 0:20:52
+2022-05-16 16:43:04.662 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 320/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.2, lr: 0.000833, ETA: 0:20:47
+2022-05-16 16:43:09.087 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 340/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.000830, ETA: 0:20:42
+2022-05-16 16:43:13.447 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 360/714, mem: 7558Mb, iter_time: 0.218s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.7, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.000828, ETA: 0:20:38
+2022-05-16 16:43:17.893 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 380/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.9, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000825, ETA: 0:20:33
+2022-05-16 16:43:22.415 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 400/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000822, ETA: 0:20:28
+2022-05-16 16:43:26.973 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 420/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000819, ETA: 0:20:23
+2022-05-16 16:43:31.486 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 440/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.000817, ETA: 0:20:19
+2022-05-16 16:43:36.004 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 460/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 0.7, loss_cls: 0.4, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.5, lr: 0.000814, ETA: 0:20:14
+2022-05-16 16:43:40.531 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 480/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.5, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.000811, ETA: 0:20:09
+2022-05-16 16:43:45.029 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 500/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.2, lr: 0.000808, ETA: 0:20:04
+2022-05-16 16:43:49.644 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 520/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 0.7, loss_cls: 0.4, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.2, lr: 0.000805, ETA: 0:20:00
+2022-05-16 16:43:54.188 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 540/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.000803, ETA: 0:19:55
+2022-05-16 16:43:58.699 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 560/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.000800, ETA: 0:19:50
+2022-05-16 16:44:03.121 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 580/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.4, lr: 0.000797, ETA: 0:19:46
+2022-05-16 16:44:07.592 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 600/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.000794, ETA: 0:19:41
+2022-05-16 16:44:12.116 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 620/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.5, lr: 0.000792, ETA: 0:19:36
+2022-05-16 16:44:16.602 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 640/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.2, lr: 0.000789, ETA: 0:19:31
+2022-05-16 16:44:21.291 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 660/714, mem: 7558Mb, iter_time: 0.234s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.5, lr: 0.000786, ETA: 0:19:27
+2022-05-16 16:44:25.796 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 680/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.6, lr: 0.000783, ETA: 0:19:22
+2022-05-16 16:44:30.301 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 9/16, iter: 700/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.4, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.4, lr: 0.000780, ETA: 0:19:17
+2022-05-16 16:44:33.547 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:44:34.094 | INFO     | mmdet.core.trainer:before_epoch:598 - ---> start train epoch10
+2022-05-16 16:44:38.617 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 20/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.4, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.2, lr: 0.000776, ETA: 0:19:09
+2022-05-16 16:44:43.067 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 40/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.4, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.4, lr: 0.000773, ETA: 0:19:05
+2022-05-16 16:44:47.600 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 60/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 0.7, loss_cls: 0.4, loss_iou: 0.0, loss_dfl: 0.4, loss_l1: 0.4, lr: 0.000770, ETA: 0:19:00
+2022-05-16 16:44:52.139 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 80/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000767, ETA: 0:18:55
+2022-05-16 16:44:56.769 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 100/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.5, lr: 0.000764, ETA: 0:18:51
+2022-05-16 16:45:01.275 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 120/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 2.6, loss_cls: 1.2, loss_iou: 0.3, loss_dfl: 1.3, loss_l1: 0.6, lr: 0.000762, ETA: 0:18:46
+2022-05-16 16:45:05.847 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 140/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.6, lr: 0.000759, ETA: 0:18:41
+2022-05-16 16:45:10.337 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 160/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.000756, ETA: 0:18:36
+2022-05-16 16:45:14.917 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 180/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.7, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.1, lr: 0.000753, ETA: 0:18:32
+2022-05-16 16:45:19.390 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 200/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.000750, ETA: 0:18:27
+2022-05-16 16:45:23.893 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 220/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.7, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.000747, ETA: 0:18:22
+2022-05-16 16:45:28.503 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 240/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.000745, ETA: 0:18:18
+2022-05-16 16:45:33.004 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 260/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.8, loss_iou: 0.0, loss_dfl: 0.7, loss_l1: 0.1, lr: 0.000742, ETA: 0:18:13
+2022-05-16 16:45:37.330 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 280/714, mem: 7558Mb, iter_time: 0.216s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.2, lr: 0.000739, ETA: 0:18:08
+2022-05-16 16:45:41.935 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 300/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 0.7, loss_cls: 0.4, loss_iou: 0.1, loss_dfl: 0.3, loss_l1: 0.5, lr: 0.000736, ETA: 0:18:04
+2022-05-16 16:45:46.613 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 320/714, mem: 7558Mb, iter_time: 0.233s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.000733, ETA: 0:17:59
+2022-05-16 16:45:50.912 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 340/714, mem: 7558Mb, iter_time: 0.215s, data_time: 0.001s, total_loss: 0.7, loss_cls: 0.4, loss_iou: 0.1, loss_dfl: 0.4, loss_l1: 0.7, lr: 0.000730, ETA: 0:17:54
+2022-05-16 16:45:55.330 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 360/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.000727, ETA: 0:17:49
+2022-05-16 16:45:59.899 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 380/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.7, loss_cls: 1.1, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.4, lr: 0.000725, ETA: 0:17:45
+2022-05-16 16:46:04.505 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 400/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000722, ETA: 0:17:40
+2022-05-16 16:46:09.051 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 420/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.000719, ETA: 0:17:36
+2022-05-16 16:46:13.715 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 440/714, mem: 7558Mb, iter_time: 0.233s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.6, lr: 0.000716, ETA: 0:17:31
+2022-05-16 16:46:18.217 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 460/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.1, loss_iou: 0.3, loss_dfl: 1.2, loss_l1: 0.4, lr: 0.000713, ETA: 0:17:26
+2022-05-16 16:46:22.818 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 480/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.000710, ETA: 0:17:22
+2022-05-16 16:46:27.301 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 500/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.4, lr: 0.000707, ETA: 0:17:17
+2022-05-16 16:46:31.826 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 520/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.4, loss_l1: 0.4, lr: 0.000705, ETA: 0:17:12
+2022-05-16 16:46:36.254 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 540/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.3, lr: 0.000702, ETA: 0:17:07
+2022-05-16 16:46:40.867 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 560/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.000699, ETA: 0:17:03
+2022-05-16 16:46:45.232 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 580/714, mem: 7558Mb, iter_time: 0.218s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.000696, ETA: 0:16:58
+2022-05-16 16:46:49.699 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 600/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.1, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000693, ETA: 0:16:53
+2022-05-16 16:46:54.132 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 620/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.4, lr: 0.000690, ETA: 0:16:49
+2022-05-16 16:46:58.590 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 640/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.2, lr: 0.000687, ETA: 0:16:44
+2022-05-16 16:47:03.083 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 660/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 0.7, loss_cls: 0.3, loss_iou: 0.1, loss_dfl: 0.4, loss_l1: 0.3, lr: 0.000684, ETA: 0:16:39
+2022-05-16 16:47:07.532 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 680/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.2, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.2, lr: 0.000682, ETA: 0:16:35
+2022-05-16 16:47:12.168 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 10/16, iter: 700/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000679, ETA: 0:16:30
+2022-05-16 16:47:15.393 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:49:27.919 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:490 - Evaluate in main process...
+2022-05-16 16:49:35.058 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:523 - Loading and preparing results...
+2022-05-16 16:49:37.694 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:523 - DONE (t=2.64s)
+2022-05-16 16:49:37.694 | INFO     | pycocotools.coco:loadRes:366 - creating index...
+2022-05-16 16:49:37.960 | INFO     | pycocotools.coco:loadRes:366 - index created!
+2022-05-16 16:49:37.966 | WARNING  | mmdet.evaluators.coco_evaluator:evaluate_prediction:529 - Use standard COCOeval.
+2022-05-16 16:49:37.967 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - Running per image evaluation...
+2022-05-16 16:49:37.967 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - Evaluate annotation type *bbox*
+2022-05-16 16:50:07.444 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - DONE (t=29.48s).
+2022-05-16 16:50:07.445 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:533 - Accumulating evaluation results...
+2022-05-16 16:50:14.070 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:533 - DONE (t=6.63s).
+2022-05-16 16:50:14.836 | INFO     | mmdet.core.trainer:evaluate_and_save_model:757 -
+Average forward time: 22.19 ms, Average NMS time: 0.01 ms, Average inference time: 22.20 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.656
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.846
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.709
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.268
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.506
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.742
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.511
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.751
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.779
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.443
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.682
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.847
+
+2022-05-16 16:50:14.950 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:50:19.848 | INFO     | mmdet.core.trainer:before_epoch:598 - ---> start train epoch11
+2022-05-16 16:50:24.198 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 20/714, mem: 7558Mb, iter_time: 0.217s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.000674, ETA: 0:16:22
+2022-05-16 16:50:28.740 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 40/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000671, ETA: 0:16:17
+2022-05-16 16:50:33.353 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 60/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.6, lr: 0.000668, ETA: 0:16:13
+2022-05-16 16:50:37.893 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 80/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.7, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.4, lr: 0.000665, ETA: 0:16:08
+2022-05-16 16:50:42.502 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 100/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 2.3, loss_cls: 1.0, loss_iou: 0.3, loss_dfl: 1.4, loss_l1: 0.4, lr: 0.000662, ETA: 0:16:03
+2022-05-16 16:50:46.816 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 120/714, mem: 7558Mb, iter_time: 0.215s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.3, lr: 0.000659, ETA: 0:15:59
+2022-05-16 16:50:51.429 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 140/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.000656, ETA: 0:15:54
+2022-05-16 16:50:55.930 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 160/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 2.3, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.4, lr: 0.000654, ETA: 0:15:49
+2022-05-16 16:51:00.641 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 180/714, mem: 7558Mb, iter_time: 0.235s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.2, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.000651, ETA: 0:15:45
+2022-05-16 16:51:05.042 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 200/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.2, lr: 0.000648, ETA: 0:15:40
+2022-05-16 16:51:09.567 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 220/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 2.7, loss_cls: 1.4, loss_iou: 0.3, loss_dfl: 1.3, loss_l1: 0.4, lr: 0.000645, ETA: 0:15:35
+2022-05-16 16:51:13.904 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 240/714, mem: 7558Mb, iter_time: 0.216s, data_time: 0.001s, total_loss: 1.9, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.4, lr: 0.000642, ETA: 0:15:31
+2022-05-16 16:51:18.479 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 260/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.000639, ETA: 0:15:26
+2022-05-16 16:51:22.992 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 280/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.6, lr: 0.000636, ETA: 0:15:21
+2022-05-16 16:51:27.552 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 300/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.4, lr: 0.000633, ETA: 0:15:17
+2022-05-16 16:51:32.035 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 320/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.000630, ETA: 0:15:12
+2022-05-16 16:51:36.578 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 340/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.4, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.5, lr: 0.000627, ETA: 0:15:07
+2022-05-16 16:51:41.144 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 360/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 2.3, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.4, lr: 0.000625, ETA: 0:15:03
+2022-05-16 16:51:45.538 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 380/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.4, lr: 0.000622, ETA: 0:14:58
+2022-05-16 16:51:49.852 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 400/714, mem: 7558Mb, iter_time: 0.215s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.5, lr: 0.000619, ETA: 0:14:53
+2022-05-16 16:51:54.387 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 420/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.000616, ETA: 0:14:49
+2022-05-16 16:51:58.928 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 440/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.5, lr: 0.000613, ETA: 0:14:44
+2022-05-16 16:52:03.387 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 460/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.2, lr: 0.000610, ETA: 0:14:39
+2022-05-16 16:52:07.941 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 480/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000607, ETA: 0:14:35
+2022-05-16 16:52:12.465 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 500/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 0.8, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.2, lr: 0.000604, ETA: 0:14:30
+2022-05-16 16:52:17.096 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 520/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 2.8, loss_cls: 1.7, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.6, lr: 0.000601, ETA: 0:14:25
+2022-05-16 16:52:21.681 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 540/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.000599, ETA: 0:14:21
+2022-05-16 16:52:26.132 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 560/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.000596, ETA: 0:14:16
+2022-05-16 16:52:30.538 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 580/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.4, lr: 0.000593, ETA: 0:14:11
+2022-05-16 16:52:34.912 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 600/714, mem: 7558Mb, iter_time: 0.218s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000590, ETA: 0:14:07
+2022-05-16 16:52:39.416 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 620/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.2, lr: 0.000587, ETA: 0:14:02
+2022-05-16 16:52:43.860 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 640/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.2, lr: 0.000584, ETA: 0:13:57
+2022-05-16 16:52:48.362 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 660/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.3, loss_iou: 0.2, loss_dfl: 1.4, loss_l1: 0.5, lr: 0.000581, ETA: 0:13:53
+2022-05-16 16:52:52.740 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 680/714, mem: 7558Mb, iter_time: 0.218s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.5, lr: 0.000578, ETA: 0:13:48
+2022-05-16 16:52:57.170 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 11/16, iter: 700/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.000575, ETA: 0:13:43
+2022-05-16 16:53:00.496 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:53:01.042 | INFO     | mmdet.core.trainer:before_epoch:598 - ---> start train epoch12
+2022-05-16 16:53:05.580 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 20/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.3, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.5, lr: 0.000571, ETA: 0:13:36
+2022-05-16 16:53:10.044 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 40/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000568, ETA: 0:13:31
+2022-05-16 16:53:14.588 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 60/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.1, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.5, lr: 0.000565, ETA: 0:13:26
+2022-05-16 16:53:19.155 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 80/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.6, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.2, lr: 0.000562, ETA: 0:13:22
+2022-05-16 16:53:23.595 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 100/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000559, ETA: 0:13:17
+2022-05-16 16:53:28.193 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 120/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.000556, ETA: 0:13:12
+2022-05-16 16:53:32.813 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 140/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 1.5, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.000553, ETA: 0:13:08
+2022-05-16 16:53:37.424 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 160/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.7, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.000550, ETA: 0:13:03
+2022-05-16 16:53:41.878 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 180/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.2, lr: 0.000547, ETA: 0:12:59
+2022-05-16 16:53:46.513 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 200/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.6, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.6, lr: 0.000545, ETA: 0:12:54
+2022-05-16 16:53:50.987 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 220/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.2, lr: 0.000542, ETA: 0:12:49
+2022-05-16 16:53:55.538 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 240/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.3, lr: 0.000539, ETA: 0:12:45
+2022-05-16 16:54:00.049 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 260/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 0.6, loss_cls: 0.3, loss_iou: 0.0, loss_dfl: 0.4, loss_l1: 0.1, lr: 0.000536, ETA: 0:12:40
+2022-05-16 16:54:04.631 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 280/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.000533, ETA: 0:12:35
+2022-05-16 16:54:09.022 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 300/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.2, lr: 0.000530, ETA: 0:12:31
+2022-05-16 16:54:13.402 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 320/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 3.1, loss_cls: 1.6, loss_iou: 0.3, loss_dfl: 1.6, loss_l1: 0.4, lr: 0.000527, ETA: 0:12:26
+2022-05-16 16:54:17.809 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 340/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000525, ETA: 0:12:21
+2022-05-16 16:54:22.291 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 360/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.2, lr: 0.000522, ETA: 0:12:17
+2022-05-16 16:54:26.742 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 380/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.3, lr: 0.000519, ETA: 0:12:12
+2022-05-16 16:54:31.355 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 400/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.4, lr: 0.000516, ETA: 0:12:08
+2022-05-16 16:54:36.014 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 420/714, mem: 7558Mb, iter_time: 0.232s, data_time: 0.001s, total_loss: 0.6, loss_cls: 0.4, loss_iou: 0.0, loss_dfl: 0.4, loss_l1: 0.1, lr: 0.000513, ETA: 0:12:03
+2022-05-16 16:54:40.396 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 440/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 2.4, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.5, lr: 0.000510, ETA: 0:11:58
+2022-05-16 16:54:44.933 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 460/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.5, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.000507, ETA: 0:11:54
+2022-05-16 16:54:49.321 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 480/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.3, lr: 0.000505, ETA: 0:11:49
+2022-05-16 16:54:53.929 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 500/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.6, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.000502, ETA: 0:11:44
+2022-05-16 16:54:58.555 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 520/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 1.7, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.2, lr: 0.000499, ETA: 0:11:40
+2022-05-16 16:55:03.088 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 540/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.5, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.2, lr: 0.000496, ETA: 0:11:35
+2022-05-16 16:55:07.534 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 560/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.7, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.3, lr: 0.000493, ETA: 0:11:31
+2022-05-16 16:55:12.005 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 580/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.1, lr: 0.000490, ETA: 0:11:26
+2022-05-16 16:55:16.264 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 600/714, mem: 7558Mb, iter_time: 0.213s, data_time: 0.001s, total_loss: 2.1, loss_cls: 1.1, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.3, lr: 0.000488, ETA: 0:11:21
+2022-05-16 16:55:20.692 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 620/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.6, loss_iou: 0.0, loss_dfl: 0.4, loss_l1: 0.1, lr: 0.000485, ETA: 0:11:17
+2022-05-16 16:55:25.224 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 640/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 1.3, loss_l1: 0.4, lr: 0.000482, ETA: 0:11:12
+2022-05-16 16:55:29.843 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 660/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.000479, ETA: 0:11:07
+2022-05-16 16:55:34.459 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 680/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.4, lr: 0.000476, ETA: 0:11:03
+2022-05-16 16:55:39.232 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 12/16, iter: 700/714, mem: 7558Mb, iter_time: 0.238s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.2, lr: 0.000474, ETA: 0:10:58
+2022-05-16 16:55:42.571 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:57:53.075 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:490 - Evaluate in main process...
+2022-05-16 16:58:00.300 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:523 - Loading and preparing results...
+2022-05-16 16:58:02.946 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:523 - DONE (t=2.65s)
+2022-05-16 16:58:02.947 | INFO     | pycocotools.coco:loadRes:366 - creating index...
+2022-05-16 16:58:03.175 | INFO     | pycocotools.coco:loadRes:366 - index created!
+2022-05-16 16:58:03.245 | WARNING  | mmdet.evaluators.coco_evaluator:evaluate_prediction:529 - Use standard COCOeval.
+2022-05-16 16:58:03.246 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - Running per image evaluation...
+2022-05-16 16:58:03.246 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - Evaluate annotation type *bbox*
+2022-05-16 16:58:31.543 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - DONE (t=28.30s).
+2022-05-16 16:58:31.543 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:533 - Accumulating evaluation results...
+2022-05-16 16:58:39.476 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:533 - DONE (t=7.93s).
+2022-05-16 16:58:40.273 | INFO     | mmdet.core.trainer:evaluate_and_save_model:757 -
+Average forward time: 21.90 ms, Average NMS time: 0.01 ms, Average inference time: 21.91 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.663
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.851
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.715
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.267
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.512
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.750
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.514
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.755
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.783
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.461
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.682
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.851
+
+2022-05-16 16:58:40.388 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 16:58:45.464 | INFO     | mmdet.core.trainer:before_epoch:598 - ---> start train epoch13
+2022-05-16 16:58:49.930 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 20/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.5, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.2, lr: 0.000469, ETA: 0:10:50
+2022-05-16 16:58:54.341 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 40/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.000466, ETA: 0:10:46
+2022-05-16 16:58:58.840 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 60/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 2.1, loss_cls: 1.1, loss_iou: 0.1, loss_dfl: 1.2, loss_l1: 0.3, lr: 0.000463, ETA: 0:10:41
+2022-05-16 16:59:03.313 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 80/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 0.8, loss_cls: 0.4, loss_iou: 0.1, loss_dfl: 0.4, loss_l1: 0.2, lr: 0.000460, ETA: 0:10:36
+2022-05-16 16:59:07.671 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 100/714, mem: 7558Mb, iter_time: 0.217s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.000458, ETA: 0:10:32
+2022-05-16 16:59:12.230 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 120/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 2.2, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.7, lr: 0.000455, ETA: 0:10:27
+2022-05-16 16:59:16.793 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 140/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.1, lr: 0.000452, ETA: 0:10:23
+2022-05-16 16:59:21.274 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 160/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.2, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000449, ETA: 0:10:18
+2022-05-16 16:59:25.721 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 180/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.7, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.5, lr: 0.000446, ETA: 0:10:13
+2022-05-16 16:59:30.237 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 200/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.000444, ETA: 0:10:09
+2022-05-16 16:59:34.635 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 220/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.000441, ETA: 0:10:04
+2022-05-16 16:59:39.058 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 240/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 2.3, loss_cls: 1.2, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.6, lr: 0.000438, ETA: 0:09:59
+2022-05-16 16:59:43.595 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 260/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.000435, ETA: 0:09:55
+2022-05-16 16:59:48.108 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 280/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000433, ETA: 0:09:50
+2022-05-16 16:59:52.633 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 300/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 2.3, loss_cls: 1.1, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.3, lr: 0.000430, ETA: 0:09:46
+2022-05-16 16:59:57.093 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 320/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 0.5, loss_cls: 0.3, loss_iou: 0.0, loss_dfl: 0.4, loss_l1: 0.1, lr: 0.000427, ETA: 0:09:41
+2022-05-16 17:00:01.546 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 340/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.000424, ETA: 0:09:36
+2022-05-16 17:00:06.092 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 360/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.7, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.5, lr: 0.000422, ETA: 0:09:32
+2022-05-16 17:00:10.695 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 380/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 3.2, loss_cls: 1.3, loss_iou: 0.3, loss_dfl: 2.0, loss_l1: 0.8, lr: 0.000419, ETA: 0:09:27
+2022-05-16 17:00:15.258 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 400/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.000416, ETA: 0:09:23
+2022-05-16 17:00:19.907 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 420/714, mem: 7558Mb, iter_time: 0.232s, data_time: 0.001s, total_loss: 0.7, loss_cls: 0.4, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.3, lr: 0.000413, ETA: 0:09:18
+2022-05-16 17:00:24.531 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 440/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.000411, ETA: 0:09:13
+2022-05-16 17:00:28.982 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 460/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 0.8, loss_cls: 0.4, loss_iou: 0.0, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.000408, ETA: 0:09:09
+2022-05-16 17:00:33.402 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 480/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000405, ETA: 0:09:04
+2022-05-16 17:00:37.852 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 500/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.1, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.2, lr: 0.000403, ETA: 0:09:00
+2022-05-16 17:00:42.269 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 520/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.0, loss_dfl: 0.7, loss_l1: 0.1, lr: 0.000400, ETA: 0:08:55
+2022-05-16 17:00:46.745 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 540/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 0.8, loss_cls: 0.3, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.000397, ETA: 0:08:50
+2022-05-16 17:00:51.250 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 560/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.4, lr: 0.000395, ETA: 0:08:46
+2022-05-16 17:00:55.838 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 580/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 0.7, loss_cls: 0.3, loss_iou: 0.1, loss_dfl: 0.4, loss_l1: 0.3, lr: 0.000392, ETA: 0:08:41
+2022-05-16 17:01:00.357 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 600/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.000389, ETA: 0:08:37
+2022-05-16 17:01:04.944 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 620/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.000386, ETA: 0:08:32
+2022-05-16 17:01:09.497 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 640/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.4, lr: 0.000384, ETA: 0:08:27
+2022-05-16 17:01:13.996 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 660/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.9, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 1.4, loss_l1: 0.5, lr: 0.000381, ETA: 0:08:23
+2022-05-16 17:01:18.457 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 680/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.2, lr: 0.000378, ETA: 0:08:18
+2022-05-16 17:01:22.998 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 13/16, iter: 700/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.1, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000376, ETA: 0:08:14
+2022-05-16 17:01:26.353 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 17:01:26.902 | INFO     | mmdet.core.trainer:before_epoch:598 - ---> start train epoch14
+2022-05-16 17:01:31.590 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 20/714, mem: 7558Mb, iter_time: 0.234s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.5, loss_iou: 0.0, loss_dfl: 0.6, loss_l1: 0.1, lr: 0.000371, ETA: 0:08:06
+2022-05-16 17:01:36.259 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 40/714, mem: 7558Mb, iter_time: 0.233s, data_time: 0.001s, total_loss: 2.3, loss_cls: 1.1, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.5, lr: 0.000369, ETA: 0:08:01
+2022-05-16 17:01:40.800 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 60/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 0.8, loss_cls: 0.5, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.2, lr: 0.000366, ETA: 0:07:57
+2022-05-16 17:01:45.396 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 80/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.4, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.4, lr: 0.000363, ETA: 0:07:52
+2022-05-16 17:01:50.005 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 100/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 2.1, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.000361, ETA: 0:07:47
+2022-05-16 17:01:54.509 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 120/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.1, lr: 0.000358, ETA: 0:07:43
+2022-05-16 17:01:59.114 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 140/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.7, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.6, lr: 0.000356, ETA: 0:07:38
+2022-05-16 17:02:03.570 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 160/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.000353, ETA: 0:07:34
+2022-05-16 17:02:08.046 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 180/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.000350, ETA: 0:07:29
+2022-05-16 17:02:12.692 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 200/714, mem: 7558Mb, iter_time: 0.232s, data_time: 0.001s, total_loss: 3.0, loss_cls: 1.4, loss_iou: 0.3, loss_dfl: 1.8, loss_l1: 0.6, lr: 0.000348, ETA: 0:07:25
+2022-05-16 17:02:17.210 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 220/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.6, loss_iou: 0.0, loss_dfl: 0.6, loss_l1: 0.1, lr: 0.000345, ETA: 0:07:20
+2022-05-16 17:02:21.818 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 240/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 2.0, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.4, lr: 0.000343, ETA: 0:07:15
+2022-05-16 17:02:26.276 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 260/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000340, ETA: 0:07:11
+2022-05-16 17:02:30.911 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 280/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.2, lr: 0.000337, ETA: 0:07:06
+2022-05-16 17:02:35.554 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 300/714, mem: 7558Mb, iter_time: 0.232s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.000335, ETA: 0:07:02
+2022-05-16 17:02:40.146 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 320/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000332, ETA: 0:06:57
+2022-05-16 17:02:44.687 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 340/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 2.2, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.4, loss_l1: 0.5, lr: 0.000330, ETA: 0:06:52
+2022-05-16 17:02:49.101 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 360/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.3, lr: 0.000327, ETA: 0:06:48
+2022-05-16 17:02:53.591 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 380/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.2, lr: 0.000325, ETA: 0:06:43
+2022-05-16 17:02:57.998 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 400/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 0.6, loss_cls: 0.3, loss_iou: 0.0, loss_dfl: 0.3, loss_l1: 0.2, lr: 0.000322, ETA: 0:06:39
+2022-05-16 17:03:02.596 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 420/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.9, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.3, lr: 0.000320, ETA: 0:06:34
+2022-05-16 17:03:07.139 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 440/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 0.8, loss_cls: 0.5, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.1, lr: 0.000317, ETA: 0:06:29
+2022-05-16 17:03:11.761 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 460/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.3, lr: 0.000315, ETA: 0:06:25
+2022-05-16 17:03:16.349 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 480/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 2.1, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.3, lr: 0.000312, ETA: 0:06:20
+2022-05-16 17:03:20.866 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 500/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.4, lr: 0.000309, ETA: 0:06:16
+2022-05-16 17:03:25.338 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 520/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.4, lr: 0.000307, ETA: 0:06:11
+2022-05-16 17:03:29.917 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 540/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 2.5, loss_cls: 1.1, loss_iou: 0.3, loss_dfl: 1.5, loss_l1: 0.5, lr: 0.000305, ETA: 0:06:06
+2022-05-16 17:03:34.337 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 560/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.6, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.000302, ETA: 0:06:02
+2022-05-16 17:03:38.845 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 580/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 0.8, loss_cls: 0.4, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.3, lr: 0.000300, ETA: 0:05:57
+2022-05-16 17:03:43.314 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 600/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 0.8, loss_cls: 0.4, loss_iou: 0.0, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.000297, ETA: 0:05:53
+2022-05-16 17:03:47.660 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 620/714, mem: 7558Mb, iter_time: 0.217s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.5, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.1, lr: 0.000295, ETA: 0:05:48
+2022-05-16 17:03:52.238 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 640/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.4, lr: 0.000292, ETA: 0:05:43
+2022-05-16 17:03:56.671 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 660/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000290, ETA: 0:05:39
+2022-05-16 17:04:01.065 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 680/714, mem: 7558Mb, iter_time: 0.219s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000287, ETA: 0:05:34
+2022-05-16 17:04:05.674 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 14/16, iter: 700/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 0.8, loss_cls: 0.4, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.1, lr: 0.000285, ETA: 0:05:30
+2022-05-16 17:04:08.880 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 17:06:21.051 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:490 - Evaluate in main process...
+2022-05-16 17:06:28.204 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:523 - Loading and preparing results...
+2022-05-16 17:06:31.555 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:523 - DONE (t=3.35s)
+2022-05-16 17:06:31.555 | INFO     | pycocotools.coco:loadRes:366 - creating index...
+2022-05-16 17:06:31.788 | INFO     | pycocotools.coco:loadRes:366 - index created!
+2022-05-16 17:06:31.807 | WARNING  | mmdet.evaluators.coco_evaluator:evaluate_prediction:529 - Use standard COCOeval.
+2022-05-16 17:06:31.808 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - Running per image evaluation...
+2022-05-16 17:06:31.808 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - Evaluate annotation type *bbox*
+2022-05-16 17:07:00.216 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - DONE (t=28.41s).
+2022-05-16 17:07:00.216 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:533 - Accumulating evaluation results...
+2022-05-16 17:07:07.002 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:533 - DONE (t=6.78s).
+2022-05-16 17:07:07.827 | INFO     | mmdet.core.trainer:evaluate_and_save_model:757 -
+Average forward time: 22.07 ms, Average NMS time: 0.01 ms, Average inference time: 22.08 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.666
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.852
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.718
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.267
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.517
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.753
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.517
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.757
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.784
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.451
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.684
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.852
+
+2022-05-16 17:07:07.941 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 17:07:12.924 | INFO     | mmdet.core.trainer:before_epoch:598 - ---> start train epoch15
+2022-05-16 17:07:17.400 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 20/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 2.1, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.3, lr: 0.000281, ETA: 0:05:22
+2022-05-16 17:07:22.086 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 40/714, mem: 7558Mb, iter_time: 0.234s, data_time: 0.001s, total_loss: 1.0, loss_cls: 0.5, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.5, lr: 0.000278, ETA: 0:05:17
+2022-05-16 17:07:26.488 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 60/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.9, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.3, lr: 0.000276, ETA: 0:05:13
+2022-05-16 17:07:30.996 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 80/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 2.5, loss_cls: 1.4, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.3, lr: 0.000274, ETA: 0:05:08
+2022-05-16 17:07:35.547 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 100/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.000271, ETA: 0:05:04
+2022-05-16 17:07:39.974 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 120/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000269, ETA: 0:04:59
+2022-05-16 17:07:44.534 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 140/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.000266, ETA: 0:04:54
+2022-05-16 17:07:49.006 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 160/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.7, lr: 0.000264, ETA: 0:04:50
+2022-05-16 17:07:53.319 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 180/714, mem: 7558Mb, iter_time: 0.215s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.1, lr: 0.000262, ETA: 0:04:45
+2022-05-16 17:07:57.781 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 200/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000259, ETA: 0:04:41
+2022-05-16 17:08:02.393 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 220/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.7, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.5, lr: 0.000257, ETA: 0:04:36
+2022-05-16 17:08:06.771 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 240/714, mem: 7558Mb, iter_time: 0.218s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.2, lr: 0.000255, ETA: 0:04:31
+2022-05-16 17:08:11.271 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 260/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.000252, ETA: 0:04:27
+2022-05-16 17:08:15.787 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 280/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.3, lr: 0.000250, ETA: 0:04:22
+2022-05-16 17:08:20.370 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 300/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 2.6, loss_cls: 1.3, loss_iou: 0.3, loss_dfl: 1.4, loss_l1: 0.4, lr: 0.000248, ETA: 0:04:18
+2022-05-16 17:08:24.859 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 320/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 2.5, loss_cls: 1.5, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.3, lr: 0.000245, ETA: 0:04:13
+2022-05-16 17:08:29.444 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 340/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.9, loss_iou: 0.0, loss_dfl: 0.7, loss_l1: 0.1, lr: 0.000243, ETA: 0:04:08
+2022-05-16 17:08:33.988 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 360/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.000241, ETA: 0:04:04
+2022-05-16 17:08:38.616 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 380/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 2.2, loss_cls: 1.1, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.4, lr: 0.000238, ETA: 0:03:59
+2022-05-16 17:08:43.048 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 400/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.2, lr: 0.000236, ETA: 0:03:55
+2022-05-16 17:08:47.527 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 420/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000234, ETA: 0:03:50
+2022-05-16 17:08:52.099 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 440/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.3, lr: 0.000232, ETA: 0:03:46
+2022-05-16 17:08:56.536 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 460/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.2, loss_dfl: 0.8, loss_l1: 0.5, lr: 0.000229, ETA: 0:03:41
+2022-05-16 17:09:01.083 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 480/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 0.8, loss_cls: 0.4, loss_iou: 0.1, loss_dfl: 0.5, loss_l1: 0.3, lr: 0.000227, ETA: 0:03:36
+2022-05-16 17:09:05.614 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 500/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.000225, ETA: 0:03:32
+2022-05-16 17:09:10.028 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 520/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000223, ETA: 0:03:27
+2022-05-16 17:09:14.591 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 540/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000221, ETA: 0:03:23
+2022-05-16 17:09:19.209 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 560/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.2, lr: 0.000218, ETA: 0:03:18
+2022-05-16 17:09:23.662 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 580/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000216, ETA: 0:03:13
+2022-05-16 17:09:28.259 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 600/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.2, lr: 0.000214, ETA: 0:03:09
+2022-05-16 17:09:32.789 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 620/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 2.0, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000212, ETA: 0:03:04
+2022-05-16 17:09:37.292 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 640/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 0.7, loss_cls: 0.4, loss_iou: 0.1, loss_dfl: 0.4, loss_l1: 0.2, lr: 0.000210, ETA: 0:03:00
+2022-05-16 17:09:41.823 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 660/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.8, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.5, lr: 0.000207, ETA: 0:02:55
+2022-05-16 17:09:46.417 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 680/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.000205, ETA: 0:02:51
+2022-05-16 17:09:50.922 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 15/16, iter: 700/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.1, lr: 0.000203, ETA: 0:02:46
+2022-05-16 17:09:54.183 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 17:09:54.729 | INFO     | mmdet.core.trainer:before_epoch:598 - ---> start train epoch16
+2022-05-16 17:09:59.210 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 20/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.2, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.5, lr: 0.000200, ETA: 0:02:38
+2022-05-16 17:10:03.623 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 40/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 0.5, loss_cls: 0.3, loss_iou: 0.0, loss_dfl: 0.3, loss_l1: 0.1, lr: 0.000197, ETA: 0:02:34
+2022-05-16 17:10:08.044 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 60/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 2.2, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.3, loss_l1: 0.4, lr: 0.000195, ETA: 0:02:29
+2022-05-16 17:10:12.679 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 80/714, mem: 7558Mb, iter_time: 0.231s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.1, lr: 0.000193, ETA: 0:02:24
+2022-05-16 17:10:17.186 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 100/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.7, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000191, ETA: 0:02:20
+2022-05-16 17:10:21.726 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 120/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.9, loss_cls: 0.8, loss_iou: 0.2, loss_dfl: 1.2, loss_l1: 0.4, lr: 0.000189, ETA: 0:02:15
+2022-05-16 17:10:26.146 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 140/714, mem: 7558Mb, iter_time: 0.221s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.4, lr: 0.000187, ETA: 0:02:11
+2022-05-16 17:10:30.562 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 160/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.4, lr: 0.000185, ETA: 0:02:06
+2022-05-16 17:10:35.112 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 180/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.9, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.4, lr: 0.000183, ETA: 0:02:02
+2022-05-16 17:10:39.635 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 200/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.2, lr: 0.000181, ETA: 0:01:57
+2022-05-16 17:10:43.986 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 220/714, mem: 7558Mb, iter_time: 0.217s, data_time: 0.001s, total_loss: 1.4, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.5, lr: 0.000179, ETA: 0:01:52
+2022-05-16 17:10:48.454 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 240/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.5, lr: 0.000177, ETA: 0:01:48
+2022-05-16 17:10:53.006 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 260/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 2.1, loss_cls: 1.0, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000175, ETA: 0:01:43
+2022-05-16 17:10:57.415 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 280/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.6, lr: 0.000173, ETA: 0:01:39
+2022-05-16 17:11:01.791 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 300/714, mem: 7558Mb, iter_time: 0.218s, data_time: 0.001s, total_loss: 0.6, loss_cls: 0.3, loss_iou: 0.0, loss_dfl: 0.5, loss_l1: 0.1, lr: 0.000171, ETA: 0:01:34
+2022-05-16 17:11:06.327 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 320/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.9, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000169, ETA: 0:01:30
+2022-05-16 17:11:10.772 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 340/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.3, lr: 0.000167, ETA: 0:01:25
+2022-05-16 17:11:15.320 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 360/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.7, loss_iou: 0.2, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000165, ETA: 0:01:20
+2022-05-16 17:11:19.925 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 380/714, mem: 7558Mb, iter_time: 0.230s, data_time: 0.001s, total_loss: 3.3, loss_cls: 1.8, loss_iou: 0.3, loss_dfl: 1.7, loss_l1: 0.4, lr: 0.000163, ETA: 0:01:16
+2022-05-16 17:11:24.407 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 400/714, mem: 7558Mb, iter_time: 0.224s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.2, lr: 0.000161, ETA: 0:01:11
+2022-05-16 17:11:28.876 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 420/714, mem: 7558Mb, iter_time: 0.223s, data_time: 0.001s, total_loss: 1.9, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.4, lr: 0.000159, ETA: 0:01:07
+2022-05-16 17:11:33.375 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 440/714, mem: 7558Mb, iter_time: 0.225s, data_time: 0.001s, total_loss: 2.0, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 1.1, loss_l1: 0.5, lr: 0.000157, ETA: 0:01:02
+2022-05-16 17:11:37.930 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 460/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.7, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.9, loss_l1: 0.5, lr: 0.000155, ETA: 0:00:58
+2022-05-16 17:11:42.601 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 480/714, mem: 7558Mb, iter_time: 0.233s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.7, loss_l1: 0.3, lr: 0.000153, ETA: 0:00:53
+2022-05-16 17:11:47.163 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 500/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.3, lr: 0.000151, ETA: 0:00:48
+2022-05-16 17:11:51.576 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 520/714, mem: 7558Mb, iter_time: 0.220s, data_time: 0.001s, total_loss: 1.2, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.3, lr: 0.000150, ETA: 0:00:44
+2022-05-16 17:11:56.166 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 540/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.2, lr: 0.000148, ETA: 0:00:39
+2022-05-16 17:12:00.694 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 560/714, mem: 7558Mb, iter_time: 0.226s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.1, loss_dfl: 1.1, loss_l1: 0.4, lr: 0.000146, ETA: 0:00:35
+2022-05-16 17:12:05.235 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 580/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 0.9, loss_cls: 0.5, loss_iou: 0.0, loss_dfl: 0.6, loss_l1: 0.1, lr: 0.000144, ETA: 0:00:30
+2022-05-16 17:12:09.677 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 600/714, mem: 7558Mb, iter_time: 0.222s, data_time: 0.001s, total_loss: 1.6, loss_cls: 0.9, loss_iou: 0.2, loss_dfl: 0.7, loss_l1: 0.4, lr: 0.000142, ETA: 0:00:26
+2022-05-16 17:12:14.239 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 620/714, mem: 7558Mb, iter_time: 0.228s, data_time: 0.001s, total_loss: 1.5, loss_cls: 0.7, loss_iou: 0.2, loss_dfl: 0.9, loss_l1: 0.2, lr: 0.000140, ETA: 0:00:21
+2022-05-16 17:12:18.883 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 640/714, mem: 7558Mb, iter_time: 0.232s, data_time: 0.001s, total_loss: 0.5, loss_cls: 0.3, loss_iou: 0.0, loss_dfl: 0.3, loss_l1: 0.1, lr: 0.000138, ETA: 0:00:16
+2022-05-16 17:12:23.429 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 660/714, mem: 7558Mb, iter_time: 0.227s, data_time: 0.001s, total_loss: 1.1, loss_cls: 0.6, loss_iou: 0.1, loss_dfl: 0.8, loss_l1: 0.3, lr: 0.000137, ETA: 0:00:12
+2022-05-16 17:12:28.019 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 680/714, mem: 7558Mb, iter_time: 0.229s, data_time: 0.001s, total_loss: 1.8, loss_cls: 1.0, loss_iou: 0.1, loss_dfl: 1.0, loss_l1: 0.3, lr: 0.000135, ETA: 0:00:07
+2022-05-16 17:12:32.730 | INFO     | mmdet.core.trainer:after_iter:670 - epoch: 16/16, iter: 700/714, mem: 7558Mb, iter_time: 0.235s, data_time: 0.001s, total_loss: 1.3, loss_cls: 0.8, loss_iou: 0.1, loss_dfl: 0.6, loss_l1: 0.3, lr: 0.000133, ETA: 0:00:03
+2022-05-16 17:12:35.987 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 17:14:47.579 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:490 - Evaluate in main process...
+2022-05-16 17:14:54.782 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:523 - Loading and preparing results...
+2022-05-16 17:14:57.446 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:523 - DONE (t=2.66s)
+2022-05-16 17:14:57.446 | INFO     | pycocotools.coco:loadRes:366 - creating index...
+2022-05-16 17:14:57.727 | INFO     | pycocotools.coco:loadRes:366 - index created!
+2022-05-16 17:14:57.733 | WARNING  | mmdet.evaluators.coco_evaluator:evaluate_prediction:529 - Use standard COCOeval.
+2022-05-16 17:14:57.734 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - Running per image evaluation...
+2022-05-16 17:14:57.734 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - Evaluate annotation type *bbox*
+2022-05-16 17:15:25.592 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:532 - DONE (t=27.86s).
+2022-05-16 17:15:25.592 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:533 - Accumulating evaluation results...
+2022-05-16 17:15:32.363 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:533 - DONE (t=6.77s).
+2022-05-16 17:15:33.180 | INFO     | mmdet.core.trainer:evaluate_and_save_model:757 -
+Average forward time: 21.94 ms, Average NMS time: 0.01 ms, Average inference time: 21.95 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.670
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.856
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.724
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.272
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.519
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.759
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.519
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.759
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.787
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.453
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.687
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.856
+
+2022-05-16 17:15:33.293 | INFO     | mmdet.core.trainer:save_ckpt:782 - Save weights to PPYOLOE_outputs/ppyoloe_crn_l_voc2012
+2022-05-16 17:15:38.243 | INFO     | mmdet.core.trainer:after_train:593 - Training of experiment is done and the best AP is 66.97
