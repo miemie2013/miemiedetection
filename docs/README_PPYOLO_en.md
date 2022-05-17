@@ -78,7 +78,7 @@ rm -rf *.pdparams
 - -f means the exp file path.
 - -c means the paddle weight path to be loaded.
 - -oc means the pytorch weight path to be saved.
-- -oc means the num_classes.
+- -nc means the num_classes.
 - --only_backbone means only convert backbone weights when only_backbone == True.
 
 After execution, the converted *.pth weight files Will be obtained in the project root directory.
