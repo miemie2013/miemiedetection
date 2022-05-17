@@ -343,7 +343,7 @@ python tools/train.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py -d 1 -b 8 -eb 4 -c 
 modift -c for yourself.
 
 
-（1）when 2 machine 2 gpu, 
+（2）when 2 machine 2 gpu, 
 machine 0 input this command
 ```
 CUDA_VISIBLE_DEVICES=0
