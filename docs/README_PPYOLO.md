@@ -261,8 +261,6 @@ python tools/demo.py image -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pth --
 - --fp16，自动混合精度评估，使得预测速度更快；
 - --fuse，把模型的卷积层与其之后的bn层合并成一个卷积层，使得预测速度更快（实现中）；
 
-如果是使用训练自定义数据集保存的模型进行评估（评估的是自定义数据集的验证集），修改-c为你的模型的路径即可。
-
 
 ## 训练COCO数据集
 
@@ -379,7 +377,7 @@ CUDA_VISIBLE_DEVICES=0,1
 nohup python tools/train.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py -d 2 -b 8 -eb 2 -c ppyolo_r50vd_2x.pth     > ppyolo.log 2>&1 &
 ```
 
-迁移学习VOC2012数据集，实测ppyolo_r50vd_2x的AP(0.50:0.95)可以到达0.59+、AP(0.50)可以到达0.82+、AP(small)可以到达0.18+。
+迁移学习VOC2012数据集，实测ppyolo_r50vd_2x的AP(0.50:0.95)可以到达0.59+、AP(0.50)可以到达0.82+、AP(small)可以到达0.18+。不管是单卡还是多卡，都能得到这个结果。迁移学习时和PaddleDetection获得了一样的精度、一样的收敛速度，二者的训练日志位于train_ppyolo_in_voc2012文件夹下。
 
 
 在这里我给出了多机多卡、单机多卡的命令示例，其余模型按着改就是，下文我只展示单机单卡的命令，如果你想复制粘贴多卡的命令，可以查看readme_yolo.txt
@@ -418,12 +416,19 @@ python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_voc2012.py -d 1 -b 4 -eb 2 -
 
 五、ppyoloe_l模型
 
-输入命令开始训练（冻结了骨干网络）：
+（1）如果是1机1卡，输入命令开始训练（冻结了骨干网络）：
 ```
 python tools/train.py -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -d 1 -b 8 -eb 2 -c ppyoloe_crn_l_300e_coco.pth --fp16
 ```
 
-迁移学习VOC2012数据集，实测ppyoloe_l的AP(0.50:0.95)可以到达0.66+、AP(0.50)可以到达0.85+、AP(small)可以到达0.28+。
+（2）如果是1机2卡，输入命令开始训练（冻结了骨干网络）：
+```
+CUDA_VISIBLE_DEVICES=0,1
+nohup python tools/train.py -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -d 2 -b 8 -eb 2 -c ppyoloe_crn_l_300e_coco.pth --fp16     > ppyoloe_l.log 2>&1 &
+```
+
+
+迁移学习VOC2012数据集，实测ppyoloe_l的AP(0.50:0.95)可以到达0.66+、AP(0.50)可以到达0.85+、AP(small)可以到达0.28+。不管是单卡还是多卡，都能得到这个结果。迁移学习时和PaddleDetection获得了一样的精度、一样的收敛速度，二者的训练日志位于train_ppyolo_in_voc2012文件夹下。
 
 
 ## 评估
@@ -677,6 +682,7 @@ Average forward time: 79.69 ms, Average NMS time: 0.00 ms, Average inference tim
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.823
 ```
 
+如果是使用训练自定义数据集保存的模型进行评估（评估的是自定义数据集的验证集），修改-c为你的模型的路径即可。
 
 
 需要注意的是，PPYOLO和PPYOLOv2使用的是matrix_nms，为SOLOv2中提出的新的后处理算法，已经包含在head里面，所以评估时的代码捕捉不到NMS的时间，所以显示"Average NMS time: 0.00 ms"。
