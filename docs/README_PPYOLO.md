@@ -692,7 +692,7 @@ PPYOLOE使用的是multiclass_nms，也包含在head里面，所以评估时的�
 
 ## 导出为ONNX
 
-实现中...
+雨露均沾意味着平庸，导出ONNX意义不大。
 ```
 
 ```
@@ -700,10 +700,40 @@ PPYOLOE使用的是multiclass_nms，也包含在head里面，所以评估时的�
 
 ## NCNN
 
-实现中...
+PPYOLOE算法可用以下命令导出NCNN所用的*.param和*.bin文件：
+```
+python tools/demo.py ncnn -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -c ppyoloe_crn_s_300e_coco.pth --ncnn_output_path ppyoloe_crn_s_300e_coco
+python tools/demo.py ncnn -f exps/ppyoloe/ppyoloe_crn_m_300e_coco.py -c ppyoloe_crn_m_300e_coco.pth --ncnn_output_path ppyoloe_crn_m_300e_coco
+python tools/demo.py ncnn -f exps/ppyoloe/ppyoloe_crn_l_300e_coco.py -c ppyoloe_crn_l_300e_coco.pth --ncnn_output_path ppyoloe_crn_l_300e_coco
+python tools/demo.py ncnn -f exps/ppyoloe/ppyoloe_crn_x_300e_coco.py -c ppyoloe_crn_x_300e_coco.pth --ncnn_output_path ppyoloe_crn_x_300e_coco
+python tools/demo.py ncnn -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -c PPYOLOE_outputs/ppyoloe_crn_l_voc2012/6.pth --ncnn_output_path ppyoloe_crn_l_voc2012_epoch_6
 ```
 
+-c代表读取的权重，--ncnn_output_path表示的是保存为NCNN所用的*.param和*.bin文件的文件名。
+运行完这些命令后可在miemiedetection根目录下看到ppyoloe_crn_s_300e_coco.param、ppyoloe_crn_s_300e_coco.bin、...这些文件。
+
+然后，下载[ncnn](https://github.com/miemie2013/ncnn) 这个仓库（它自带了glslang和实现了ppyoloe推理），按照官方[how-to-build](https://github.com/Tencent/ncnn/wiki/how-to-build) 文档进行编译ncnn。
+编译完成后，
+将上文得到的ppyoloe_crn_s_300e_coco.param、ppyoloe_crn_s_300e_coco.bin、...这些文件复制到ncnn的build/examples/目录下，最后在ncnn根目录下运行以下命令进行ppyoloe的预测：
 ```
+cd build/examples
+./test2_06_ppyoloe_ncnn ../../my_tests/000000000019.jpg ppyoloe_crn_s_300e_coco.param ppyoloe_crn_s_300e_coco.bin
+
+cd build/examples
+./test2_06_ppyoloe_ncnn ../../my_tests/000000000019.jpg ppyoloe_crn_m_300e_coco.param ppyoloe_crn_m_300e_coco.bin
+
+cd build/examples
+./test2_06_ppyoloe_ncnn ../../my_tests/000000000019.jpg ppyoloe_crn_l_300e_coco.param ppyoloe_crn_l_300e_coco.bin
+
+cd build/examples
+./test2_06_ppyoloe_ncnn ../../my_tests/000000000019.jpg ppyoloe_crn_x_300e_coco.param ppyoloe_crn_x_300e_coco.bin
+
+cd build/examples
+./test2_06_ppyoloe_ncnn ../../my_tests/000000000019.jpg ppyoloe_crn_l_voc2012_epoch_6.param ppyoloe_crn_l_voc2012_epoch_6.bin
+
+```
+
+test2_06_ppyoloe_ncnn的源码位于examples/test2_06_ppyoloe_ncnn.cpp，参考了yolox.cpp。PPYOLOE算法目前在Linux和Windows平台均已成功预测。
 
 
 ## TensorRT

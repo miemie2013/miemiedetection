@@ -30,6 +30,12 @@ class PPYOLOE(torch.nn.Module):
             out = self.yolo_head.post_process(out, scale_factor)
             return out
 
+    def export_ncnn(self, ncnn_data, bottom_names):
+        body_feats_names = self.backbone.export_ncnn(ncnn_data, bottom_names)
+        fpn_feats_names = self.neck.export_ncnn(ncnn_data, body_feats_names)
+        outputs = self.yolo_head.export_ncnn(ncnn_data, fpn_feats_names)
+        return outputs
+
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         self.backbone.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
         self.neck.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)

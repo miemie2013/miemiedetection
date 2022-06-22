@@ -230,6 +230,9 @@ log*.txt
 *.baiduyun.uploading.cfg
 *ocr_result/
 
+*.param
+*.bin
+
 !train_ppyolo_in_voc2012/*
 
 # Visual Studio

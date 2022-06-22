@@ -22,6 +22,7 @@ import torch.nn.functional as F
 
 from mmdet.models.ops import get_act_fn
 from mmdet.models.custom_layers import ShapeSpec
+import mmdet.models.ncnn_utils as ncnn_utils
 
 
 class ConvBNLayer(nn.Module):
@@ -32,7 +33,8 @@ class ConvBNLayer(nn.Module):
                  stride=1,
                  groups=1,
                  padding=0,
-                 act=None):
+                 act=None,
+                 act_name=None):
         super(ConvBNLayer, self).__init__()
 
         self.conv = nn.Conv2d(
@@ -45,8 +47,11 @@ class ConvBNLayer(nn.Module):
             bias=False)
 
         self.bn = nn.BatchNorm2d(ch_out)
-        self.act = get_act_fn(act) if act is None or isinstance(act, (
-            str, dict)) else act
+        self.act_name = act_name
+        if act is None or isinstance(act, (str, dict)):
+            self.act = get_act_fn(act)
+        else:
+            self.act = act
 
     def forward(self, x):
         x = self.conv(x)
@@ -54,6 +59,11 @@ class ConvBNLayer(nn.Module):
         x = self.act(x)
 
         return x
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        bottom_names = ncnn_utils.fuse_conv_bn(ncnn_data, bottom_names, self.conv, self.bn)
+        bottom_names = ncnn_utils.activation(ncnn_data, bottom_names, self.act_name)
+        return bottom_names
 
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         if isinstance(self.conv, torch.nn.Conv2d):
@@ -85,7 +95,7 @@ class ConvBNLayer(nn.Module):
 
 
 class RepVggBlock(nn.Module):
-    def __init__(self, ch_in, ch_out, act='relu'):
+    def __init__(self, ch_in, ch_out, act='relu', act_name='relu'):
         super(RepVggBlock, self).__init__()
         self.ch_in = ch_in
         self.ch_out = ch_out
@@ -93,6 +103,7 @@ class RepVggBlock(nn.Module):
             ch_in, ch_out, 3, stride=1, padding=1, act=None)
         self.conv2 = ConvBNLayer(
             ch_in, ch_out, 1, stride=1, padding=0, act=None)
+        self.act_name = act_name
         self.act = get_act_fn(act) if act is None or isinstance(act, (
             str, dict)) else act
 
@@ -103,6 +114,24 @@ class RepVggBlock(nn.Module):
             y = self.conv1(x) + self.conv2(x)
         y = self.act(y)
         return y
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        if hasattr(self, 'conv'):
+            raise NotImplementedError("not implemented.")
+        else:
+            # 看conv1分支，是卷积操作
+            add_0 = self.conv1.export_ncnn(ncnn_data, bottom_names)
+
+            # 看conv2分支，是卷积操作
+            add_1 = self.conv2.export_ncnn(ncnn_data, bottom_names)
+
+            # 最后是逐元素相加
+            bottom_names = add_0 + add_1
+            bottom_names = ncnn_utils.binaryOp(ncnn_data, bottom_names, op='Add')
+
+        # 最后是激活
+        bottom_names = ncnn_utils.activation(ncnn_data, bottom_names, self.act_name)
+        return bottom_names
 
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         if hasattr(self, 'conv'):
@@ -153,11 +182,11 @@ class RepVggBlock(nn.Module):
 
 
 class BasicBlock(nn.Module):
-    def __init__(self, ch_in, ch_out, act='relu', shortcut=True):
+    def __init__(self, ch_in, ch_out, act='relu', act_name='relu', shortcut=True):
         super(BasicBlock, self).__init__()
         assert ch_in == ch_out
-        self.conv1 = ConvBNLayer(ch_in, ch_out, 3, stride=1, padding=1, act=act)
-        self.conv2 = RepVggBlock(ch_out, ch_out, act=act)
+        self.conv1 = ConvBNLayer(ch_in, ch_out, 3, stride=1, padding=1, act=act, act_name=act_name)
+        self.conv2 = RepVggBlock(ch_out, ch_out, act=act, act_name=act_name)
         self.shortcut = shortcut
 
     def forward(self, x):
@@ -167,6 +196,25 @@ class BasicBlock(nn.Module):
             return x + y
         else:
             return y
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        if self.shortcut:
+            add_0 = bottom_names
+
+            # 看conv1层，是卷积操作
+            y = self.conv1.export_ncnn(ncnn_data, bottom_names)
+            # 看conv2层，是卷积操作
+            y = self.conv2.export_ncnn(ncnn_data, y)
+
+            # 最后是逐元素相加
+            bottom_names = add_0 + y
+            bottom_names = ncnn_utils.binaryOp(ncnn_data, bottom_names, op='Add')
+        else:
+            # 看conv1层，是卷积操作
+            bottom_names = self.conv1.export_ncnn(ncnn_data, bottom_names)
+            # 看conv2层，是卷积操作
+            bottom_names = self.conv2.export_ncnn(ncnn_data, bottom_names)
+        return bottom_names
 
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         self.conv1.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
@@ -178,9 +226,10 @@ class EffectiveSELayer(nn.Module):
     From `CenterMask : Real-Time Anchor-Free Instance Segmentation` - https://arxiv.org/abs/1911.06667
     """
 
-    def __init__(self, channels, act='hardsigmoid'):
+    def __init__(self, channels, act='hardsigmoid', act_name='hardsigmoid'):
         super(EffectiveSELayer, self).__init__()
         self.fc = nn.Conv2d(channels, channels, kernel_size=1, padding=0)
+        self.act_name = act_name
         self.act = get_act_fn(act) if act is None or isinstance(act, (
             str, dict)) else act
 
@@ -188,6 +237,22 @@ class EffectiveSELayer(nn.Module):
         x_se = x.mean((2, 3), keepdim=True)
         x_se = self.fc(x_se)
         return x * self.act(x_se)
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        # 看x_se分支，首先是mean操作，对应ncnn里的Reduction层
+        x_se = ncnn_utils.reduction(ncnn_data, bottom_names, op='ReduceMean', input_dims=4, dims=(2, 3), keepdim=True)
+
+        # 看x_se分支，然后是卷积操作
+        x_se = ncnn_utils.conv2d(ncnn_data, x_se, self.fc)
+
+        # 看x_se分支，然后是激活操作
+        x_se = ncnn_utils.activation(ncnn_data, x_se, act_name=self.act_name)
+
+        # 最后是逐元素相乘
+        bottom_names = [bottom_names[0], x_se[0]]
+        bottom_names = ncnn_utils.binaryOp(ncnn_data, bottom_names, op='Mul')
+        return bottom_names
+
 
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         if isinstance(self.fc, torch.nn.Conv2d):
@@ -217,28 +282,29 @@ class CSPResStage(nn.Module):
                  n,
                  stride,
                  act='relu',
+                 act_name=None,
                  attn='eca'):
         super(CSPResStage, self).__init__()
 
         ch_mid = (ch_in + ch_out) // 2
         if stride == 2:
             self.conv_down = ConvBNLayer(
-                ch_in, ch_mid, 3, stride=2, padding=1, act=act)
+                ch_in, ch_mid, 3, stride=2, padding=1, act=act, act_name=act_name)
         else:
             self.conv_down = None
-        self.conv1 = ConvBNLayer(ch_mid, ch_mid // 2, 1, act=act)
-        self.conv2 = ConvBNLayer(ch_mid, ch_mid // 2, 1, act=act)
+        self.conv1 = ConvBNLayer(ch_mid, ch_mid // 2, 1, act=act, act_name=act_name)
+        self.conv2 = ConvBNLayer(ch_mid, ch_mid // 2, 1, act=act, act_name=act_name)
         self.blocks = nn.Sequential(*[
             block_fn(
-                ch_mid // 2, ch_mid // 2, act=act, shortcut=True)
+                ch_mid // 2, ch_mid // 2, act=act, act_name=act_name, shortcut=True)
             for i in range(n)
         ])
         if attn:
-            self.attn = EffectiveSELayer(ch_mid, act='hardsigmoid')
+            self.attn = EffectiveSELayer(ch_mid, act='hardsigmoid', act_name='hardsigmoid')
         else:
             self.attn = None
 
-        self.conv3 = ConvBNLayer(ch_mid, ch_out, 1, act=act)
+        self.conv3 = ConvBNLayer(ch_mid, ch_out, 1, act=act, act_name=act_name)
 
     def forward(self, x):
         if self.conv_down is not None:
@@ -250,6 +316,27 @@ class CSPResStage(nn.Module):
             y = self.attn(y)
         y = self.conv3(y)
         return y
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        if self.conv_down is not None:
+            bottom_names = self.conv_down.export_ncnn(ncnn_data, bottom_names)
+        # 看conv1层，是卷积操作
+        y1 = self.conv1.export_ncnn(ncnn_data, bottom_names)
+
+        # 看conv2层，是卷积操作
+        temp = self.conv2.export_ncnn(ncnn_data, bottom_names)
+        for layer in self.blocks:
+            temp = layer.export_ncnn(ncnn_data, temp)
+        y2 = temp
+
+        # concat
+        bottom_names = y1 + y2
+        bottom_names = ncnn_utils.concat(ncnn_data, bottom_names, dim=1)
+
+        if self.attn is not None:
+            bottom_names = self.attn.export_ncnn(ncnn_data, bottom_names)
+        bottom_names = self.conv3.export_ncnn(ncnn_data, bottom_names)
+        return bottom_names
 
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         if self.conv_down is not None:
@@ -280,24 +367,25 @@ class CSPResNet(nn.Module):
         super(CSPResNet, self).__init__()
         channels = [max(round(c * width_mult), 1) for c in channels]
         layers = [max(round(l * depth_mult), 1) for l in layers]
+        act_name = act
         act = get_act_fn(
             act, trt=trt) if act is None or isinstance(act,
                                                        (str, dict)) else act
 
         if use_large_stem:
             self.stem = nn.Sequential()
-            self.stem.add_module('conv1', ConvBNLayer(3, channels[0] // 2, 3, stride=2, padding=1, act=act))
-            self.stem.add_module('conv2', ConvBNLayer(channels[0] // 2, channels[0] // 2, 3, stride=1, padding=1, act=act))
-            self.stem.add_module('conv3', ConvBNLayer(channels[0] // 2, channels[0], 3, stride=1, padding=1, act=act))
+            self.stem.add_module('conv1', ConvBNLayer(3, channels[0] // 2, 3, stride=2, padding=1, act=act, act_name=act_name))
+            self.stem.add_module('conv2', ConvBNLayer(channels[0] // 2, channels[0] // 2, 3, stride=1, padding=1, act=act, act_name=act_name))
+            self.stem.add_module('conv3', ConvBNLayer(channels[0] // 2, channels[0], 3, stride=1, padding=1, act=act, act_name=act_name))
         else:
             self.stem = nn.Sequential()
-            self.stem.add_module('conv1', ConvBNLayer(3, channels[0] // 2, 3, stride=2, padding=1, act=act))
-            self.stem.add_module('conv2', ConvBNLayer(channels[0] // 2, channels[0], 3, stride=1, padding=1, act=act))
+            self.stem.add_module('conv1', ConvBNLayer(3, channels[0] // 2, 3, stride=2, padding=1, act=act, act_name=act_name))
+            self.stem.add_module('conv2', ConvBNLayer(channels[0] // 2, channels[0], 3, stride=1, padding=1, act=act, act_name=act_name))
 
         n = len(channels) - 1
         self.stages = nn.Sequential()
         for i in range(n):
-            self.stages.add_module(str(i), CSPResStage(BasicBlock, channels[i], channels[i + 1], layers[i], 2, act=act))
+            self.stages.add_module(str(i), CSPResStage(BasicBlock, channels[i], channels[i + 1], layers[i], 2, act=act, act_name=act_name))
 
         self._out_channels = channels[1:]
         self._out_strides = [4, 8, 16, 32]
@@ -321,6 +409,16 @@ class CSPResNet(nn.Module):
                 outs.append(x)
 
         return outs
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        for layer in self.stem:
+            bottom_names = layer.export_ncnn(ncnn_data, bottom_names)
+        out_names = []
+        for idx, stage in enumerate(self.stages):
+            bottom_names = stage.export_ncnn(ncnn_data, bottom_names)
+            if idx in self.return_idx:
+                out_names.append(bottom_names[0])
+        return out_names
 
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         for layer in self.stem:

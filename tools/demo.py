@@ -19,6 +19,7 @@ sys.path.insert(0, parent_path)
 from mmdet.data.data_augment import *
 from mmdet.exp import get_exp
 from mmdet.utils import fuse_model, get_model_info, postprocess, vis, get_classes, vis2, load_ckpt
+import mmdet.models.ncnn_utils as ncnn_utils
 
 IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
 
@@ -26,7 +27,7 @@ IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
 def make_parser():
     parser = argparse.ArgumentParser("MieMieDetection Demo!")
     parser.add_argument(
-        "demo", default="image", help="demo type, eg. image, video and webcam"
+        "demo", default="image", help="demo type, eg. image, ncnn, video and webcam"
     )
     parser.add_argument("-expn", "--experiment-name", type=str, default=None)
     parser.add_argument("-n", "--name", type=str, default=None, help="model name")
@@ -86,6 +87,9 @@ def make_parser():
         default=False,
         action="store_true",
         help="Using TensorRT model for testing.",
+    )
+    parser.add_argument(
+        "--ncnn_output_path", default="", help="path to save ncnn model."
     )
     return parser
 
@@ -714,6 +718,43 @@ def main(exp, args):
         image_demo(predictor, vis_folder, args.path, current_time, args.save_result)
     elif args.demo == "video" or args.demo == "webcam":
         imageflow_demo(predictor, vis_folder, current_time, args)
+    elif args.demo == "ncnn":
+        bp = open('%s.bin' % args.ncnn_output_path, 'wb')
+        pp = ''
+        layer_id = 0
+        tensor_id = 0
+        tensor_names = []
+        if archi_name == 'YOLOX':
+            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
+        elif archi_name == 'PPYOLO':
+            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
+        elif archi_name == 'PPYOLOE':
+            pp += 'Input\tlayer_%.8d\t0 1 tensor_%.8d\n' % (layer_id, tensor_id)
+            layer_id += 1
+            tensor_id += 1
+        else:
+            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
+        ncnn_data = {}
+        ncnn_data['bp'] = bp
+        ncnn_data['pp'] = pp
+        ncnn_data['layer_id'] = layer_id
+        ncnn_data['tensor_id'] = tensor_id
+        bottom_names = ncnn_utils.newest_bottom_names(ncnn_data)
+        bottom_names = model.export_ncnn(ncnn_data, bottom_names)
+        # 如果1个张量作为了n(n>1)个层的输入张量，应该用Split层将它复制n份，每1层用掉1个。
+        bottom_names = ncnn_utils.split_input_tensor(ncnn_data, bottom_names)
+        pp = ncnn_data['pp']
+        layer_id = ncnn_data['layer_id']
+        tensor_id = ncnn_data['tensor_id']
+        pp = pp.replace('tensor_%.8d' % (0,), 'images')
+        pp = pp.replace(bottom_names[0], 'cls_score')
+        pp = pp.replace(bottom_names[1], 'reg_dist')
+        pp = '7767517\n%d %d\n'%(layer_id, tensor_id) + pp
+        with open('%s.param' % args.ncnn_output_path, 'w', encoding='utf-8') as f:
+            f.write(pp)
+            f.close()
+        logger.info("Saving ncnn param file in %s.param" % args.ncnn_output_path)
+        logger.info("Saving ncnn bin file in %s.bin" % args.ncnn_output_path)
 
 
 if __name__ == "__main__":
@@ -725,6 +766,7 @@ if __name__ == "__main__":
         args.exp_file = '../' + args.exp_file
         args.ckpt = '../' + args.ckpt   # 如果是绝对路径，把这一行注释掉
         args.path = '../' + args.path   # 如果是绝对路径，把这一行注释掉
+        args.ncnn_output_path = '../' + args.ncnn_output_path   # 如果是绝对路径，把这一行注释掉
     exp = get_exp(args.exp_file, args.name)
 
     main(exp, args)

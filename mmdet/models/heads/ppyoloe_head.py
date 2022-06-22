@@ -28,6 +28,7 @@ from mmdet.models.ops import get_static_shape, paddle_distributed_is_initialized
 from mmdet.models.initializer import bias_init_with_prob, constant_, normal_
 from mmdet.models.losses.iou_losses import GIoULoss
 from mmdet.utils import my_multiclass_nms, get_world_size
+import mmdet.models.ncnn_utils as ncnn_utils
 
 
 def print_diff(dic, key, tensor):
@@ -39,10 +40,10 @@ def print_diff(dic, key, tensor):
 
 
 class ESEAttn(nn.Module):
-    def __init__(self, feat_channels, act='swish'):
+    def __init__(self, feat_channels, act='swish', act_name='swish'):
         super(ESEAttn, self).__init__()
         self.fc = nn.Conv2d(feat_channels, feat_channels, 1)
-        self.conv = ConvBNLayer(feat_channels, feat_channels, 1, act=act)
+        self.conv = ConvBNLayer(feat_channels, feat_channels, 1, act=act, act_name=act_name)
 
         self._init_weights()
 
@@ -52,6 +53,18 @@ class ESEAttn(nn.Module):
     def forward(self, feat, avg_feat):
         weight = torch.sigmoid(self.fc(avg_feat))
         return self.conv(feat * weight)
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        feat = bottom_names[0]
+        avg_feat = bottom_names[1]
+
+        branch_0 = ncnn_utils.conv2d(ncnn_data, [avg_feat, ], self.fc)
+        weight = ncnn_utils.activation(ncnn_data, branch_0, 'sigmoid')
+
+        # 然后是逐元素相乘
+        bottom_names = ncnn_utils.binaryOp(ncnn_data, [feat, weight[0]], op='Mul')
+        bottom_names = self.conv.export_ncnn(ncnn_data, bottom_names)
+        return bottom_names
 
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         self.conv.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
@@ -123,12 +136,13 @@ class PPYOLOEHead(nn.Module):
         # stem
         self.stem_cls = nn.ModuleList()
         self.stem_reg = nn.ModuleList()
+        act_name = act
         act = get_act_fn(
             act, trt=trt) if act is None or isinstance(act,
                                                        (str, dict)) else act
         for in_c in self.in_channels:
-            self.stem_cls.append(ESEAttn(in_c, act=act))
-            self.stem_reg.append(ESEAttn(in_c, act=act))
+            self.stem_cls.append(ESEAttn(in_c, act=act, act_name=act_name))
+            self.stem_reg.append(ESEAttn(in_c, act=act, act_name=act_name))
         # pred head
         self.pred_cls = nn.ModuleList()
         self.pred_reg = nn.ModuleList()
@@ -286,7 +300,8 @@ class PPYOLOEHead(nn.Module):
             reg_dist = self.pred_reg[i](self.stem_reg[i](feat, avg_feat))
             reg_dist = reg_dist.reshape([-1, 4, self.reg_max + 1, l])
             reg_dist = reg_dist.permute((0, 2, 1, 3))
-            reg_dist = self.proj_conv(F.softmax(reg_dist, dim=1))
+            reg_dist = F.softmax(reg_dist, dim=1)
+            reg_dist = self.proj_conv(reg_dist)
             # cls and reg
             cls_score = torch.sigmoid(cls_logit)
             cls_score_list.append(cls_score.reshape([b, self.num_classes, l]))
@@ -296,6 +311,43 @@ class PPYOLOEHead(nn.Module):
         reg_dist_list = torch.cat(reg_dist_list, -1)    # [N,  4, A]
 
         return cls_score_list, reg_dist_list, anchor_points, stride_tensor
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        feats = bottom_names
+        cls_score_list, reg_dist_list = [], []
+        for i, feat in enumerate(feats):
+            avg_feat = ncnn_utils.adaptive_avg_pool2d(ncnn_data, [feat, ], output_size='(1, 1)')
+
+            x = self.stem_cls[i].export_ncnn(ncnn_data, [feat, avg_feat[0]])
+            # 逐元素相加
+            bottom_names = x + [feat, ]
+            bottom_names = ncnn_utils.binaryOp(ncnn_data, bottom_names, op='Add')
+
+            # 然后是卷积操作
+            cls_logit = ncnn_utils.conv2d(ncnn_data, bottom_names, self.pred_cls[i])
+
+            x = self.stem_reg[i].export_ncnn(ncnn_data, [feat, avg_feat[0]])
+            # 然后是卷积操作
+            reg_dist = ncnn_utils.conv2d(ncnn_data, x, self.pred_reg[i])
+            reg_dist = ncnn_utils.reshape(ncnn_data, reg_dist, (1, 4, self.reg_max + 1, -1))
+            reg_dist = ncnn_utils.permute(ncnn_data, reg_dist, '(0, 2, 1, 3)')
+            reg_dist = ncnn_utils.softmax(ncnn_data, reg_dist, dim=1)
+            reg_dist = ncnn_utils.conv2d(ncnn_data, reg_dist, self.proj_conv)
+
+            cls_score = ncnn_utils.activation(ncnn_data, cls_logit, act_name='sigmoid')
+
+            cls_score = ncnn_utils.reshape(ncnn_data, cls_score, (1, self.num_classes, -1))
+            reg_dist = ncnn_utils.reshape(ncnn_data, reg_dist, (1, 4, -1))
+
+            cls_score_list.append(cls_score[0])
+            reg_dist_list.append(reg_dist[0])
+        cls_score_list = ncnn_utils.concat(ncnn_data, cls_score_list, dim=2)  # [N, 80, A]
+        reg_dist_list = ncnn_utils.concat(ncnn_data, reg_dist_list, dim=2)    # [N,  4, A]
+
+        # 转置一下，让ncnn更好处理
+        cls_score_list = ncnn_utils.permute(ncnn_data, cls_score_list, '(0, 2, 1)')  # [N, A, 80]
+        reg_dist_list = ncnn_utils.permute(ncnn_data, reg_dist_list, '(0, 2, 1)')    # [N, A,  4]
+        return cls_score_list + reg_dist_list
 
     def forward(self, feats, targets=None):
         assert len(feats) == len(self.fpn_strides), \

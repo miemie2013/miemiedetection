@@ -19,6 +19,7 @@ from mmdet.models.backbones.cspresnet import ConvBNLayer, BasicBlock
 from mmdet.models.custom_layers import DropBlock
 from mmdet.models.ops import get_act_fn
 from mmdet.models.custom_layers import ShapeSpec
+import mmdet.models.ncnn_utils as ncnn_utils
 
 __all__ = ['CustomCSPPAN']
 
@@ -30,6 +31,7 @@ class SPP(nn.Module):
                  k,
                  pool_size,
                  act='swish',
+                 act_name='swish',
                  data_format='NCHW'):
         super(SPP, self).__init__()
         self.pool = []
@@ -43,7 +45,7 @@ class SPP(nn.Module):
                     ceil_mode=False)
             self.add_module(name, pool)
             self.pool.append(pool)
-        self.conv = ConvBNLayer(ch_in, ch_out, k, padding=k // 2, act=act)
+        self.conv = ConvBNLayer(ch_in, ch_out, k, padding=k // 2, act=act, act_name=act_name)
 
     def forward(self, x):
         outs = [x]
@@ -57,28 +59,42 @@ class SPP(nn.Module):
         y = self.conv(y)
         return y
 
+    def export_ncnn(self, ncnn_data, bottom_names):
+        concat_input = [bottom_names[0]]
+        for pool in self.pool:
+            pool_out = ncnn_utils.pooling(ncnn_data, bottom_names, op='MaxPool', pool=pool)
+            concat_input.append(pool_out[0])
+
+        # concat
+        if self.data_format == 'NCHW':
+            bottom_names = ncnn_utils.concat(ncnn_data, concat_input, dim=1)
+        else:
+            bottom_names = ncnn_utils.concat(ncnn_data, concat_input, dim=3)
+        bottom_names = self.conv.export_ncnn(ncnn_data, bottom_names)
+        return bottom_names
+
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         self.conv.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
 
 class CSPStage(nn.Module):
-    def __init__(self, block_fn, ch_in, ch_out, n, act='swish', spp=False):
+    def __init__(self, block_fn, ch_in, ch_out, n, act='swish', act_name='swish', spp=False):
         super(CSPStage, self).__init__()
 
         ch_mid = int(ch_out // 2)
-        self.conv1 = ConvBNLayer(ch_in, ch_mid, 1, act=act)
-        self.conv2 = ConvBNLayer(ch_in, ch_mid, 1, act=act)
+        self.conv1 = ConvBNLayer(ch_in, ch_mid, 1, act=act, act_name=act_name)
+        self.conv2 = ConvBNLayer(ch_in, ch_mid, 1, act=act, act_name=act_name)
         self.convs = nn.Sequential()
         next_ch_in = ch_mid
         for i in range(n):
             self.convs.add_module(
                 str(i),
-                eval(block_fn)(next_ch_in, ch_mid, act=act, shortcut=False))
+                eval(block_fn)(next_ch_in, ch_mid, act=act, act_name=act_name, shortcut=False))
             if i == (n - 1) // 2 and spp:
                 self.convs.add_module(
-                    'spp', SPP(ch_mid * 4, ch_mid, 1, [5, 9, 13], act=act))
+                    'spp', SPP(ch_mid * 4, ch_mid, 1, [5, 9, 13], act=act, act_name=act_name))
             next_ch_in = ch_mid
-        self.conv3 = ConvBNLayer(ch_mid * 2, ch_out, 1, act=act)
+        self.conv3 = ConvBNLayer(ch_mid * 2, ch_out, 1, act=act, act_name=act_name)
 
     def forward(self, x):
         y1 = self.conv1(x)
@@ -87,6 +103,22 @@ class CSPStage(nn.Module):
         y = torch.cat([y1, y2], 1)
         y = self.conv3(y)
         return y
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        # 看conv1分支，是卷积操作
+        y1 = self.conv1.export_ncnn(ncnn_data, bottom_names)
+
+        # 看conv2分支，是卷积操作
+        y2 = self.conv2.export_ncnn(ncnn_data, bottom_names)
+        for layer in self.convs:
+            y2 = layer.export_ncnn(ncnn_data, y2)
+
+        # concat
+        bottom_names = y1 + y2
+        bottom_names = ncnn_utils.concat(ncnn_data, bottom_names, dim=1)
+
+        bottom_names = self.conv3.export_ncnn(ncnn_data, bottom_names)
+        return bottom_names
 
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         self.conv1.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
@@ -120,6 +152,7 @@ class CustomCSPPAN(nn.Module):
         super(CustomCSPPAN, self).__init__()
         out_channels = [max(round(c * width_mult), 1) for c in out_channels]
         block_num = max(round(block_num * depth_mult), 1)
+        act_name = act
         act = get_act_fn(
             act, trt=trt) if act is None or isinstance(act,
                                                        (str, dict)) else act
@@ -142,6 +175,7 @@ class CustomCSPPAN(nn.Module):
                                    ch_out,
                                    block_num,
                                    act=act,
+                                   act_name=act_name,
                                    spp=(spp and i == 0)))
 
             if drop_block:
@@ -157,7 +191,8 @@ class CustomCSPPAN(nn.Module):
                         filter_size=1,
                         stride=1,
                         padding=0,
-                        act=act))
+                        act=act,
+                        act_name=act_name))
 
             ch_pre = ch_out
 
@@ -174,7 +209,8 @@ class CustomCSPPAN(nn.Module):
                     filter_size=3,
                     stride=2,
                     padding=1,
-                    act=act))
+                    act=act,
+                    act_name=act_name))
 
             ch_in = out_channels[i] + out_channels[i + 1]
             ch_out = out_channels[i]
@@ -187,6 +223,7 @@ class CustomCSPPAN(nn.Module):
                                    ch_out,
                                    block_num,
                                    act=act,
+                                   act_name=act_name,
                                    spp=False))
             if drop_block:
                 stage.add_module('drop', DropBlock(block_size, keep_prob))
@@ -217,6 +254,39 @@ class CustomCSPPAN(nn.Module):
             route = self.pan_routes[i](route)
             block = torch.cat([route, block], 1)
             route = self.pan_stages[i](block)
+            pan_feats.append(route)
+
+        return pan_feats[::-1]
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        blocks = bottom_names[::-1]
+        fpn_feats = []
+
+        for i, block in enumerate(blocks):
+            if i > 0:
+                bottom_names = route + [block, ]
+                block = ncnn_utils.concat(ncnn_data, bottom_names, dim=1)
+                block = block[0]
+            route = [block, ]
+            for layer in self.fpn_stages[i]:
+                route = layer.export_ncnn(ncnn_data, route)
+            fpn_feats.append(route[0])
+
+            if i < self.num_blocks - 1:
+                route = self.fpn_routes[i].export_ncnn(ncnn_data, route)
+                route = ncnn_utils.interpolate(ncnn_data, route, scale_factor=2.)
+
+        pan_feats = [fpn_feats[-1], ]
+        route = fpn_feats[-1]
+        for i in reversed(range(self.num_blocks - 1)):
+            block = fpn_feats[i]
+            route = self.pan_routes[i].export_ncnn(ncnn_data, [route, ])
+            bottom_names = route + [block, ]
+            block = ncnn_utils.concat(ncnn_data, bottom_names, dim=1)
+            route = block
+            for layer in self.pan_stages[i]:
+                route = layer.export_ncnn(ncnn_data, route)
+            route = route[0]
             pan_feats.append(route)
 
         return pan_feats[::-1]
