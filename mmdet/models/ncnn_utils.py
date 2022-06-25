@@ -28,6 +28,37 @@ def create_top_names(ncnn_data, num):
     return top_names
 
 
+def pretty_format(ncnn_data, bottom_names):
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    lines = pp.split('\n')
+    lines = lines[:-1]
+    content = ''
+    for i, line in enumerate(lines):
+        ss = line.split()
+        line2 = ''
+        for kkk, s in enumerate(ss):
+            if kkk == 0:
+                line2 += "%-16s"%s
+            elif kkk == 1:
+                line2 += ' %-24s'%s
+            elif kkk == 2:
+                line2 += ' ' + s
+            else:
+                line2 += ' ' + s
+        content += line2 + '\n'
+    pp = content
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return bottom_names
+
+
 def rename_tensor(ncnn_data, bottom_names):
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
@@ -183,6 +214,7 @@ def split_input_tensor(ncnn_data, bottom_names):
     ncnn_data['layer_id'] = layer_id
     ncnn_data['tensor_id'] = tensor_id
     bottom_names = rename_tensor(ncnn_data, bottom_names)
+    bottom_names = pretty_format(ncnn_data, bottom_names)
     return bottom_names
 
 
@@ -422,6 +454,24 @@ def activation(ncnn_data, bottom_names, act_name, args={}):
         tensor_id += 1
     else:
         raise NotImplementedError("not implemented.")
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def coordconcat(ncnn_data, bottom_names):
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'CoordConcat\tlayer_%.8d\t1 1 %s %s 0=0\n' % (layer_id, bottom_names[0], top_names[0])
+    layer_id += 1
+    tensor_id += 1
 
     ncnn_data['bp'] = bp
     ncnn_data['pp'] = pp
@@ -813,6 +863,185 @@ def softmax(ncnn_data, bottom_names, dim):
     layer_id += 1
     tensor_id += 1
 
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def square(ncnn_data, bottom_names):
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'Square\tlayer_%.8d\t1 1 %s %s' % (layer_id, bottom_names[0], top_names[0])
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def rsqrt(ncnn_data, bottom_names, eps=0.0):
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'Rsqrt\tlayer_%.8d\t1 1 %s %s 0=%e' % (layer_id, bottom_names[0], top_names[0], eps)
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def shell(ncnn_data, bottom_names, weight, bias):
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    w_dims = len(weight.shape)
+    assert w_dims in [2, 4]
+
+    if w_dims == 2:
+        out_C, in_C = weight.shape
+        kH = 1
+        kW = 1
+    elif w_dims == 4:
+        out_C, in_C, kH, kW = weight.shape
+    # num = 2
+    # if bias is not None:
+    #     num = 3
+    num = 1
+    if bias is not None:
+        num = 2
+
+
+    top_names = create_top_names(ncnn_data, num=num)
+    pp += 'Shell\tlayer_%.8d\t1 %d %s' % (layer_id, num, bottom_names[0])
+    for i in range(num):
+        pp += ' %s' % top_names[i]
+
+    pp += ' 0=%d' % out_C
+    pp += ' 2=%d' % in_C
+    pp += ' 3=%d' % w_dims
+    pp += ' 1=%d' % kW
+    pp += ' 11=%d' % kH
+    if bias is not None:
+        pp += ' 5=1'
+    else:
+        pp += ' 5=0'
+    w_ele_num = out_C * in_C * kH * kW
+    pp += ' 6=%d' % w_ele_num
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    # 卷积层写入权重。参考了onnx2ncnn，开头写个0
+    s = struct.pack('i', 0)
+    bp.write(s)
+
+    conv_w = weight.cpu().detach().numpy()
+
+    if w_dims == 2:
+        for i1 in range(out_C):
+            for i2 in range(in_C):
+                s = struct.pack('f', conv_w[i1][i2])
+                bp.write(s)
+    elif w_dims == 4:
+        for i1 in range(out_C):
+            for i2 in range(in_C):
+                for i3 in range(kH):
+                    for i4 in range(kW):
+                        s = struct.pack('f', conv_w[i1][i2][i3][i4])
+                        bp.write(s)
+    if bias is not None:
+        conv_b = bias.cpu().detach().numpy()
+        for i1 in range(out_C):
+            s = struct.pack('f', conv_b[i1])
+            bp.write(s)
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def matmul(ncnn_data, bottom_names, weight, bias):
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    w_dims = len(weight.shape)
+    assert w_dims in [2, 4]
+
+    if w_dims == 2:
+        out_C, in_C = weight.shape
+        kH = 1
+        kW = 1
+    elif w_dims == 4:
+        out_C, in_C, kH, kW = weight.shape
+    num = 2
+    if bias is not None:
+        num = 3
+
+
+    top_names = create_top_names(ncnn_data, num=num)
+    pp += 'Shell\tlayer_%.8d\t1 %d %s' % (layer_id, num, bottom_names[0])
+    for i in range(num):
+        pp += ' %s' % top_names[i]
+
+    pp += ' 0=%d' % out_C
+    pp += ' 1=%d' % kW
+    pp += ' 11=%d' % kH
+    if bias is not None:
+        pp += ' 5=1'
+    else:
+        pp += ' 5=0'
+    w_ele_num = out_C * in_C * kH * kW
+    pp += ' 6=%d' % w_ele_num
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    # 卷积层写入权重。参考了onnx2ncnn，开头写个0
+    s = struct.pack('i', 0)
+    bp.write(s)
+
+    conv_w = weight.cpu().detach().numpy()
+
+    if w_dims == 2:
+        for i1 in range(out_C):
+            for i2 in range(in_C):
+                s = struct.pack('f', conv_w[i1][i2])
+                bp.write(s)
+    elif w_dims == 4:
+        for i1 in range(out_C):
+            for i2 in range(in_C):
+                for i3 in range(kH):
+                    for i4 in range(kW):
+                        s = struct.pack('f', conv_w[i1][i2][i3][i4])
+                        bp.write(s)
+    if bias is not None:
+        conv_b = bias.cpu().detach().numpy()
+        for i1 in range(out_C):
+            s = struct.pack('f', conv_b[i1])
+            bp.write(s)
     ncnn_data['bp'] = bp
     ncnn_data['pp'] = pp
     ncnn_data['layer_id'] = layer_id
