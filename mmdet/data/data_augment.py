@@ -14,7 +14,7 @@ import random
 
 import cv2
 import numpy as np
-
+from loguru import logger
 from mmdet.utils import xyxy2cxcywh
 
 
@@ -460,7 +460,7 @@ class DecodeImage(BaseOperator):
         if 'h' not in sample:
             sample['h'] = im.shape[0]
         elif sample['h'] != im.shape[0]:
-            logger.warn(
+            logger.warning(
                 "The actual image height: {} is not equal to the "
                 "height: {} in annotation, and update sample['h'] by actual "
                 "image height.".format(im.shape[0], sample['h']))
@@ -468,7 +468,7 @@ class DecodeImage(BaseOperator):
         if 'w' not in sample:
             sample['w'] = im.shape[1]
         elif sample['w'] != im.shape[1]:
-            logger.warn(
+            logger.warning(
                 "The actual image width: {} is not equal to the "
                 "width: {} in annotation, and update sample['w'] by actual "
                 "image width.".format(im.shape[1], sample['w']))
@@ -512,9 +512,9 @@ class MixupImage(BaseOperator):
         self.alpha = alpha
         self.beta = beta
         if self.alpha <= 0.0:
-            raise ValueError("alpha shold be positive in {}".format(self))
+            raise ValueError("alpha should be positive in {}".format(self))
         if self.beta <= 0.0:
-            raise ValueError("beta shold be positive in {}".format(self))
+            raise ValueError("beta should be positive in {}".format(self))
 
     def _mixup_img(self, img1, img2, factor):
         h = max(img1.shape[0], img2.shape[0])
