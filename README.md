@@ -9,8 +9,9 @@ miemiedetection是[咩酱](https://github.com/miemie2013)基于[YOLOX](https://g
 
 ```
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install torch==1.10.1+cu102 torchvision==0.11.2+cu102 torchaudio==0.10.1 -f https://download.pytorch.org/whl/torch_stable.html
 ```
-torch版本建议1.9.1+cu102或者更高；torchvision版本建议0.10.1+cu102或者更高。
+torch版本建议1.10.1+cu102或者更高；torchvision版本建议0.11.2+cu102或者更高。
 
 ## 支持的算法
 

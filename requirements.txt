@@ -2,8 +2,6 @@
 numpy
 Cython
 pycocotools
-torch>=1.9.1
-torchvision>=0.10.1
 opencv_python
 loguru
 scikit-image
