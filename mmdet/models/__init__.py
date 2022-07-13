@@ -16,6 +16,7 @@ from .losses.fcos_loss import FCOSLoss
 
 
 from .heads.yolov3_head import YOLOv3Head
+from .heads.solov2_head import SOLOv2MaskHead, SOLOv2Head
 from .heads.yolox_head import YOLOXHead
 from .heads.fcos_head import FCOSHead
 from .heads.ppyoloe_head import PPYOLOEHead
@@ -31,6 +32,7 @@ from .architectures.yolo import PPYOLO
 from .architectures.ppyoloe import PPYOLOE
 from .architectures.yolox import YOLOX
 from .architectures.fcos import FCOS
+from .architectures.solo import SOLO
 
 from .assigners.atss_assigner import ATSSAssigner
 from .assigners.task_aligned_assigner import TaskAlignedAssigner

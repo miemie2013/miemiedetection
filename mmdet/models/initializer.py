@@ -302,3 +302,15 @@ def reset_initialized_parameter(model, include_self=True):
             _no_grad_fill_(m.weight, 1.)
             if hasattr(m, 'bias') and getattr(m, 'bias') is not None:
                 _no_grad_fill_(m.bias, 0)
+
+
+
+class Normal:
+    def __init__(self, mean=0., std=0.01):
+        self.mean = mean
+        self.std = std
+
+    def init(self, tensor):
+        normal_(tensor, mean=0., std=1.)
+
+

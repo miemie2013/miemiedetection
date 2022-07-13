@@ -8,6 +8,7 @@
 #
 # ================================================================
 import torch
+import torchvision
 import torch as T
 import torch.nn.functional as F
 import torch.nn as nn
@@ -18,6 +19,7 @@ import numpy as np
 # from paddle.nn.initializer import Uniform
 # from paddle.nn.initializer import Constant
 # from paddle.vision.ops import DeformConv2D
+from mmdet.models.initializer import Normal
 
 
 def paddle_yolo_box(conv_output, anchors, stride, num_classes, scale_x_y, im_size, clip_bbox, conf_thresh):
@@ -916,5 +918,192 @@ class PointGenerator(object):
         pass
 
 
+class ConvNormLayer(nn.Module):
+    def __init__(self,
+                 ch_in,
+                 ch_out,
+                 filter_size,
+                 stride,
+                 groups=1,
+                 norm_type='bn',
+                 norm_decay=0.,
+                 norm_groups=32,
+                 use_dcn=False,
+                 bias_on=False,
+                 lr_scale=1.,
+                 freeze_norm=False,
+                 initializer=Normal(
+                     mean=0., std=0.01),
+                 skip_quant=False,
+                 dcn_lr_scale=2.,
+                 dcn_regularizer=L2Decay(0.)):
+        super(ConvNormLayer, self).__init__()
+        assert norm_type in ['bn', 'sync_bn', 'gn', None]
+        self.norm_type = norm_type
+        self.dcn_v2 = use_dcn
+
+        bias_attr = bias_on
+        bias_init = 0.
+        self.conv_b_lr = 1.
+        if bias_on:
+            self.conv_b_lr = lr_scale
+
+        if not self.dcn_v2:
+            self.conv = nn.Conv2d(
+                in_channels=ch_in,
+                out_channels=ch_out,
+                kernel_size=filter_size,
+                stride=stride,
+                padding=(filter_size - 1) // 2,
+                groups=groups,
+                bias=bias_attr)
+            self.conv_w_lr = 1.
+            # 初始化权重
+            # torch.nn.init.xavier_normal_(self.conv.weight, gain=1.)
+            initializer.init(self.conv.weight)
+            if bias_on:
+                torch.nn.init.constant_(self.conv.bias, bias_init)
+        else:
+            self.offset_channel = 2 * filter_size ** 2
+            self.mask_channel = filter_size ** 2
+
+            self.conv_offset = nn.Conv2d(
+                in_channels=ch_in,
+                out_channels=3 * filter_size ** 2,
+                kernel_size=filter_size,
+                stride=stride,
+                padding=(filter_size - 1) // 2,
+                bias=True)
+            # 初始化权重
+            torch.nn.init.constant_(self.conv_offset.weight, 0.0)
+            torch.nn.init.constant_(self.conv_offset.bias, 0.0)
+
+            # 自实现的DCNv2
+            self.conv = MyDCNv2(
+                in_channels=ch_in,
+                out_channels=ch_out,
+                kernel_size=filter_size,
+                stride=stride,
+                padding=(filter_size - 1) // 2,
+                dilation=1,
+                groups=groups,
+                bias=False)
+            # 官方DCN
+            # self.conv = torchvision.ops.DeformConv2d(
+            #     in_channels=ch_in,
+            #     out_channels=ch_out,
+            #     kernel_size=filter_size,
+            #     stride=stride,
+            #     padding=(filter_size - 1) // 2,
+            #     dilation=1,
+            #     groups=groups,
+            #     bias=False)
+
+            self.dcn_w_lr = lr
+            # 初始化权重
+            torch.nn.init.xavier_normal_(self.conv.weight, gain=1.)
+
+        self.freeze_norm = freeze_norm
+        norm_lr = 0. if freeze_norm else lr
+        self.norm_lr = norm_lr
+        self.norm_decay = norm_decay
+        self.freeze_norm = freeze_norm
+
+        global_stats = True if freeze_norm else None
+        if norm_type in ['sync_bn', 'bn']:
+            # ppdet中freeze_norm == True时，use_global_stats = global_stats = True， bn的均值和方差是不会变的！！！，
+            # 而且训练时前向传播用的是之前统计均值和方差，而不是当前批次的均值和方差！（即训练时的前向传播就是预测时的前向传播）
+            # 所以这里设置momentum = 0.0 让bn的均值和方差不会改变。并且model.train()之后要马上调用model.fix_bn()（让训练bn时的前向传播就是预测时bn的前向传播）
+            momentum = 0.0 if freeze_norm else 0.1
+            self.norm = nn.BatchNorm2d(ch_out, affine=True, momentum=momentum)
+        norm_params = self.norm.parameters()
+
+        if freeze_norm:
+            for param in norm_params:
+                param.requires_grad_(False)
+
+    def forward(self, inputs):
+        if not self.dcn_v2:
+            out = self.conv(inputs)
+        else:
+            offset_mask = self.conv_offset(inputs)
+            offset = offset_mask[:, :self.offset_channel, :, :]
+            mask = offset_mask[:, self.offset_channel:, :, :]
+            mask = torch.sigmoid(mask)
+            out = self.conv(inputs, offset, mask=mask)
+
+        if self.norm_type in ['bn', 'sync_bn']:
+            out = self.norm(out)
+        if self.act:
+            out = getattr(F, self.act)(out)
+        return out
+
+    def fix_bn(self):
+        if self.norm is not None:
+            if self.freeze_norm:
+                self.norm.eval()
+
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
+        if isinstance(self.conv, torch.nn.Conv2d):
+            if self.conv.weight.requires_grad:
+                param_group_conv = {'params': [self.conv.weight]}
+                param_group_conv['lr'] = base_lr * self.conv_w_lr
+                param_group_conv['base_lr'] = base_lr * self.conv_w_lr
+                param_group_conv['weight_decay'] = base_wd
+                param_group_conv['need_clip'] = need_clip
+                param_group_conv['clip_norm'] = clip_norm
+                param_groups.append(param_group_conv)
+            if self.conv.bias is not None:
+                if self.conv.bias.requires_grad:
+                    param_group_conv_b = {'params': [self.conv.bias]}
+                    param_group_conv_b['lr'] = base_lr * self.conv_b_lr
+                    param_group_conv_b['base_lr'] = base_lr * self.conv_b_lr
+                    param_group_conv_b['weight_decay'] = base_wd
+                    param_group_conv_b['need_clip'] = need_clip
+                    param_group_conv_b['clip_norm'] = clip_norm
+                    param_groups.append(param_group_conv_b)
+        elif isinstance(self.conv, (MyDCNv2, torchvision.ops.DeformConv2d)):   # 自实现的DCNv2、官方DCNv2
+            if self.conv_offset.weight.requires_grad:
+                param_group_conv_offset_w = {'params': [self.conv_offset.weight]}
+                param_group_conv_offset_w['lr'] = base_lr
+                param_group_conv_offset_w['base_lr'] = base_lr
+                param_group_conv_offset_w['weight_decay'] = base_wd
+                param_group_conv_offset_w['need_clip'] = need_clip
+                param_group_conv_offset_w['clip_norm'] = clip_norm
+                param_groups.append(param_group_conv_offset_w)
+            if self.conv_offset.bias.requires_grad:
+                param_group_conv_offset_b = {'params': [self.conv_offset.bias]}
+                param_group_conv_offset_b['lr'] = base_lr
+                param_group_conv_offset_b['base_lr'] = base_lr
+                param_group_conv_offset_b['weight_decay'] = base_wd
+                param_group_conv_offset_b['need_clip'] = need_clip
+                param_group_conv_offset_b['clip_norm'] = clip_norm
+                param_groups.append(param_group_conv_offset_b)
+            if self.conv.weight.requires_grad:
+                param_group_dcn_weight = {'params': [self.conv.weight]}
+                param_group_dcn_weight['lr'] = base_lr * self.dcn_w_lr
+                param_group_dcn_weight['base_lr'] = base_lr * self.dcn_w_lr
+                param_group_dcn_weight['weight_decay'] = base_wd
+                param_group_dcn_weight['need_clip'] = need_clip
+                param_group_dcn_weight['clip_norm'] = clip_norm
+                param_groups.append(param_group_dcn_weight)
+        if self.norm is not None:
+            if not self.freeze_norm:
+                if self.norm.weight.requires_grad:
+                    param_group_norm_weight = {'params': [self.norm.weight]}
+                    param_group_norm_weight['lr'] = base_lr * self.norm_lr
+                    param_group_norm_weight['base_lr'] = base_lr * self.norm_lr
+                    param_group_norm_weight['weight_decay'] = 0.0
+                    param_group_norm_weight['need_clip'] = need_clip
+                    param_group_norm_weight['clip_norm'] = clip_norm
+                    param_groups.append(param_group_norm_weight)
+                if self.norm.bias.requires_grad:
+                    param_group_norm_bias = {'params': [self.norm.bias]}
+                    param_group_norm_bias['lr'] = base_lr * self.norm_lr
+                    param_group_norm_bias['base_lr'] = base_lr * self.norm_lr
+                    param_group_norm_bias['weight_decay'] = 0.0
+                    param_group_norm_bias['need_clip'] = need_clip
+                    param_group_norm_bias['clip_norm'] = clip_norm
+                    param_groups.append(param_group_norm_bias)
 
 

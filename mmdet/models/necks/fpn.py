@@ -10,81 +10,126 @@
 import torch
 import copy
 
+import torch.nn as nn
 import torch.nn.functional as F
-from mmdet.models.custom_layers import Conv2dUnit
+
+from mmdet.models.custom_layers import ConvNormLayer
 
 
-class FPN(torch.nn.Module):
+class FPN(nn.Module):
     def __init__(self,
-                 in_channels=[2048, 1024, 512, 256],
-                 num_chan=256,
-                 min_level=2,
-                 max_level=6,
-                 spatial_scale=[1. / 32., 1. / 16., 1. / 8., 1. / 4.],
+                 in_channels,
+                 out_channel,
+                 spatial_scales=[0.25, 0.125, 0.0625, 0.03125],
                  has_extra_convs=False,
+                 extra_stage=1,
+                 use_c5=True,
                  norm_type=None,
                  norm_decay=0.,
                  freeze_norm=False,
-                 use_c5=True,
-                 relu_before_extra_convs=False,
-                 reverse_out=False):
+                 relu_before_extra_convs=True):
         super(FPN, self).__init__()
-        self.in_channels = in_channels
-        self.freeze_norm = freeze_norm
-        self.num_chan = num_chan
-        self.min_level = min_level
-        self.max_level = max_level
-        self.spatial_scale = spatial_scale
+        self.out_channel = out_channel
+        for s in range(extra_stage):
+            spatial_scales = spatial_scales + [spatial_scales[-1] / 2.]
+        self.spatial_scales = spatial_scales
         self.has_extra_convs = has_extra_convs
-        self.norm_type = norm_type
-        self.norm_decay = norm_decay
+        self.extra_stage = extra_stage
         self.use_c5 = use_c5
         self.relu_before_extra_convs = relu_before_extra_convs
-        self.reverse_out = reverse_out
+        self.norm_type = norm_type
+        self.norm_decay = norm_decay
+        self.freeze_norm = freeze_norm
 
-        self.num_backbone_stages = len(in_channels)   # 进入FPN的张量个数
-        self.fpn_inner_convs = torch.nn.ModuleList()  # 骨干网络的张量s32, s16, s8, ...使用的卷积
-        self.fpn_convs = torch.nn.ModuleList()        # fs32, fs16, fs8, ...使用的卷积
+        self.lateral_convs = []
+        self.fpn_convs = []
+        fan = out_channel * 3 * 3
 
-        # fpn_inner_convs
-        for i in range(0, self.num_backbone_stages):
-            cname = 'fpn_inner_res%d_sum_lateral' % (5 - i, )
-            if i == 0:
-                cname = 'fpn_inner_res%d_sum' % (5 - i, )
-            use_bias = True if norm_type is None else False
-            conv = Conv2dUnit(in_channels[i], self.num_chan, 1, stride=1, bias_attr=use_bias, norm_type=norm_type, bias_lr=2.0,
-                              act=None, freeze_norm=self.freeze_norm, norm_decay=self.norm_decay, name=cname)
-            self.fpn_inner_convs.append(conv)
-
-        # fpn_convs
-        for i in range(0, self.num_backbone_stages):
-            use_bias = True if norm_type is None else False
-            conv = Conv2dUnit(self.num_chan, self.num_chan, 3, stride=1, bias_attr=use_bias, norm_type=norm_type, bias_lr=2.0,
-                              act=None, freeze_norm=self.freeze_norm, norm_decay=self.norm_decay, name='fpn_res%d_sum' % (5 - i, ))
-            self.fpn_convs.append(conv)
-
-        # 生成其它尺度的特征图时如果用的是池化层
-        self.pool = torch.nn.MaxPool2d(kernel_size=1, stride=2, padding=0)
-
-        # 生成其它尺度的特征图时如果用的是卷积层
-        self.extra_convs = None
-        highest_backbone_level = self.min_level + len(spatial_scale) - 1
-        if self.has_extra_convs and self.max_level > highest_backbone_level:
-            self.extra_convs = torch.nn.ModuleList()
-            if self.use_c5:
-                in_c = in_channels[0]
-                fan = in_c * 3 * 3
+        # stage index 0,1,2,3 stands for res2,res3,res4,res5 on ResNet Backbone
+        # 0 <= st_stage < ed_stage <= 3
+        st_stage = 4 - len(in_channels)
+        ed_stage = st_stage + len(in_channels) - 1
+        for i in range(st_stage, ed_stage + 1):
+            if i == 3:
+                lateral_name = 'fpn_inner_res5_sum'
             else:
-                in_c = self.num_chan
-                fan = in_c * 3 * 3
-            for i in range(highest_backbone_level + 1, self.max_level + 1):
-                use_bias = True if norm_type is None else False
-                conv = Conv2dUnit(in_c, self.num_chan, 3, stride=2, bias_attr=use_bias, norm_type=norm_type, bias_lr=2.0,
-                                  act=None, freeze_norm=self.freeze_norm, norm_decay=self.norm_decay, name='fpn_%d' % (i, ))
-                self.extra_convs.append(conv)
-                in_c = self.num_chan
+                lateral_name = 'fpn_inner_res{}_sum_lateral'.format(i + 2)
+            in_c = in_channels[i - st_stage]
+            if self.norm_type is not None:
+                lateral = ConvNormLayer(
+                        ch_in=in_c,
+                        ch_out=out_channel,
+                        filter_size=1,
+                        stride=1,
+                        norm_type=self.norm_type,
+                        norm_decay=self.norm_decay,
+                        freeze_norm=self.freeze_norm,
+                        initializer=XavierUniform(fan_out=in_c))
+                self.add_module(lateral_name, lateral)
+            else:
+                lateral = nn.Conv2d(
+                        in_channels=in_c,
+                        out_channels=out_channel,
+                        kernel_size=1,
+                        weight_attr=ParamAttr(
+                            initializer=XavierUniform(fan_out=in_c)))
+                self.add_module(lateral_name, lateral)
+            self.lateral_convs.append(lateral)
 
-        self.upsample = torch.nn.Upsample(scale_factor=2, mode='nearest')
+            fpn_name = 'fpn_res{}_sum'.format(i + 2)
+            if self.norm_type is not None:
+                fpn_conv = ConvNormLayer(
+                        ch_in=out_channel,
+                        ch_out=out_channel,
+                        filter_size=3,
+                        stride=1,
+                        norm_type=self.norm_type,
+                        norm_decay=self.norm_decay,
+                        freeze_norm=self.freeze_norm,
+                        initializer=XavierUniform(fan_out=fan))
+                self.add_module(fpn_name, fpn_conv)
+            else:
+                fpn_conv = nn.Conv2d(
+                        in_channels=out_channel,
+                        out_channels=out_channel,
+                        kernel_size=3,
+                        padding=1,
+                        weight_attr=ParamAttr(
+                            initializer=XavierUniform(fan_out=fan)))
+                self.add_module(fpn_name, fpn_conv)
+            self.fpn_convs.append(fpn_conv)
+
+        # add extra conv levels for RetinaNet(use_c5)/FCOS(use_p5)
+        if self.has_extra_convs:
+            for i in range(self.extra_stage):
+                lvl = ed_stage + 1 + i
+                if i == 0 and self.use_c5:
+                    in_c = in_channels[-1]
+                else:
+                    in_c = out_channel
+                extra_fpn_name = 'fpn_{}'.format(lvl + 2)
+                if self.norm_type is not None:
+                    extra_fpn_conv = ConvNormLayer(
+                            ch_in=in_c,
+                            ch_out=out_channel,
+                            filter_size=3,
+                            stride=2,
+                            norm_type=self.norm_type,
+                            norm_decay=self.norm_decay,
+                            freeze_norm=self.freeze_norm,
+                            initializer=XavierUniform(fan_out=fan))
+                    self.add_module(extra_fpn_name, extra_fpn_conv)
+                else:
+                    extra_fpn_conv = nn.Conv2d(
+                            in_channels=in_c,
+                            out_channels=out_channel,
+                            kernel_size=3,
+                            stride=2,
+                            padding=1,
+                            weight_attr=ParamAttr(
+                                initializer=XavierUniform(fan_out=fan)))
+                    self.add_module(extra_fpn_name, extra_fpn_conv)
+                self.fpn_convs.append(extra_fpn_conv)
 
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         for i in range(0, self.num_backbone_stages):
@@ -129,51 +174,41 @@ class FPN(torch.nn.Module):
         然后  fs32, fs16, fs8  分别再接一个卷积得到 p5, p4, p3 ；
         p5 接一个卷积得到 p6， p6 接一个卷积得到 p7。
         '''
-        spatial_scale = copy.deepcopy(self.spatial_scale)
-        num_backbone_stages = self.num_backbone_stages   # 进入FPN的张量个数
-        body_feats = body_feats[-1:-num_backbone_stages - 1:-1]   # 倒序。 [s32, s16, s8, ...]
-        fpn_inner_output = [None] * num_backbone_stages
-        fpn_inner_output[0] = self.fpn_inner_convs[0](body_feats[0])
-        for i in range(1, num_backbone_stages):
-            body_input = body_feats[i]
-            top_output = fpn_inner_output[i - 1]
-            fpn_inner_single = self._add_topdown_lateral(i, body_input, top_output)
-            fpn_inner_output[i] = fpn_inner_single
-        fpn_output = [None] * num_backbone_stages
-        for i in range(num_backbone_stages):
-            fpn_output[i] = self.fpn_convs[i](fpn_inner_output[i])
+        laterals = []
+        num_levels = len(body_feats)
+        for i in range(num_levels):
+            laterals.append(self.lateral_convs[i](body_feats[i]))
 
-        # 生成其它尺度的特征图时如果用的是池化层
-        if not self.has_extra_convs and self.max_level - self.min_level == len(spatial_scale):
-            body_top_extension = self.pool(fpn_output[0])
-            fpn_output.insert(0, body_top_extension)
-            spatial_scale.insert(0, spatial_scale[0] * 0.5)
+        for i in range(1, num_levels):
+            lvl = num_levels - i
+            upsample = F.interpolate(
+                laterals[lvl],
+                scale_factor=2.,
+                mode='nearest', )
+            laterals[lvl - 1] += upsample
 
-        # 生成其它尺度的特征图时如果用的是卷积层
-        highest_backbone_level = self.min_level + len(spatial_scale) - 1
-        if self.has_extra_convs and self.max_level > highest_backbone_level:
-            if self.use_c5:
-                fpn_blob = body_feats[0]
+        fpn_output = []
+        for lvl in range(num_levels):
+            fpn_output.append(self.fpn_convs[lvl](laterals[lvl]))
+
+        if self.extra_stage > 0:
+            # use max pool to get more levels on top of outputs (Faster R-CNN, Mask R-CNN)
+            if not self.has_extra_convs:
+                assert self.extra_stage == 1, 'extra_stage should be 1 if FPN has not extra convs'
+                fpn_output.append(F.max_pool2d(fpn_output[-1], 1, stride=2))
+            # add extra conv levels for RetinaNet(use_c5)/FCOS(use_p5)
             else:
-                fpn_blob = fpn_output[0]
-            for i in range(highest_backbone_level + 1, self.max_level + 1):
-                fpn_blob_in = fpn_blob
-                if i > highest_backbone_level + 1 and self.relu_before_extra_convs:
-                    fpn_blob_in = torch.relu(fpn_blob)
-                fpn_blob = self.extra_convs[i - highest_backbone_level - 1](fpn_blob_in)
-                fpn_output.insert(0, fpn_blob)
-                spatial_scale.insert(0, spatial_scale[0] * 0.5)
+                if self.use_c5:
+                    extra_source = body_feats[-1]
+                else:
+                    extra_source = fpn_output[-1]
+                fpn_output.append(self.fpn_convs[num_levels](extra_source))
 
-        if self.reverse_out:
-            fpn_output = fpn_output[::-1]  # 倒序。
-        return fpn_output, spatial_scale
-
-
-    def _add_topdown_lateral(self, i, body_input, upper_output):
-        lateral = self.fpn_inner_convs[i](body_input)
-        if body_input.shape[2] == -1 and body_input.shape[3] == -1:
-            topdown = self.upsample(upper_output)
-        else:
-            topdown = F.interpolate(upper_output, size=(body_input.shape[2], body_input.shape[3]), mode='nearest')
-
-        return lateral + topdown
+                for i in range(1, self.extra_stage):
+                    if self.relu_before_extra_convs:
+                        fpn_output.append(self.fpn_convs[num_levels + i](F.relu(
+                            fpn_output[-1])))
+                    else:
+                        fpn_output.append(self.fpn_convs[num_levels + i](
+                            fpn_output[-1]))
+        return fpn_output
