@@ -75,6 +75,49 @@ class SOLOTrainCollater():
         return images, gt_bbox, target0, target1, im_ids
 
 
+class SOLOEvalCollater():
+    def __init__(self, context, batch_transforms):
+        self.context = context
+        self.batch_transforms = batch_transforms
+
+    def __call__(self, batch):
+        # 重组samples
+        samples = []
+        for i, item in enumerate(batch):
+            sample = {}
+            sample['image'] = item[0]
+            sample['im_info'] = item[1]
+            sample['im_id'] = item[2]
+            sample['h'] = item[3]
+            sample['w'] = item[4]
+            samples.append(sample)
+
+        # batch_transforms
+        for batch_transform in self.batch_transforms:
+            samples = batch_transform(samples, self.context)
+
+        # 取出感兴趣的项
+        images = []
+        im_sizes = []
+        ori_shapes = []
+        im_ids = []
+        for i, sample in enumerate(samples):
+            images.append(sample['image'].astype(np.float32))
+            im_sizes.append(np.array([sample['im_info'][0], sample['im_info'][1]]).astype(np.int32))
+            ori_shapes.append(np.array([sample['h'], sample['w']]).astype(np.int32))
+            im_ids.append(sample['im_id'].astype(np.int32))
+        images = np.stack(images, axis=0)
+        im_sizes = np.stack(im_sizes, axis=0)
+        ori_shapes = np.stack(ori_shapes, axis=0)
+        im_ids = np.stack(im_ids, axis=0)
+
+        images = torch.Tensor(images)
+        im_sizes = torch.Tensor(im_sizes)
+        ori_shapes = torch.Tensor(ori_shapes)
+        im_ids = torch.Tensor(im_ids)
+        return images, im_sizes, ori_shapes, im_ids
+
+
 class SOLO_Method_Exp(COCOBaseExp):
     def __init__(self):
         super().__init__()
@@ -387,15 +430,21 @@ class SOLO_Method_Exp(COCOBaseExp):
         return scheduler
 
     def get_eval_loader(self, batch_size, is_distributed, testdev=False):
-        from mmdet.data import PPYOLO_COCOEvalDataset
+        from mmdet.data import SOLO_COCOEvalDataset
 
         # 预测时的数据预处理
         decodeImage = DecodeImage(**self.decodeImage)
-        resizeImage = ResizeImage(target_size=self.test_size[0], interp=self.resizeImage['interp'])
+        target_size = self.test_size[0]
+        resizeImage_cfg = copy.deepcopy(self.resizeImage)
+        resizeImage_cfg['target_size'] = target_size
+        resizeImage = ResizeImage(**resizeImage_cfg)
         normalizeImage = NormalizeImage(**self.normalizeImage)
         permute = Permute(**self.permute)
-        transforms = [decodeImage, resizeImage, normalizeImage, permute]
-        val_dataset = PPYOLO_COCOEvalDataset(
+        transforms = [decodeImage, normalizeImage, resizeImage, permute]
+
+        padBatch = PadBatch(**self.padBatch)
+        batch_transforms = [padBatch, ]
+        val_dataset = SOLO_COCOEvalDataset(
             data_dir=self.data_dir,
             json_file=self.val_ann if not testdev else "image_info_test-dev2017.json",
             ann_folder=self.ann_folder,
@@ -418,6 +467,8 @@ class SOLO_Method_Exp(COCOBaseExp):
             "sampler": sampler,
         }
         dataloader_kwargs["batch_size"] = batch_size
+        collater = SOLOEvalCollater(self.context, batch_transforms)
+        dataloader_kwargs["collate_fn"] = collater
         val_loader = torch.utils.data.DataLoader(val_dataset, **dataloader_kwargs)
 
         return val_loader

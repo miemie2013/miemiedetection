@@ -471,10 +471,13 @@ class SOLOv2Head(nn.Module):
         seg_masks_list = []
         cate_labels_list = []
         cate_scores_list = []
+        bbox_num_list = []
         cate_preds = [cate_pred * 1.0 for cate_pred in cate_preds]
         kernel_preds = [kernel_pred * 1.0 for kernel_pred in kernel_preds]
+
+        batch_size = ori_shape.shape[0]
         # Currently only supports batch size == 1
-        for idx in range(1):
+        for idx in range(batch_size):
             cate_pred_list = [
                 torch.reshape(cate_preds[i][idx], shape=(-1, self.cate_out_channels))
                 for i in range(num_levels)
@@ -496,6 +499,10 @@ class SOLOv2Head(nn.Module):
             else:
                 seg_masks, cate_labels, cate_scores = output
                 bbox_num = cate_labels.shape[0]
+            seg_masks_list.append(seg_masks)
+            cate_labels_list.append(cate_labels)
+            cate_scores_list.append(cate_scores)
+            bbox_num_list.append(bbox_num)
         return seg_masks, cate_labels, cate_scores, bbox_num
 
     def get_seg_single(self, cate_preds, seg_preds, kernel_preds, featmap_size,

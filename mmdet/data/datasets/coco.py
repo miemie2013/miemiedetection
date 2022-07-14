@@ -376,6 +376,62 @@ class PPYOLO_COCOEvalDataset(torch.utils.data.Dataset):
         return pimage, im_size, id
 
 
+class SOLO_COCOEvalDataset(torch.utils.data.Dataset):
+    def __init__(self, data_dir, json_file, ann_folder, name, cfg, transforms):
+        self.data_dir = data_dir
+        self.json_file = json_file
+        self.ann_folder = ann_folder
+        self.name = name
+
+        # 验证集
+        val_path = os.path.join(self.data_dir, self.ann_folder, self.json_file)
+        val_pre_path = os.path.join(self.data_dir, self.name)
+
+        # 种类id
+        _catid2clsid, _clsid2catid, _clsid2cname, class_names = get_class_msg(val_path)
+
+        val_dataset = COCO(val_path)
+        val_img_ids = val_dataset.getImgIds()
+
+        keep_img_ids = []  # 只跑有gt的图片，跟随PaddleDetection
+        for img_id in val_img_ids:
+            ins_anno_ids = val_dataset.getAnnIds(imgIds=img_id, iscrowd=False)  # 读取这张图片所有标注anno的id
+            if len(ins_anno_ids) == 0:
+                continue
+            keep_img_ids.append(img_id)
+        val_img_ids = keep_img_ids
+
+        val_records = data_clean(val_dataset, val_img_ids, _catid2clsid, val_pre_path, 'val')
+
+        self.coco = val_dataset
+        self.records = val_records
+        self.context = cfg.context
+        self.transforms = transforms
+        self.catid2clsid = _catid2clsid
+        self.clsid2catid = _clsid2catid
+        self.num_record = len(val_records)
+        self.indexes = [i for i in range(self.num_record)]
+
+    def __len__(self):
+        return len(self.indexes)
+
+    def __getitem__(self, idx):
+        img_idx = self.indexes[idx]
+        sample = copy.deepcopy(self.records[img_idx])
+
+        # transforms
+        for transform in self.transforms:
+            sample = transform(sample, self.context)
+
+        # 取出感兴趣的项
+        pimage = sample['image']
+        im_info = sample['im_info']
+        im_id = sample['im_id']
+        h = sample['h']
+        w = sample['w']
+        return pimage, im_info, im_id, h, w
+
+
 class PPYOLOE_COCOEvalDataset(torch.utils.data.Dataset):
     def __init__(self, data_dir, json_file, ann_folder, name, cfg, transforms):
         self.data_dir = data_dir
