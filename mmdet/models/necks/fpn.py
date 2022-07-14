@@ -14,6 +14,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from mmdet.models.custom_layers import ConvNormLayer
+from mmdet.models.initializer import Normal, XavierNormal, XavierUniform
 
 
 class FPN(nn.Module):
@@ -67,12 +68,9 @@ class FPN(nn.Module):
                         initializer=XavierUniform(fan_out=in_c))
                 self.add_module(lateral_name, lateral)
             else:
-                lateral = nn.Conv2d(
-                        in_channels=in_c,
-                        out_channels=out_channel,
-                        kernel_size=1,
-                        weight_attr=ParamAttr(
-                            initializer=XavierUniform(fan_out=in_c)))
+                lateral = nn.Conv2d(in_channels=in_c, out_channels=out_channel, kernel_size=1)
+                initializer = XavierUniform(fan_out=in_c)
+                initializer.init(lateral.weight)
                 self.add_module(lateral_name, lateral)
             self.lateral_convs.append(lateral)
 
@@ -93,9 +91,9 @@ class FPN(nn.Module):
                         in_channels=out_channel,
                         out_channels=out_channel,
                         kernel_size=3,
-                        padding=1,
-                        weight_attr=ParamAttr(
-                            initializer=XavierUniform(fan_out=fan)))
+                        padding=1)
+                initializer = XavierUniform(fan_out=fan)
+                initializer.init(fpn_conv.weight)
                 self.add_module(fpn_name, fpn_conv)
             self.fpn_convs.append(fpn_conv)
 
@@ -125,9 +123,9 @@ class FPN(nn.Module):
                             out_channels=out_channel,
                             kernel_size=3,
                             stride=2,
-                            padding=1,
-                            weight_attr=ParamAttr(
-                                initializer=XavierUniform(fan_out=fan)))
+                            padding=1)
+                    initializer = XavierUniform(fan_out=fan)
+                    initializer.init(extra_fpn_conv.weight)
                     self.add_module(extra_fpn_name, extra_fpn_conv)
                 self.fpn_convs.append(extra_fpn_conv)
 

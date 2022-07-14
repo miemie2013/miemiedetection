@@ -5,7 +5,7 @@
 import cv2
 import numpy as np
 
-__all__ = ["get_classes", "vis", "vis2"]
+__all__ = ["get_classes", "vis", "vis2", "vis_solo"]
 
 
 def get_classes(classes_path):
@@ -76,6 +76,54 @@ def vis2(img, boxes, scores, cls_ids, conf=0.5, class_names=None):
         right = min(image.shape[1], np.floor(x1 + 0.5).astype(int))
         bottom = min(image.shape[0], np.floor(y1 + 0.5).astype(int))
         bbox_color = colors[cl]
+        # bbox_thick = 1 if min(image_h, image_w) < 400 else 2
+        bbox_thick = 1
+        cv2.rectangle(image, (left, top), (right, bottom), bbox_color, bbox_thick)
+        bbox_mess = '%s: %.2f' % (all_classes[cl], score)
+        t_size = cv2.getTextSize(bbox_mess, 0, 0.5, thickness=1)[0]
+        cv2.rectangle(image, (left, top), (left + t_size[0], top - t_size[1] - 3), bbox_color, -1)
+        cv2.putText(image, bbox_mess, (left, top - 2), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0, 0, 0), 1, lineType=cv2.LINE_AA)
+    return image
+
+def vis_solo(img, boxes, masks, scores, classes, conf=0.5, class_names=None, mask_alpha=0.45):
+    all_classes = class_names
+    num_classes = len(class_names)
+    import colorsys
+    import random
+    image = img
+
+    image_h, image_w, _ = image.shape
+    # 定义颜色
+    hsv_tuples = [(1.0 * x / num_classes, 1., 1.) for x in range(num_classes)]
+    colors = list(map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples))
+    colors = list(map(lambda x: (int(x[0] * 255), int(x[1] * 255), int(x[2] * 255)), colors))
+
+    random.seed(0)
+    random.shuffle(colors)
+    random.seed(None)
+
+    for box, score, cl, ms in zip(boxes, scores, classes, masks):
+        x0, y0, x1, y1 = box
+        left = max(0, np.floor(x0 + 0.5).astype(int))
+        top = max(0, np.floor(y0 + 0.5).astype(int))
+        right = min(image.shape[1], np.floor(x1 + 0.5).astype(int))
+        bottom = min(image.shape[0], np.floor(y1 + 0.5).astype(int))
+
+        # 随机颜色
+        bbox_color = random.choice(colors)
+
+        # 在这里上掩码颜色。咩咩深度优化的画掩码代码。
+        color = np.array(bbox_color)
+        color = np.reshape(color, (1, 1, 3))
+        target_ms = ms[top:bottom, left:right]
+        target_ms = np.expand_dims(target_ms, axis=2)
+        target_ms = np.tile(target_ms, (1, 1, 3))
+        target_region = image[top:bottom, left:right, :]
+        target_region = target_ms * (target_region * (1 - mask_alpha) + color * mask_alpha) + (
+                1 - target_ms) * target_region
+        image[top:bottom, left:right, :] = target_region
+
         # bbox_thick = 1 if min(image_h, image_w) < 400 else 2
         bbox_thick = 1
         cv2.rectangle(image, (left, top), (right, bottom), bbox_color, bbox_thick)

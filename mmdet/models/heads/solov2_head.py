@@ -21,15 +21,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from mmdet.models.custom_layers import DropBlock, ConvNormLayer
+from mmdet.models.initializer import Normal, XavierNormal, XavierUniform
 
 from six.moves import zip
 import numpy as np
 
-__all__ = ['SOLOv2Head']
 
 
-
-class SOLOv2MaskHead(nn.Layer):
+class SOLOv2MaskHead(nn.Module):
     """
     MaskHead of SOLOv2.
     The code of this function is based on:
@@ -63,11 +62,11 @@ class SOLOv2MaskHead(nn.Layer):
         self.convs_all_levels = []
         self.norm_type = norm_type
         for i in range(start_level, end_level + 1):
-            conv_feat_name = 'mask_feat_head.convs_all_levels.{}'.format(i)
+            conv_feat_name = 'mask_feat_head_convs_all_levels_{}'.format(i)
             conv_pre_feat = nn.Sequential()
             if i == start_level:
                 conv_pre_feat.add_module(
-                    conv_feat_name + '.conv' + str(i),
+                    conv_feat_name + '_conv' + str(i),
                     ConvNormLayer(
                         ch_in=self.in_channels,
                         ch_out=self.mid_channels,
@@ -85,7 +84,7 @@ class SOLOv2MaskHead(nn.Layer):
                     else:
                         ch_in = self.mid_channels
                     conv_pre_feat.add_module(
-                        conv_feat_name + '.conv' + str(j),
+                        conv_feat_name + '_conv' + str(j),
                         ConvNormLayer(
                             ch_in=ch_in,
                             ch_out=self.mid_channels,
@@ -94,7 +93,7 @@ class SOLOv2MaskHead(nn.Layer):
                             use_dcn=self.use_dcn,
                             norm_type=self.norm_type))
                     conv_pre_feat.add_module(
-                        conv_feat_name + '.conv' + str(j) + 'act', nn.ReLU())
+                        conv_feat_name + '_conv' + str(j) + 'act', nn.ReLU())
                     conv_pre_feat.add_module(
                         'upsample' + str(i) + str(j),
                         nn.Upsample(
@@ -102,7 +101,7 @@ class SOLOv2MaskHead(nn.Layer):
                 self.add_module('conv_pre_feat' + str(i), conv_pre_feat)
                 self.convs_all_levels.append(conv_pre_feat)
 
-        conv_pred_name = 'mask_feat_head.conv_pred.0'
+        conv_pred_name = 'mask_feat_head_conv_pred_0'
         self.conv_pred = ConvNormLayer(
                 ch_in=self.mid_channels,
                 ch_out=self.out_channels,
@@ -126,8 +125,8 @@ class SOLOv2MaskHead(nn.Layer):
             input_p = inputs[i]
             if i == (self.range_level - 1):
                 input_feat = input_p
-                x_range = torch.linspace(-1, 1, input_feat.shape[-1], dtype='float32')
-                y_range = torch.linspace(-1, 1, input_feat.shape[-2], dtype='float32')
+                x_range = torch.linspace(-1, 1, input_feat.shape[-1], dtype=torch.float32, device=input_feat.device)
+                y_range = torch.linspace(-1, 1, input_feat.shape[-2], dtype=torch.float32, device=input_feat.device)
                 y, x = torch.meshgrid([y_range, x_range])
                 x = x.unsqueeze(0).unsqueeze(0)
                 y = y.unsqueeze(0).unsqueeze(0)
@@ -141,7 +140,58 @@ class SOLOv2MaskHead(nn.Layer):
         return ins_pred
 
 
-class SOLOv2Head(nn.Layer):
+def matrix_nms(seg_masks, cate_labels, cate_scores, kernel='gaussian', sigma=2.0, sum_masks=None):
+    """Matrix NMS for multi-class masks.
+    Args:
+        seg_masks (Tensor): shape (n, h, w)
+        cate_labels (Tensor): shape (n), mask labels in descending order
+        cate_scores (Tensor): shape (n), mask scores in descending order
+        kernel (str):  'linear' or 'gauss'
+        sigma (float): std in gaussian method
+        sum_masks (Tensor): The sum of seg_masks
+    Returns:
+        Tensor: cate_scores_update, tensors of shape (n)
+    """
+    n_samples = len(cate_labels)
+    if n_samples == 0:
+        return []
+    if sum_masks is None:
+        sum_masks = seg_masks.sum((1, 2)).float()
+    seg_masks = seg_masks.reshape(n_samples, -1).float()
+    # inter.
+    inter_matrix = torch.mm(seg_masks, seg_masks.transpose(1, 0))
+    # union.
+    sum_masks_x = sum_masks.expand(n_samples, n_samples)
+    # iou.
+    iou_matrix = (inter_matrix / (sum_masks_x + sum_masks_x.transpose(1, 0) - inter_matrix)).triu(diagonal=1)
+    # label_specific matrix.
+    cate_labels_x = cate_labels.expand(n_samples, n_samples)
+    label_matrix = (cate_labels_x == cate_labels_x.transpose(1, 0)).float().triu(diagonal=1)
+
+    # IoU compensation
+    compensate_iou, _ = (iou_matrix * label_matrix).max(0)
+    compensate_iou = compensate_iou.expand(n_samples, n_samples).transpose(1, 0)
+
+    # IoU decay
+    decay_iou = iou_matrix * label_matrix
+
+    # matrix nms
+    if kernel == 'gaussian':
+        decay_matrix = torch.exp(-1 * sigma * (decay_iou ** 2))
+        compensate_matrix = torch.exp(-1 * sigma * (compensate_iou ** 2))
+        decay_coefficient, _ = (decay_matrix / compensate_matrix).min(0)
+    elif kernel == 'linear':
+        decay_matrix = (1-decay_iou)/(1-compensate_iou)
+        decay_coefficient, _ = decay_matrix.min(0)
+    else:
+        raise NotImplementedError
+
+    # update the score.
+    cate_scores_update = cate_scores * decay_coefficient
+    return cate_scores_update
+
+
+class SOLOv2Head(nn.Module):
     """
     Head block for SOLOv2 network
 
@@ -175,8 +225,10 @@ class SOLOv2Head(nn.Layer):
                  mask_threshold=0.5,
                  mask_nms=None,
                  norm_type='gn',
+                 nms_cfg=None,
                  drop_block=False):
         super(SOLOv2Head, self).__init__()
+        self.nms_cfg = nms_cfg
         self.num_classes = num_classes
         self.in_channels = in_channels
         self.seg_num_grids = num_grids
@@ -205,7 +257,7 @@ class SOLOv2Head(nn.Layer):
                     stride=1,
                     use_dcn=use_dcn,
                     norm_type=self.norm_type)
-            self.add_module('bbox_head.kernel_convs.' + str(i), kernel_conv)
+            self.add_module('bbox_head_kernel_convs_' + str(i), kernel_conv)
             self.kernel_pred_convs.append(kernel_conv)
             ch_in = self.in_channels if i == 0 else self.seg_feat_channels
             cate_conv = ConvNormLayer(
@@ -215,31 +267,32 @@ class SOLOv2Head(nn.Layer):
                     stride=1,
                     use_dcn=use_dcn,
                     norm_type=self.norm_type)
-            self.add_module('bbox_head.cate_convs.' + str(i), cate_conv)
+            self.add_module('bbox_head_cate_convs_' + str(i), cate_conv)
             self.cate_pred_convs.append(cate_conv)
 
-        self.solo_kernel = nn.Conv2D(
+        self.solo_kernel = nn.Conv2d(
                 self.seg_feat_channels,
                 self.kernel_out_channels,
                 kernel_size=3,
                 stride=1,
                 padding=1,
-                weight_attr=ParamAttr(initializer=Normal(
-                    mean=0., std=0.01)),
-                bias_attr=True)
-        self.add_module('bbox_head.solo_kernel', self.solo_kernel)
+                bias=True)
+        solo_kernel_initializer = Normal(mean=0., std=0.01)
+        solo_kernel_initializer.init(self.solo_kernel.weight)
+        torch.nn.init.constant_(self.solo_kernel.bias, 0.0)
+        self.add_module('bbox_head_solo_kernel', self.solo_kernel)
 
-        self.solo_cate = nn.Conv2D(
+        self.solo_cate = nn.Conv2d(
                 self.seg_feat_channels,
                 self.cate_out_channels,
                 kernel_size=3,
                 stride=1,
                 padding=1,
-                weight_attr=ParamAttr(initializer=Normal(
-                    mean=0., std=0.01)),
-                bias_attr=ParamAttr(initializer=Constant(
-                    value=float(-np.log((1 - 0.01) / 0.01)))))
-        self.add_module('bbox_head.solo_cate', self.solo_cate)
+                bias=True)
+        solo_cate_initializer = Normal(mean=0., std=0.01)
+        solo_cate_initializer.init(self.solo_cate.weight)
+        torch.nn.init.constant_(self.solo_cate.bias, float(-np.log((1 - 0.01) / 0.01)))
+        self.add_module('bbox_head_solo_cate', self.solo_cate)
 
         if self.drop_block and self.training:
             self.drop_block_fun = DropBlock(
@@ -247,23 +300,19 @@ class SOLOv2Head(nn.Layer):
 
     def _points_nms(self, heat, kernel_size=2):
         hmax = F.max_pool2d(heat, kernel_size=kernel_size, stride=1, padding=1)
-        keep = paddle.cast((hmax[:, :, :-1, :-1] == heat), 'float32')
+        keep = (hmax[:, :, :-1, :-1] == heat)
+        keep = keep.to(torch.float32)
         return heat * keep
 
     def _split_feats(self, feats):
-        return (F.interpolate(
-            feats[0],
-            scale_factor=0.5,
-            align_corners=False,
-            align_mode=0,
-            mode='bilinear'), feats[1], feats[2], feats[3], F.interpolate(
-                feats[4],
-                size=paddle.shape(feats[3])[-2:],
-                mode='bilinear',
-                align_corners=False,
-                align_mode=0))
+        # [p2, p3, p4, p5, p6]
+        # 有5个张量，5个张量的strides=[8, 8, 16, 32, 32]，所以先对首尾张量进行插值。
+        # 一定要设置align_corners=False, align_mode=0才能和原版SOLO输出一致。
+        x0 = F.interpolate(feats[0], scale_factor=0.5, align_corners=False, mode='bilinear')
+        x4 = F.interpolate(feats[4], size=feats[3].shape[-2:], align_corners=False, mode='bilinear')
+        return (x0, feats[1], feats[2], feats[3], x4)
 
-    def forward(self, input):
+    def forward(self, input, seg_pred, im_shape, ori_shape):
         """
         Get SOLOv2 head output
 
@@ -274,41 +323,50 @@ class SOLOv2Head(nn.Layer):
             kernel_pred_list (list): Tensors of each kernel branch layer
         """
         feats = self._split_feats(input)
+        # 有5个张量，5个张量的strides=[8, 8, 16, 32, 32]
         cate_pred_list = []
         kernel_pred_list = []
         for idx in range(len(self.seg_num_grids)):
-            cate_pred, kernel_pred = self._get_output_single(feats[idx], idx)
+            seg_num_grid = self.seg_num_grids[idx]   # 格子数。特征图会被插值成 格子数*格子数 的分辨率。
+            cate_pred, kernel_pred = self._get_output_single(feats[idx], seg_num_grid)
             cate_pred_list.append(cate_pred)
             kernel_pred_list.append(kernel_pred)
 
-        return cate_pred_list, kernel_pred_list
+        # return cate_pred_list, kernel_pred_list
+        if self.training:
+            pass
+            # return self.forward_train(feats, targets)
+        else:
+            seg_masks, cate_labels, cate_scores, bbox_num = self.forward_eval(cate_pred_list, kernel_pred_list,
+                                                                              seg_pred, im_shape, ori_shape)
+            outs = {
+                "segm": seg_masks,
+                "bbox_num": bbox_num,
+                'cate_label': cate_labels,
+                'cate_score': cate_scores
+            }
+            return outs
 
-    def _get_output_single(self, input, idx):
+    def _get_output_single(self, input, seg_num_grid):
         ins_kernel_feat = input
         # CoordConv
-        x_range = paddle.linspace(
-            -1, 1, paddle.shape(ins_kernel_feat)[-1], dtype='float32')
-        y_range = paddle.linspace(
-            -1, 1, paddle.shape(ins_kernel_feat)[-2], dtype='float32')
-        y, x = paddle.meshgrid([y_range, x_range])
-        x = paddle.unsqueeze(x, [0, 1])
-        y = paddle.unsqueeze(y, [0, 1])
-        y = paddle.expand(
-            y, shape=[paddle.shape(ins_kernel_feat)[0], 1, -1, -1])
-        x = paddle.expand(
-            x, shape=[paddle.shape(ins_kernel_feat)[0], 1, -1, -1])
-        coord_feat = paddle.concat([x, y], axis=1)
-        ins_kernel_feat = paddle.concat([ins_kernel_feat, coord_feat], axis=1)
+        x_range = torch.linspace(-1, 1, ins_kernel_feat.shape[-1], dtype=torch.float32, device=ins_kernel_feat.device)
+        y_range = torch.linspace(-1, 1, ins_kernel_feat.shape[-2], dtype=torch.float32, device=ins_kernel_feat.device)
+        y, x = torch.meshgrid([y_range, x_range])
+        x = x.unsqueeze(0).unsqueeze(0)
+        y = y.unsqueeze(0).unsqueeze(0)
+        y = torch.tile(y, [ins_kernel_feat.shape[0], 1, 1, 1])
+        x = torch.tile(x, [ins_kernel_feat.shape[0], 1, 1, 1])
+        coord_feat = torch.cat([x, y], 1)
+        ins_kernel_feat = torch.cat([ins_kernel_feat, coord_feat], 1)
 
         # kernel branch
         kernel_feat = ins_kernel_feat
-        seg_num_grid = self.seg_num_grids[idx]
         kernel_feat = F.interpolate(
             kernel_feat,
             size=[seg_num_grid, seg_num_grid],
             mode='bilinear',
-            align_corners=False,
-            align_mode=0)
+            align_corners=False)
         cate_feat = kernel_feat[:, :-2, :, :]
 
         for kernel_layer in self.kernel_pred_convs:
@@ -324,8 +382,8 @@ class SOLOv2Head(nn.Layer):
         cate_pred = self.solo_cate(cate_feat)
 
         if not self.training:
-            cate_pred = self._points_nms(F.sigmoid(cate_pred), kernel_size=2)
-            cate_pred = paddle.transpose(cate_pred, [0, 2, 3, 1])
+            cate_pred = self._points_nms(torch.sigmoid(cate_pred), kernel_size=2)
+            cate_pred = cate_pred.permute((0, 2, 3, 1))
         return cate_pred, kernel_pred
 
     def get_loss(self, cate_preds, kernel_preds, ins_pred, ins_labels,
@@ -382,19 +440,18 @@ class SOLOv2Head(nn.Layer):
                 paddle.transpose(cate_pred, [0, 2, 3, 1]),
                 shape=(-1, self.cate_out_channels)) for cate_pred in cate_preds
         ]
-        flatten_cate_preds = paddle.concat(cate_preds)
+        flatten_cate_preds = torch.cat(cate_preds)
         new_cate_labels = []
         for cate_label in cate_labels:
             new_cate_labels.append(paddle.reshape(cate_label, shape=[-1]))
-        cate_labels = paddle.concat(new_cate_labels)
+        cate_labels = torch.cat(new_cate_labels)
 
         loss_ins, loss_cate = self.solov2_loss(
             ins_pred_list, ins_labels, flatten_cate_preds, cate_labels, num_ins)
 
         return {'loss_ins': loss_ins, 'loss_cate': loss_cate}
 
-    def get_prediction(self, cate_preds, kernel_preds, seg_pred, im_shape,
-                       scale_factor):
+    def forward_eval(self, cate_preds, kernel_preds, seg_pred, im_shape, ori_shape):
         """
         Get prediction result of SOLOv2 network
 
@@ -410,7 +467,7 @@ class SOLOv2Head(nn.Layer):
             seg_masks (Tensor): The prediction score of each segmentation.
         """
         num_levels = len(cate_preds)
-        featmap_size = paddle.shape(seg_pred)[-2:]
+        featmap_size = seg_pred.shape[-2:]
         seg_masks_list = []
         cate_labels_list = []
         cate_scores_list = []
@@ -419,123 +476,116 @@ class SOLOv2Head(nn.Layer):
         # Currently only supports batch size == 1
         for idx in range(1):
             cate_pred_list = [
-                paddle.reshape(
-                    cate_preds[i][idx], shape=(-1, self.cate_out_channels))
+                torch.reshape(cate_preds[i][idx], shape=(-1, self.cate_out_channels))
                 for i in range(num_levels)
             ]
             seg_pred_list = seg_pred
             kernel_pred_list = [
-                paddle.reshape(
-                    paddle.transpose(kernel_preds[i][idx], [1, 2, 0]),
-                    shape=(-1, self.kernel_out_channels))
+                torch.reshape(kernel_preds[i][idx].permute((1, 2, 0)), shape=(-1, self.kernel_out_channels))
                 for i in range(num_levels)
             ]
-            cate_pred_list = paddle.concat(cate_pred_list, axis=0)
-            kernel_pred_list = paddle.concat(kernel_pred_list, axis=0)
+            cate_pred_list = torch.cat(cate_pred_list, 0)
+            kernel_pred_list = torch.cat(kernel_pred_list, 0)
 
-            seg_masks, cate_labels, cate_scores = self.get_seg_single(
+            output = self.get_seg_single(
                 cate_pred_list, seg_pred_list, kernel_pred_list, featmap_size,
-                im_shape[idx], scale_factor[idx][0])
-            bbox_num = paddle.shape(cate_labels)[0]
+                im_shape[idx], ori_shape[idx])
+            if output is None:
+                seg_masks, cate_labels, cate_scores = None, None, None
+                bbox_num = 0
+            else:
+                seg_masks, cate_labels, cate_scores = output
+                bbox_num = cate_labels.shape[0]
         return seg_masks, cate_labels, cate_scores, bbox_num
 
     def get_seg_single(self, cate_preds, seg_preds, kernel_preds, featmap_size,
-                       im_shape, scale_factor):
+                       im_shape, ori_shape):
         """
         The code of this function is based on:
             https://github.com/WXinlong/SOLO/blob/master/mmdet/models/anchor_heads/solov2_head.py#L385
         """
-        h = paddle.cast(im_shape[0], 'int32')[0]
-        w = paddle.cast(im_shape[1], 'int32')[0]
+        hw = im_shape.to(torch.int32)
+        h = hw[0]
+        w = hw[1]
         upsampled_size_out = [featmap_size[0] * 4, featmap_size[1] * 4]
 
-        y = paddle.zeros(shape=paddle.shape(cate_preds), dtype='float32')
-        inds = paddle.where(cate_preds > self.score_threshold, cate_preds, y)
-        inds = paddle.nonzero(inds)
-        cate_preds = paddle.reshape(cate_preds, shape=[-1])
-        # Prevent empty and increase fake data
-        ind_a = paddle.cast(paddle.shape(kernel_preds)[0], 'int64')
-        ind_b = paddle.zeros(shape=[1], dtype='int64')
-        inds_end = paddle.unsqueeze(paddle.concat([ind_a, ind_b]), 0)
-        inds = paddle.concat([inds, inds_end])
-        kernel_preds_end = paddle.ones(
-            shape=[1, self.kernel_out_channels], dtype='float32')
-        kernel_preds = paddle.concat([kernel_preds, kernel_preds_end])
-        cate_preds = paddle.concat(
-            [cate_preds, paddle.zeros(
-                shape=[1], dtype='float32')])
+        # process.
+        inds = (cate_preds > self.nms_cfg['score_threshold'])
+        cate_scores = cate_preds[inds]
+        if len(cate_scores) == 0:
+            return None
 
         # cate_labels & kernel_preds
+        inds = inds.nonzero()
         cate_labels = inds[:, 1]
-        kernel_preds = paddle.gather(kernel_preds, index=inds[:, 0])
-        cate_score_idx = paddle.add(inds[:, 0] * self.cate_out_channels,
-                                    cate_labels)
-        cate_scores = paddle.gather(cate_preds, index=cate_score_idx)
+        kernel_preds = kernel_preds[inds[:, 0]]
 
-        size_trans = np.power(self.seg_num_grids, 2)
-        strides = []
-        for _ind in range(len(self.segm_strides)):
-            strides.append(
-                paddle.full(
-                    shape=[int(size_trans[_ind])],
-                    fill_value=self.segm_strides[_ind],
-                    dtype="int32"))
-        strides = paddle.concat(strides)
-        strides = paddle.concat(
-            [strides, paddle.zeros(
-                shape=[1], dtype='int32')])
-        strides = paddle.gather(strides, index=inds[:, 0])
+        # trans vector.
+        size_trans = cate_labels.new_tensor(self.seg_num_grids).pow(2).cumsum(0)
+        strides = kernel_preds.new_ones(size_trans[-1])
+
+        n_stage = len(self.seg_num_grids)
+        strides[:size_trans[0]] *= self.segm_strides[0]
+        for ind_ in range(1, n_stage):
+            strides[size_trans[ind_-1]:size_trans[ind_]] *= self.segm_strides[ind_]
+        strides = strides[inds[:, 0]]
 
         # mask encoding.
-        kernel_preds = paddle.unsqueeze(kernel_preds, [2, 3])
-        seg_preds = F.conv2d(seg_preds, kernel_preds)
-        seg_preds = F.sigmoid(paddle.squeeze(seg_preds, [0]))
+        I, N = kernel_preds.shape
+        kernel_preds = kernel_preds.view(I, N, 1, 1)
+        seg_preds = F.conv2d(seg_preds, kernel_preds, stride=1).squeeze(0).sigmoid()
+        # mask.
         seg_masks = seg_preds > self.mask_threshold
-        seg_masks = paddle.cast(seg_masks, 'float32')
-        sum_masks = paddle.sum(seg_masks, axis=[1, 2])
+        seg_masks = seg_masks.to(torch.float32)
+        sum_masks = seg_masks.sum((1, 2))
 
-        y = paddle.zeros(shape=paddle.shape(sum_masks), dtype='float32')
-        keep = paddle.where(sum_masks > strides, sum_masks, y)
-        keep = paddle.nonzero(keep)
-        keep = paddle.squeeze(keep, axis=[1])
-        # Prevent empty and increase fake data
-        keep_other = paddle.concat(
-            [keep, paddle.cast(paddle.shape(sum_masks)[0] - 1, 'int64')])
-        keep_scores = paddle.concat(
-            [keep, paddle.cast(paddle.shape(sum_masks)[0], 'int64')])
-        cate_scores_end = paddle.zeros(shape=[1], dtype='float32')
-        cate_scores = paddle.concat([cate_scores, cate_scores_end])
+        # filter.
+        keep = sum_masks > strides
+        if keep.sum() == 0:
+            return None
 
-        seg_masks = paddle.gather(seg_masks, index=keep_other)
-        seg_preds = paddle.gather(seg_preds, index=keep_other)
-        sum_masks = paddle.gather(sum_masks, index=keep_other)
-        cate_labels = paddle.gather(cate_labels, index=keep_other)
-        cate_scores = paddle.gather(cate_scores, index=keep_scores)
+        seg_masks = seg_masks[keep, ...]
+        seg_preds = seg_preds[keep, ...]
+        sum_masks = sum_masks[keep]
+        cate_scores = cate_scores[keep]
+        cate_labels = cate_labels[keep]
 
-        # mask scoring.
-        seg_mul = paddle.cast(seg_preds * seg_masks, 'float32')
-        seg_scores = paddle.sum(seg_mul, axis=[1, 2]) / sum_masks
+        # maskness.
+        seg_scores = (seg_preds * seg_masks.float()).sum((1, 2)) / sum_masks
         cate_scores *= seg_scores
+
+        # sort and keep top nms_pre
+        sort_inds = torch.argsort(cate_scores, descending=True)
+        if len(sort_inds) > self.nms_cfg['nms_top_k']:
+            sort_inds = sort_inds[:self.nms_cfg['nms_top_k']]
+        seg_masks = seg_masks[sort_inds, :, :]
+        seg_preds = seg_preds[sort_inds, :, :]
+        sum_masks = sum_masks[sort_inds]
+        cate_scores = cate_scores[sort_inds]
+        cate_labels = cate_labels[sort_inds]
+
         # Matrix NMS
-        seg_preds, cate_scores, cate_labels = self.mask_nms(
-            seg_preds, seg_masks, cate_labels, cate_scores, sum_masks=sum_masks)
-        ori_shape = im_shape[:2] / scale_factor + 0.5
-        ori_shape = paddle.cast(ori_shape, 'int32')
-        seg_preds = F.interpolate(
-            paddle.unsqueeze(seg_preds, 0),
-            size=upsampled_size_out,
-            mode='bilinear',
-            align_corners=False,
-            align_mode=0)
-        seg_preds = paddle.slice(
-            seg_preds, axes=[2, 3], starts=[0, 0], ends=[h, w])
-        seg_masks = paddle.squeeze(
-            F.interpolate(
-                seg_preds,
-                size=ori_shape[:2],
-                mode='bilinear',
-                align_corners=False,
-                align_mode=0),
-            axis=[0])
-        seg_masks = paddle.cast(seg_masks > self.mask_threshold, 'uint8')
+        cate_scores = matrix_nms(seg_masks, cate_labels, cate_scores,
+                                 kernel=self.nms_cfg['kernel'], sigma=self.nms_cfg['gaussian_sigma'], sum_masks=sum_masks)
+
+        # filter.
+        keep = cate_scores >= self.nms_cfg['post_threshold']
+        if keep.sum() == 0:
+            return None
+        seg_preds = seg_preds[keep, :, :]
+        cate_scores = cate_scores[keep]
+        cate_labels = cate_labels[keep]
+
+        # sort and keep top_k
+        sort_inds = torch.argsort(cate_scores, descending=True)
+        if len(sort_inds) > self.nms_cfg['keep_top_k']:
+            sort_inds = sort_inds[:self.nms_cfg['keep_top_k']]
+        seg_preds = seg_preds[sort_inds, :, :]
+        cate_scores = cate_scores[sort_inds]
+        cate_labels = cate_labels[sort_inds]
+
+        seg_preds = F.interpolate(seg_preds.unsqueeze(0), size=upsampled_size_out, mode='bilinear')[:, :, :h, :w]
+        ori_shape = ori_shape.to(torch.int32).cpu().detach().numpy()
+        seg_masks = F.interpolate(seg_preds, size=(ori_shape[0], ori_shape[1]), mode='bilinear').squeeze(0)
+        seg_masks = (seg_masks > self.mask_threshold).float()
         return seg_masks, cate_labels, cate_scores

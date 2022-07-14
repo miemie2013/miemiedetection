@@ -3,6 +3,7 @@
 # Copyright (c) Megvii, Inc. and its affiliates.
 
 import argparse
+import copy
 import os
 import time
 from loguru import logger
@@ -18,7 +19,7 @@ sys.path.insert(0, parent_path)
 
 from mmdet.data.data_augment import *
 from mmdet.exp import get_exp
-from mmdet.utils import fuse_model, get_model_info, postprocess, vis, get_classes, vis2, load_ckpt
+from mmdet.utils import fuse_model, get_model_info, postprocess, vis, get_classes, vis2, vis_solo, load_ckpt
 import mmdet.models.ncnn_utils as ncnn_utils
 
 IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
@@ -277,6 +278,113 @@ class PPYOLOPredictor(object):
         # vis_res = vis2(img, bboxes, scores, cls, cls_conf, self.cls_names)
         vis_res = vis(img, bboxes, scores, cls, cls_conf, self.cls_names)
         return vis_res
+
+
+class SOLOPredictor(object):
+    def __init__(
+        self,
+        model,
+        exp,
+        trt_file=None,
+        device="cpu",
+        fp16=False,
+        legacy=False,
+    ):
+        self.model = model
+        self.cls_names = get_classes(exp.cls_names)
+        self.num_classes = exp.num_classes
+        self.confthre = exp.nms_cfg['post_threshold']
+        self.test_size = exp.test_size
+        self.device = device
+        self.fp16 = fp16
+
+        # 预测时的数据预处理
+        self.context = exp.context
+        self.to_rgb = exp.decodeImage['to_rgb']
+        target_size = self.test_size[0]
+        resizeImage_cfg = copy.deepcopy(exp.resizeImage)
+        resizeImage_cfg['target_size'] = target_size
+        resizeImage = ResizeImage(**resizeImage_cfg)
+        normalizeImage = NormalizeImage(**exp.normalizeImage)
+        permute = Permute(**exp.permute)
+        padBatch = PadBatch(**exp.padBatch)
+        self.preproc = SOLOValTransform(self.context, self.to_rgb, resizeImage, normalizeImage, permute, padBatch)
+
+        # TensorRT
+        if trt_file is not None:
+            from torch2trt import TRTModule
+
+            model_trt = TRTModule()
+            model_trt.load_state_dict(torch.load(trt_file))
+
+            x = torch.ones(1, 3, exp.test_size[0], exp.test_size[1]).cuda()
+            self.model(x)
+            self.model = model_trt
+
+    def inference(self, img):
+        img_info = {"id": 0}
+        if isinstance(img, str):
+            img_info["file_name"] = os.path.basename(img)
+            img = cv2.imread(img)
+        else:
+            img_info["file_name"] = None
+
+        height, width = img.shape[:2]
+        img_info["height"] = height
+        img_info["width"] = width
+        img_info["raw_img"] = img
+
+        img, im_size, ori_shape = self.preproc(img)
+        img = torch.from_numpy(img)
+        im_size = torch.from_numpy(im_size)
+        ori_shape = torch.from_numpy(ori_shape)
+        img = img.float()
+        im_size = im_size.float()
+        ori_shape = ori_shape.float()
+        if self.device == "gpu":
+            img = img.cuda()
+            im_size = im_size.cuda()
+            ori_shape = ori_shape.cuda()
+            if self.fp16:
+                img = img.half()  # to FP16
+                im_size = im_size.half()  # to FP16
+                ori_shape = ori_shape.half()  # to FP16
+
+        with torch.no_grad():
+            t0 = time.time()
+            outputs = self.model(img, im_size, ori_shape)
+            logger.info("Infer time: {:.4f}s".format(time.time() - t0))
+        return outputs, img_info
+
+    def visual(self, output, img_info, cls_conf=0.35):
+        bbox_num = output['bbox_num']
+        img = img_info["raw_img"]
+        if bbox_num > 0:
+            masks = output['segm']
+            cls = output['cate_label']
+            scores = output['cate_score']
+
+            masks = masks.cpu().detach().numpy()
+            cls = cls.to(torch.int32).cpu().detach().numpy()
+            scores = scores.cpu().detach().numpy()
+
+            # 获取boxes
+            boxes = []
+            for ms in masks:
+                sum_1 = np.sum(ms, axis=0)
+                x = np.where(sum_1 > 0.5)[0]
+                sum_2 = np.sum(ms, axis=1)
+                y = np.where(sum_2 > 0.5)[0]
+                if len(x) == 0:  # 掩码全是0的话（即没有一个像素是前景）
+                    x0, x1, y0, y1 = 0, 1, 0, 1
+                else:
+                    x0, x1, y0, y1 = x[0], x[-1], y[0], y[-1]
+                boxes.append([x0, y0, x1, y1])
+            bboxes = np.array(boxes).astype(np.float32)
+            vis_res = vis_solo(img, bboxes, masks, scores, cls, cls_conf, self.cls_names)
+            return vis_res
+        else:
+            return img
 
 
 class PPYOLOEPredictor(object):
@@ -556,6 +664,13 @@ def main(exp, args):
         if args.tsize is not None:
             exp.test_size = [args.tsize, args.tsize]
             exp.head['eval_size'] = exp.test_size
+    elif archi_name == 'SOLO':
+        # SOLO使用的是matrix_nms，修改matrix_nms的配置。
+        if args.conf is not None:
+            exp.nms_cfg['score_threshold'] = args.conf
+            exp.nms_cfg['post_threshold'] = args.conf
+        if args.tsize is not None:
+            exp.test_size = (args.tsize, args.tsize)
     elif archi_name == 'FCOS':
         # FCOS暂时使用的是matrix_nms，修改matrix_nms的配置。
         if args.conf is not None:
@@ -675,6 +790,39 @@ def main(exp, args):
             trt_file = None
 
         predictor = PPYOLOEPredictor(
+            model, exp, trt_file,
+            args.device, args.fp16, args.legacy,
+        )
+    elif archi_name == 'SOLO':
+        # 加载模型权重
+        if not args.trt:
+            if args.ckpt is None:
+                ckpt_file = os.path.join(file_name, "best_ckpt.pth")
+            else:
+                ckpt_file = args.ckpt
+            logger.info("loading checkpoint")
+            ckpt = torch.load(ckpt_file, map_location="cpu")
+            # load the model state dict
+            model = load_ckpt(model, ckpt["model"])
+            logger.info("loaded checkpoint done.")
+
+        # 卷积层和bn层合并为一个卷积层
+        if args.fuse:
+            logger.info("\tFusing model...")
+            model = fuse_model(model)
+
+        if args.trt:
+            assert not args.fuse, "TensorRT model is not support model fusing!"
+            trt_file = os.path.join(file_name, "model_trt.pth")
+            assert os.path.exists(
+                trt_file
+            ), "TensorRT model is not found!\n Run python3 tools/trt.py first!"
+            model.head.decode_in_inference = False
+            logger.info("Using TensorRT to inference")
+        else:
+            trt_file = None
+
+        predictor = SOLOPredictor(
             model, exp, trt_file,
             args.device, args.fp16, args.legacy,
         )

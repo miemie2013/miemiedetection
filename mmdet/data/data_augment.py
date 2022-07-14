@@ -314,6 +314,36 @@ class PPYOLOValTransform:
         return pimage, im_size
 
 
+class SOLOValTransform:
+    def __init__(self, context, to_rgb, resizeImage, normalizeImage, permute, padBatch):
+        self.context = context
+        self.to_rgb = to_rgb
+        self.resizeImage = resizeImage
+        self.normalizeImage = normalizeImage
+        self.permute = permute
+        self.padBatch = padBatch
+
+    def __call__(self, img):
+        if self.to_rgb:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        context = self.context
+        sample = {}
+        sample['image'] = img
+        sample['h'] = img.shape[0]
+        sample['w'] = img.shape[1]
+
+        sample = self.normalizeImage(sample, context)
+        sample = self.resizeImage(sample, context)
+        sample = self.permute(sample, context)
+        samples = self.padBatch([sample, ], context)
+        sample = samples[0]
+
+        pimage = np.expand_dims(sample['image'], axis=0)
+        im_size = np.array([[sample['im_info'][0], sample['im_info'][1]]]).astype(np.int32)
+        ori_shape = np.array([[img.shape[0], img.shape[1]]]).astype(np.int32)
+        return pimage, im_size, ori_shape
+
+
 class PPYOLOEValTransform:
     def __init__(self, context, to_rgb, resizeImage, normalizeImage, permute):
         self.context = context

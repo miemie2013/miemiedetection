@@ -20,7 +20,7 @@ python tools/convert_weights.py -f exps/ppyolo/ppyolo_r18vd.py -c ResNet18_vd_pr
 
 
 ----------------------- 预测 -----------------------
-python tools/demo.py image -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo_r50vd_2x.pth --path assets/000000000019.jpg --conf 0.15 --tsize 608 --save_result --device gpu
+python tools/demo.py image -f exps/solo/solov2_r50_fpn_3x_coco.py -c solov2_r50_fpn_3x_coco.pth --path assets/000000000019.jpg --conf 0.15 --tsize 800 --save_result --device gpu
 
 
 python tools/demo.py image -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pth --path assets/000000000019.jpg --conf 0.15 --tsize 416 --save_result --device gpu

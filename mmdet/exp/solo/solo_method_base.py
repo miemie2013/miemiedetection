@@ -115,25 +115,24 @@ class SOLO_Method_Exp(COCOBaseExp):
         )
         self.fpn_type = 'FPN'
         self.fpn = dict(
-            coord_conv=True,
-            drop_block=True,
-            block_size=3,
-            keep_prob=0.9,
-            spp=True,
+            in_channels=[256, 512, 1024, 2048],
+            out_channel=256,
         )
         self.head_type = 'SOLOv2Head'
         self.head = dict(
-            in_channels=[1024, 512, 256],
+            in_channels=256,
+            seg_feat_channels=512,
             num_classes=self.num_classes,
-            anchor_masks=[[6, 7, 8], [3, 4, 5], [0, 1, 2]],
-            anchors=[[10, 13], [16, 30], [33, 23],
-                     [30, 61], [62, 45], [59, 119],
-                     [116, 90], [156, 198], [373, 326]],
-            downsample=[32, 16, 8],
-            scale_x_y=1.05,
-            clip_bbox=True,
-            iou_aware=True,
-            iou_aware_factor=0.4,
+            stacked_convs=4,
+            num_grids=[40, 36, 24, 16, 12],
+            kernel_out_channels=256,
+        )
+        self.solomaskhead_type = 'SOLOv2MaskHead'
+        self.solomaskhead = dict(
+            mid_channels=128,
+            out_channels=256,
+            start_level=0,
+            end_level=3,
         )
         self.iou_loss = dict(
             loss_weight=2.5,
@@ -142,19 +141,18 @@ class SOLO_Method_Exp(COCOBaseExp):
         self.iou_aware_loss = dict(
             loss_weight=1.0,
         )
-        self.yolo_loss = dict(
-            ignore_thresh=0.7,
-            downsample=[32, 16, 8],
-            label_smooth=False,
-            scale_x_y=1.05,
+        self.solo_loss = dict(
+            ins_loss_weight=3.0,
+            focal_loss_gamma=2.0,
+            focal_loss_alpha=0.25,
         )
         self.nms_cfg = dict(
-            nms_type='matrix_nms',
+            nms_type='mask_matrix_nms',
             score_threshold=0.01,
             post_threshold=0.01,
             nms_top_k=500,
             keep_top_k=100,
-            use_gaussian=False,
+            kernel='gaussian',  # 'gaussian' or 'linear'
             gaussian_sigma=2.,
         )
 
@@ -230,8 +228,14 @@ class SOLO_Method_Exp(COCOBaseExp):
         )
         # ResizeImage
         self.resizeImage = dict(
-            target_size=608,
-            interp=2,
+            target_size=800,
+            max_size=1333,
+            interp=1,
+        )
+        # PadBatch
+        self.padBatch = dict(
+            pad_to_stride=32,
+            use_padded_im_info=False,
         )
 
         # 预处理顺序。增加一些数据增强时这里也要加上，否则train.py中相当于没加！
@@ -266,8 +270,8 @@ class SOLO_Method_Exp(COCOBaseExp):
         self.eval_data_num_workers = 2
 
     def get_model(self):
-        from mmdet.models import ResNet, IouLoss, IouAwareLoss, YOLOv3Loss, YOLOv3Head, SOLO
-        from mmdet.models.necks.yolo_fpn import PPYOLOFPN, PPYOLOPAN
+        from mmdet.models import ResNet, IouLoss, IouAwareLoss, YOLOv3Loss, SOLOv2Head, SOLOv2MaskHead, SOLO
+        from mmdet.models.necks.fpn import FPN
         if getattr(self, "model", None) is None:
             Backbone = None
             if self.backbone_type == 'ResNet':
@@ -276,18 +280,16 @@ class SOLO_Method_Exp(COCOBaseExp):
             # 冻结骨干网络
             backbone.fix_bn()
             Fpn = None
-            if self.fpn_type == 'PPYOLOFPN':
-                Fpn = PPYOLOFPN
-            elif self.fpn_type == 'PPYOLOPAN':
-                Fpn = PPYOLOPAN
+            if self.fpn_type == 'FPN':
+                Fpn = FPN
             fpn = Fpn(**self.fpn)
-            iou_loss = IouLoss(**self.iou_loss)
-            iou_aware_loss = None
-            if self.head['iou_aware']:
-                iou_aware_loss = IouAwareLoss(**self.iou_aware_loss)
-            yolo_loss = YOLOv3Loss(iou_loss=iou_loss, iou_aware_loss=iou_aware_loss, **self.yolo_loss)
-            head = YOLOv3Head(loss=yolo_loss, nms_cfg=self.nms_cfg, **self.head)
-            self.model = PPYOLO(backbone, fpn, head)
+            # iou_loss = IouLoss(**self.iou_loss)
+            # iou_aware_loss = None
+            # yolo_loss = YOLOv3Loss(iou_loss=iou_loss, iou_aware_loss=iou_aware_loss, **self.yolo_loss)
+            # head = SOLOv2Head(loss=yolo_loss, nms_cfg=self.nms_cfg, **self.head)
+            head = SOLOv2Head(nms_cfg=self.nms_cfg, **self.head)
+            mask_head = SOLOv2MaskHead(**self.solomaskhead)
+            self.model = SOLO(backbone, fpn, head, mask_head)
         return self.model
 
     def get_data_loader(
