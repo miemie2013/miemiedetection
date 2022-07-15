@@ -304,8 +304,8 @@ def main(exp, args):
             delattr(model, "yolo_head")
     elif model_class_name == 'SOLO':
         temp_x = torch.randn((1, 3, 640, 640))
-        temp_im_shape = torch.ones((2, 2)) * 640
-        temp_ori_shape = torch.ones((2, 2)) * 640
+        temp_im_shape = torch.ones((1, 2)) * 640
+        temp_ori_shape = torch.ones((1, 2)) * 640
         if args.device == "gpu":
             temp_x = temp_x.cuda()
             temp_im_shape = temp_im_shape.cuda()

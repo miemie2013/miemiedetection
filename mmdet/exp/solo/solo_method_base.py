@@ -145,7 +145,7 @@ class SOLO_Method_Exp(COCOBaseExp):
         self.milestones_epoch = [649, 730]
 
         # -----------------  testing config ------------------ #
-        self.test_size = (608, 608)
+        self.test_size = (800, 800)
 
         # ---------------- model config ---------------- #
         self.output_dir = "SOLO_outputs"
@@ -279,6 +279,10 @@ class SOLO_Method_Exp(COCOBaseExp):
         self.padBatch = dict(
             pad_to_stride=32,
             use_padded_im_info=False,
+        )
+        # SOLOv2Pad
+        self.sOLOv2Pad = dict(
+            max_size=1344,
         )
 
         # 预处理顺序。增加一些数据增强时这里也要加上，否则train.py中相当于没加！
@@ -440,10 +444,16 @@ class SOLO_Method_Exp(COCOBaseExp):
         resizeImage = ResizeImage(**resizeImage_cfg)
         normalizeImage = NormalizeImage(**self.normalizeImage)
         permute = Permute(**self.permute)
-        transforms = [decodeImage, normalizeImage, resizeImage, permute]
 
+        # 方案1，DataLoader里使用collate_fn参数，慢
+        transforms = [decodeImage, normalizeImage, resizeImage, permute]
         padBatch = PadBatch(**self.padBatch)
         batch_transforms = [padBatch, ]
+
+        # 方案2，用SOLOv2Pad
+        # sOLOv2Pad = SOLOv2Pad(**self.sOLOv2Pad)
+        # transforms = [decodeImage, normalizeImage, resizeImage, permute, sOLOv2Pad]
+
         val_dataset = SOLO_COCOEvalDataset(
             data_dir=self.data_dir,
             json_file=self.val_ann if not testdev else "image_info_test-dev2017.json",
@@ -467,8 +477,11 @@ class SOLO_Method_Exp(COCOBaseExp):
             "sampler": sampler,
         }
         dataloader_kwargs["batch_size"] = batch_size
+
+        # 方案1，DataLoader里使用collate_fn参数，慢
         collater = SOLOEvalCollater(self.context, batch_transforms)
         dataloader_kwargs["collate_fn"] = collater
+
         val_loader = torch.utils.data.DataLoader(val_dataset, **dataloader_kwargs)
 
         return val_loader

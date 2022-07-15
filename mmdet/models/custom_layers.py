@@ -972,7 +972,7 @@ class DeformableConvV2(nn.Module):
             # in ResNet backbone, do not need bias
             dcn_bias_attr = False
         assert dilation == 1
-        assert kernel_size == 3
+        assert kernel_size in [1, 3]
         assert groups == 1
         # 自实现的DCNv2
         self.conv_dcn = MyDCNv2(

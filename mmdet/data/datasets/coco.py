@@ -423,6 +423,8 @@ class SOLO_COCOEvalDataset(torch.utils.data.Dataset):
         for transform in self.transforms:
             sample = transform(sample, self.context)
 
+
+        # 方案1，DataLoader里使用collate_fn参数，慢
         # 取出感兴趣的项
         pimage = sample['image']
         im_info = sample['im_info']
@@ -430,6 +432,14 @@ class SOLO_COCOEvalDataset(torch.utils.data.Dataset):
         h = sample['h']
         w = sample['w']
         return pimage, im_info, im_id, h, w
+
+        # 方案2，用SOLOv2Pad
+        # 取出感兴趣的项
+        # pimage = sample['image']
+        # im_size = np.array([sample['im_info'][0], sample['im_info'][1]]).astype(np.int32)
+        # ori_shape = np.array([sample['h'], sample['w']]).astype(np.int32)
+        # id = sample['im_id']
+        # return pimage, im_size, ori_shape, id
 
 
 class PPYOLOE_COCOEvalDataset(torch.utils.data.Dataset):

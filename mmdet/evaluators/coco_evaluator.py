@@ -325,6 +325,16 @@ class COCOEvaluator:
             progress_bar(self.dataloader)
         ):
             with torch.no_grad():
+                # 方案2，用SOLOv2Pad，需要多余的预处理。
+                # max_hw, _ = im_sizes.max(0)
+                # max_hw = max_hw.cpu().detach().numpy()
+                # max_h = max_hw[0]
+                # max_w = max_hw[1]
+                # coarsest_stride = 32
+                # max_h = int(np.ceil(max_h / coarsest_stride) * coarsest_stride)
+                # max_w = int(np.ceil(max_w / coarsest_stride) * coarsest_stride)
+                # pimages = pimages[:, :, :max_h, :max_w]
+
                 pimages = pimages.type(tensor_type)     # [N, 3, 800, 1xxx]
                 im_sizes = im_sizes.type(tensor_type)   # [N, 2]
                 ori_shapes = ori_shapes.type(tensor_type)   # [N, 2]
@@ -588,11 +598,11 @@ class COCOEvaluator:
                 label = self.dataloader.dataset.clsid2catid[int(cls[ind])]
 
                 xmin, ymin, xmax, ymax = bboxes[ind].tolist()
-                # 不需要+1
-                # w = xmax - xmin + 1
-                # h = ymax - ymin + 1
-                w = xmax - xmin
-                h = ymax - ymin
+                # 需不需要+1？
+                w = xmax - xmin + 1
+                h = ymax - ymin + 1
+                # w = xmax - xmin
+                # h = ymax - ymin
                 bbox = [xmin, ymin, w, h]
                 # Round to the nearest 10th to avoid huge file sizes, as COCO suggests
                 bbox = [round(float(x) * 10) / 10 for x in bbox]

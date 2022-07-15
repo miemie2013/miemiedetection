@@ -2400,6 +2400,22 @@ class PadBatch(BaseOperator):
         return samples
 
 
+class SOLOv2Pad(BaseOperator):
+    def __init__(self, max_size=0):
+        super(SOLOv2Pad, self).__init__()
+        self.max_size = max_size
+
+    def __call__(self, sample, context=None):
+        max_size = self.max_size
+
+        im = sample['image']
+        im_c, im_h, im_w = im.shape[:]
+        padding_im = np.zeros((im_c, max_size, max_size), dtype=np.float32)
+        padding_im[:, :im_h, :im_w] = im
+        sample['image'] = padding_im
+        return sample
+
+
 class PadBatchSingle(BaseOperator):
     """
     一张图片的PadBatch
