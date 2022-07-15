@@ -205,9 +205,9 @@ python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 1 -b 16 -eb 8 -c PPYOLO_
 
 
 ----------------------- 评估 -----------------------
-python tools/eval.py -f exps/solo/solov2_r50_fpn_3x_coco.py -d 1 -b 1 -c solov2_r50_fpn_3x_coco.pth --conf 0.01 --tsize 800
+python tools/eval.py -f exps/solo/solov2_r50_fpn_3x_coco.py -d 1 -b 1 -c solov2_r50_fpn_3x_coco.pth --tsize 800
 
-python tools/eval.py -f exps/solo/solov2_r50_fpn_3x_coco.py -d 1 -b 2 -c solov2_r50_fpn_3x_coco.pth --conf 0.01 --tsize 800
+python tools/eval.py -f exps/solo/solov2_r50_fpn_3x_coco.py -d 1 -b 2 -c solov2_r50_fpn_3x_coco.pth --tsize 800
 
 
 Average forward time: 34.49 ms, Average NMS time: 0.00 ms, Average inference time: 34.49 ms

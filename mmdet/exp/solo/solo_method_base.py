@@ -191,8 +191,8 @@ class SOLO_Method_Exp(COCOBaseExp):
         )
         self.nms_cfg = dict(
             nms_type='mask_matrix_nms',
-            score_threshold=0.01,
-            post_threshold=0.01,
+            score_threshold=0.1,
+            post_threshold=0.05,
             nms_top_k=500,
             keep_top_k=100,
             kernel='gaussian',  # 'gaussian' or 'linear'

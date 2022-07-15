@@ -482,7 +482,7 @@ class SOLOv2Head(nn.Module):
                 torch.reshape(cate_preds[i][idx], shape=(-1, self.cate_out_channels))
                 for i in range(num_levels)
             ]
-            seg_pred_list = seg_pred
+            seg_pred_list = seg_pred[idx:idx+1, :, :, :]
             kernel_pred_list = [
                 torch.reshape(kernel_preds[i][idx].permute((1, 2, 0)), shape=(-1, self.kernel_out_channels))
                 for i in range(num_levels)
@@ -503,7 +503,7 @@ class SOLOv2Head(nn.Module):
             cate_labels_list.append(cate_labels)
             cate_scores_list.append(cate_scores)
             bbox_num_list.append(bbox_num)
-        return seg_masks, cate_labels, cate_scores, bbox_num
+        return seg_masks_list, cate_labels_list, cate_scores_list, bbox_num_list
 
     def get_seg_single(self, cate_preds, seg_preds, kernel_preds, featmap_size,
                        im_shape, ori_shape):

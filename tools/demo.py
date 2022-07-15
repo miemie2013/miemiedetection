@@ -357,12 +357,12 @@ class SOLOPredictor(object):
         return outputs, img_info
 
     def visual(self, output, img_info, cls_conf=0.35):
-        bbox_num = output['bbox_num']
+        bbox_num = output['bbox_num'][0]
         img = img_info["raw_img"]
         if bbox_num > 0:
-            masks = output['segm']
-            cls = output['cate_label']
-            scores = output['cate_score']
+            masks = output['segm'][0]
+            cls = output['cate_label'][0]
+            scores = output['cate_score'][0]
 
             masks = masks.cpu().detach().numpy()
             cls = cls.to(torch.int32).cpu().detach().numpy()
