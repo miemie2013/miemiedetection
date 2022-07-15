@@ -130,16 +130,52 @@ class FPN(nn.Module):
                 self.fpn_convs.append(extra_fpn_conv)
 
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        for i in range(0, self.num_backbone_stages):
-            self.fpn_inner_convs[i].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            self.fpn_convs[i].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        # 生成其它尺度的特征图时如果用的是卷积层
-        highest_backbone_level = self.min_level + len(self.spatial_scale) - 1
-        if self.has_extra_convs and self.max_level > highest_backbone_level:
-            j = 0
-            for i in range(highest_backbone_level + 1, self.max_level + 1):
-                self.extra_convs[j].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-                j += 1
+        for layer in self.lateral_convs:
+            if isinstance(layer, ConvNormLayer):
+                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+            elif isinstance(layer, nn.Conv2d):
+                if layer.weight.requires_grad:
+                    param_group_conv = {'params': [layer.weight]}
+                    param_group_conv['lr'] = base_lr
+                    param_group_conv['base_lr'] = base_lr
+                    param_group_conv['weight_decay'] = base_wd
+                    param_group_conv['need_clip'] = need_clip
+                    param_group_conv['clip_norm'] = clip_norm
+                    param_groups.append(param_group_conv)
+                if layer.bias is not None:
+                    if layer.bias.requires_grad:
+                        param_group_conv_b = {'params': [layer.bias]}
+                        param_group_conv_b['lr'] = base_lr
+                        param_group_conv_b['base_lr'] = base_lr
+                        param_group_conv_b['weight_decay'] = base_wd
+                        param_group_conv_b['need_clip'] = need_clip
+                        param_group_conv_b['clip_norm'] = clip_norm
+                        param_groups.append(param_group_conv_b)
+            else:
+                raise NotImplementedError("not implemented.")
+        for layer in self.fpn_convs:
+            if isinstance(layer, ConvNormLayer):
+                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+            elif isinstance(layer, nn.Conv2d):
+                if layer.weight.requires_grad:
+                    param_group_conv = {'params': [layer.weight]}
+                    param_group_conv['lr'] = base_lr
+                    param_group_conv['base_lr'] = base_lr
+                    param_group_conv['weight_decay'] = base_wd
+                    param_group_conv['need_clip'] = need_clip
+                    param_group_conv['clip_norm'] = clip_norm
+                    param_groups.append(param_group_conv)
+                if layer.bias is not None:
+                    if layer.bias.requires_grad:
+                        param_group_conv_b = {'params': [layer.bias]}
+                        param_group_conv_b['lr'] = base_lr
+                        param_group_conv_b['base_lr'] = base_lr
+                        param_group_conv_b['weight_decay'] = base_wd
+                        param_group_conv_b['need_clip'] = need_clip
+                        param_group_conv_b['clip_norm'] = clip_norm
+                        param_groups.append(param_group_conv_b)
+            else:
+                raise NotImplementedError("not implemented.")
 
     def forward(self, body_feats):
         '''

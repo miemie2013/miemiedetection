@@ -31,7 +31,8 @@ class SOLO(torch.nn.Module):
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         self.backbone.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
         self.neck.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.yolo_head.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.mask_head.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.solov2_head.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
 
 

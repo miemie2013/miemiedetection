@@ -75,6 +75,8 @@ class Trainer:
             pass
         elif self.archi_name == 'PPYOLOE':
             pass
+        elif self.archi_name == 'SOLO':
+            pass
         elif self.archi_name == 'FCOS':
             pass
         else:
@@ -382,6 +384,9 @@ class Trainer:
         elif self.archi_name == 'PPYOLOE':
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
+        elif self.archi_name == 'SOLO':
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
         elif self.archi_name == 'FCOS':
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
@@ -496,6 +501,36 @@ class Trainer:
 
             logger.info("init prefetcher, this might take one minute or less...")
             self.prefetcher = PPYOLOEDataPrefetcher(self.train_loader, self.n_layers)
+        elif self.archi_name == 'SOLO':
+            # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
+            self.base_lr = self.exp.basic_lr_per_img * self.args.batch_size
+            param_groups = []
+            base_wd = self.exp.weight_decay
+            momentum = self.exp.momentum
+            # 是否进行梯度裁剪
+            self.need_clip = hasattr(self.exp, 'clip_grad_by_norm')
+            self.clip_norm = 1000000.0
+            if self.need_clip:
+                self.clip_norm = getattr(self.exp, 'clip_grad_by_norm')
+            model.add_param_group(param_groups, self.base_lr, base_wd, self.need_clip, self.clip_norm)
+
+            # solver related init
+            self.optimizer = self.exp.get_optimizer(self.args.batch_size, param_groups, momentum=momentum, weight_decay=base_wd)
+
+            # value of epoch will be set in `resume_train`
+            model = self.resume_train(model)
+
+
+            self.train_loader = self.exp.get_data_loader(
+                batch_size=self.args.batch_size,
+                is_distributed=self.is_distributed,
+                num_gpus=self.world_size,
+                cache_img=self.args.cache,
+            )
+            self.n_layers = self.exp.n_layers
+
+            logger.info("init prefetcher, this might take one minute or less...")
+            self.prefetcher = PPYOLODataPrefetcher(self.train_loader, self.n_layers)
         elif self.archi_name == 'FCOS':
             # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
             self.base_lr = self.exp.basic_lr_per_img * self.args.batch_size

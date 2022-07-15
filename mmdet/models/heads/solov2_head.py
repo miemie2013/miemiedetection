@@ -139,6 +139,20 @@ class SOLOv2MaskHead(nn.Module):
 
         return ins_pred
 
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
+        for layer in self.convs_all_levels:
+            if isinstance(layer, nn.Sequential):
+                for layer2 in layer:
+                    if isinstance(layer2, ConvNormLayer):
+                        layer2.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+                    elif isinstance(layer2, (nn.Upsample, nn.ReLU)):
+                        pass
+                    else:
+                        raise NotImplementedError("Layer type \'{}\' is not implemented.".format(type(layer2)))
+            else:
+                raise NotImplementedError("not implemented.")
+        self.conv_pred.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+
 
 def matrix_nms(seg_masks, cate_labels, cate_scores, kernel='gaussian', sigma=2.0, sum_masks=None):
     """Matrix NMS for multi-class masks.
@@ -346,6 +360,33 @@ class SOLOv2Head(nn.Module):
                 'cate_score': cate_scores
             }
             return outs
+
+    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
+        for layer in self.kernel_pred_convs:
+            layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        for layer in self.cate_pred_convs:
+            layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        for layer in [self.solo_cate, self.solo_kernel]:
+            if isinstance(layer, nn.Conv2d):
+                if layer.weight.requires_grad:
+                    param_group_conv = {'params': [layer.weight]}
+                    param_group_conv['lr'] = base_lr
+                    param_group_conv['base_lr'] = base_lr
+                    param_group_conv['weight_decay'] = base_wd
+                    param_group_conv['need_clip'] = need_clip
+                    param_group_conv['clip_norm'] = clip_norm
+                    param_groups.append(param_group_conv)
+                if layer.bias is not None:
+                    if layer.bias.requires_grad:
+                        param_group_conv_b = {'params': [layer.bias]}
+                        param_group_conv_b['lr'] = base_lr
+                        param_group_conv_b['base_lr'] = base_lr
+                        param_group_conv_b['weight_decay'] = base_wd
+                        param_group_conv_b['need_clip'] = need_clip
+                        param_group_conv_b['clip_norm'] = clip_norm
+                        param_groups.append(param_group_conv_b)
+            else:
+                raise NotImplementedError("not implemented.")
 
     def _get_output_single(self, input, seg_num_grid):
         ins_kernel_feat = input

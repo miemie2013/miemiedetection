@@ -1028,7 +1028,7 @@ class DeformableConvV2(nn.Module):
             param_groups.append(param_group_dcn_weight)
         if self.conv_dcn.bias is not None:
             if self.conv_dcn.bias.requires_grad:
-                param_group_dcn_bias = {'params': [self.conv_dcn.weight]}
+                param_group_dcn_bias = {'params': [self.conv_dcn.bias]}
                 param_group_dcn_bias['lr'] = base_lr * self.dcn_b_lr
                 param_group_dcn_bias['base_lr'] = base_lr * self.dcn_b_lr
                 if self.dcn_b_wd is not None:
