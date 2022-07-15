@@ -14,7 +14,7 @@ import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 
-from mmdet.data import DataPrefetcher, PPYOLODataPrefetcher, PPYOLOEDataPrefetcher
+from mmdet.data import DataPrefetcher, PPYOLODataPrefetcher, PPYOLOEDataPrefetcher, SOLODataPrefetcher
 from mmdet.data.data_prefetcher import FCOSDataPrefetcher
 from mmdet.utils import (
     MeterBuffer,
@@ -530,7 +530,7 @@ class Trainer:
             self.n_layers = self.exp.n_layers
 
             logger.info("init prefetcher, this might take one minute or less...")
-            self.prefetcher = PPYOLODataPrefetcher(self.train_loader, self.n_layers)
+            self.prefetcher = SOLODataPrefetcher(self.train_loader, self.n_layers)
         elif self.archi_name == 'FCOS':
             # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
             self.base_lr = self.exp.basic_lr_per_img * self.args.batch_size

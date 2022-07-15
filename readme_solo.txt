@@ -95,6 +95,9 @@ tail -n 20 solo.log
 实测xxx的AP(0.50:0.95)可以到达0.59+、AP(0.50)可以到达0.82+、AP(small)可以到达0.18+。
 - - - - - - - - - - - - - - - - - - - - - -
 
+python tools/train.py -f exps/solo/solov2_r50_fpn_3x_coco.py -d 1 -b 2 -eb 1 -c solov2_r50_fpn_3x_coco.pth
+
+
 
 
 ----------------------- 恢复训练（加上参数--resume） -----------------------

@@ -204,50 +204,23 @@ class SOLO_Method_Exp(COCOBaseExp):
         # DecodeImage
         self.decodeImage = dict(
             to_rgb=True,
-            with_mixup=True,
-            with_cutmix=False,
-            with_mosaic=False,
         )
-        # MixupImage
-        self.mixupImage = dict(
-            alpha=1.5,
-            beta=1.5,
-        )
-        # CutmixImage
-        self.cutmixImage = dict(
-            alpha=1.5,
-            beta=1.5,
-        )
-        # MosaicImage
-        self.mosaicImage = dict(
-            alpha=1.5,
-            beta=1.5,
-        )
-        # ColorDistort
-        self.colorDistort = dict()
-        # RandomExpand
-        self.randomExpand = dict(
-            fill_value=[123.675, 116.28, 103.53],
-        )
+        # Decode
+        self.decode = dict()
+        # Poly2Mask
+        self.poly2Mask = dict()
+        # RandomDistort
+        self.randomDistort = dict()
         # RandomCrop
         self.randomCrop = dict()
-        # RandomFlipImage
-        self.randomFlipImage = dict(
-            is_normalized=False,
+        # RandomResize
+        self.randomResize = dict(
+            target_size=[[352, 852], [384, 852], [416, 852], [448, 852], [480, 852], [512, 852]],
+            keep_ratio=True,
+            interp=1,
         )
-        # NormalizeBox
-        self.normalizeBox = dict()
-        # PadBox
-        self.padBox = dict(
-            num_max_boxes=50,
-        )
-        # BboxXYXY2XYWH
-        self.bboxXYXY2XYWH = dict()
-        # RandomShape
-        self.randomShape = dict(
-            sizes=[320, 352, 384, 416, 448, 480, 512, 544, 576, 608],
-            random_inter=True,
-        )
+        # RandomFlip
+        self.randomFlip = dict()
         # NormalizeImage
         self.normalizeImage = dict(
             mean=[0.485, 0.456, 0.406],
@@ -260,14 +233,11 @@ class SOLO_Method_Exp(COCOBaseExp):
             to_bgr=False,
             channel_first=True,
         )
-        # Gt2YoloTarget
-        self.gt2YoloTarget = dict(
-            anchor_masks=[[6, 7, 8], [3, 4, 5], [0, 1, 2]],
-            anchors=[[10, 13], [16, 30], [33, 23],
-                     [30, 61], [62, 45], [59, 119],
-                     [116, 90], [156, 198], [373, 326]],
-            downsample_ratios=[32, 16, 8],
-            num_classes=self.num_classes,
+        # Gt2Solov2Target
+        self.gt2Solov2Target = dict(
+            num_grids=[40, 36, 24, 16, 12],
+            scale_ranges=[[1, 96], [48, 192], [96, 384], [192, 768], [384, 2048]],
+            coord_sigma=0.2,
         )
         # ResizeImage
         self.resizeImage = dict(
@@ -287,29 +257,17 @@ class SOLO_Method_Exp(COCOBaseExp):
 
         # 预处理顺序。增加一些数据增强时这里也要加上，否则train.py中相当于没加！
         self.sample_transforms_seq = []
-        self.sample_transforms_seq.append('decodeImage')
-        if self.decodeImage['with_mixup']:
-            self.sample_transforms_seq.append('mixupImage')
-        elif self.decodeImage['with_cutmix']:
-            self.sample_transforms_seq.append('cutmixImage')
-        elif self.decodeImage['with_mosaic']:
-            self.sample_transforms_seq.append('mosaicImage')
-        self.sample_transforms_seq.append('colorDistort')
-        self.sample_transforms_seq.append('randomExpand')
+        self.sample_transforms_seq.append('decode')
+        self.sample_transforms_seq.append('poly2Mask')
+        self.sample_transforms_seq.append('randomDistort')
         self.sample_transforms_seq.append('randomCrop')
-        self.sample_transforms_seq.append('randomFlipImage')
-        self.sample_transforms_seq.append('normalizeBox')
-        self.sample_transforms_seq.append('padBox')
-        self.sample_transforms_seq.append('bboxXYXY2XYWH')
-        self.sample_transforms_seq.append('randomShape')
+        self.sample_transforms_seq.append('randomResize')
+        self.sample_transforms_seq.append('randomFlip')
         self.sample_transforms_seq.append('normalizeImage')
         self.sample_transforms_seq.append('permute')
-        self.sample_transforms_seq.append('gt2YoloTarget')
         self.batch_transforms_seq = []
-        # self.batch_transforms_seq.append('randomShape')
-        # self.batch_transforms_seq.append('normalizeImage')
-        # self.batch_transforms_seq.append('permute')
-        # self.batch_transforms_seq.append('gt2YoloTarget')
+        self.batch_transforms_seq.append('padBatch')
+        self.batch_transforms_seq.append('gt2Solov2Target')
 
         # ---------------- dataloader config ---------------- #
         # 默认是4。如果报错“OSError: [WinError 1455] 页面文件太小,无法完成操作”，设置为2或0解决。
@@ -343,7 +301,7 @@ class SOLO_Method_Exp(COCOBaseExp):
         self, batch_size, is_distributed, num_gpus, cache_img=False
     ):
         from mmdet.data import (
-            PPYOLO_COCOTrainDataset,
+            SOLO_COCOTrainDataset,
             InfiniteSampler,
             worker_init_reset_seed,
         )
@@ -359,7 +317,7 @@ class SOLO_Method_Exp(COCOBaseExp):
             sample_transforms = get_sample_transforms(self)
             batch_transforms = get_batch_transforms(self)
 
-            train_dataset = PPYOLO_COCOTrainDataset(
+            train_dataset = SOLO_COCOTrainDataset(
                 data_dir=self.data_dir,
                 json_file=self.train_ann,
                 ann_folder=self.ann_folder,
@@ -392,8 +350,8 @@ class SOLO_Method_Exp(COCOBaseExp):
         # Check https://github.com/pytorch/pytorch/issues/63311 for more details.
         dataloader_kwargs["worker_init_fn"] = worker_init_reset_seed
 
-        # collater = PPYOLOTrainCollater(self.context, batch_transforms, self.n_layers)
-        # dataloader_kwargs["collate_fn"] = collater
+        collater = SOLOTrainCollater(self.context, batch_transforms, self.n_layers)
+        dataloader_kwargs["collate_fn"] = collater
         train_loader = torch.utils.data.DataLoader(self.dataset, **dataloader_kwargs)
 
         return train_loader

@@ -685,6 +685,81 @@ class PPYOLO_COCOTrainDataset(torch.utils.data.Dataset):
         return image, gt_bbox, target0, target1, im_id
 
 
+class SOLO_COCOTrainDataset(torch.utils.data.Dataset):
+    def __init__(self, data_dir, json_file, ann_folder, name, max_epoch, num_gpus, cfg, sample_transforms, batch_size):
+        self.data_dir = data_dir
+        self.json_file = json_file
+        self.ann_folder = ann_folder
+        self.name = name
+        self.max_epoch = max_epoch
+
+        # 训练集
+        train_path = os.path.join(self.data_dir, self.ann_folder, self.json_file)
+        train_pre_path = os.path.join(self.data_dir, self.name)
+
+        # 种类id
+        _catid2clsid, _clsid2catid, _clsid2cname, class_names = get_class_msg(train_path)
+
+        train_dataset = COCO(train_path)
+        train_img_ids = train_dataset.getImgIds()
+        # PPYOLOE（最新的ppdet）右下角坐标要+1
+        train_records = data_clean(train_dataset, train_img_ids, _catid2clsid, train_pre_path, 'train', xy_plus_1=True)
+
+        self.coco = train_dataset
+        self.records = train_records
+        self.context = cfg.context
+        self.sample_transforms = sample_transforms
+        self.catid2clsid = _catid2clsid
+        self.clsid2catid = _clsid2catid
+        self.num_record = len(train_records)
+        self.batch_size = batch_size
+        self.batch_gpu = batch_size // num_gpus
+
+
+        # 一轮的步数。丢弃最后几个样本。
+        self.train_steps = self.num_record // batch_size
+
+        # 输出特征图数量
+        self.n_layers = len(cfg.head['num_grids'])
+        self._epoch = 0
+
+
+    def __len__(self):
+        return self.num_record
+
+    def __getitem__(self, idx):
+        img_idx = idx
+        sample = copy.deepcopy(self.records[img_idx])
+
+        # sample_transforms
+        for sample_transform in self.sample_transforms:
+            sample = sample_transform(sample, self.context)
+
+        # 取出感兴趣的项
+        # pimage = sample['image']
+        # im_info = sample['im_info']
+        # im_id = sample['im_id']
+        # h = sample['h']
+        # w = sample['w']
+        # is_crowd = sample['is_crowd']
+        # gt_class = sample['gt_class']
+        # gt_bbox = sample['gt_bbox']
+        # gt_score = sample['gt_score']
+        # curr_iter = sample['curr_iter']
+        # return pimage, im_info, im_id, h, w, is_crowd, gt_class, gt_bbox, gt_score, curr_iter
+
+        # 取出感兴趣的项
+        image = sample['image'].astype(np.float32)
+        gt_bbox = sample['gt_bbox'].astype(np.float32)
+        target0 = sample['target0'].astype(np.float32)
+        target1 = sample['target1'].astype(np.float32)
+        im_id = sample['im_id'].astype(np.int32)
+        if self.n_layers == 3:
+            target2 = sample['target2'].astype(np.float32)
+            return image, gt_bbox, target0, target1, target2, im_id
+        return image, gt_bbox, target0, target1, im_id
+
+
 class PPYOLOE_COCOTrainDataset(torch.utils.data.Dataset):
     def __init__(self, data_dir, json_file, ann_folder, name, max_epoch, num_gpus, cfg, sample_transforms, batch_size):
         self.data_dir = data_dir
