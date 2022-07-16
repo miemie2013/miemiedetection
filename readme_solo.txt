@@ -102,9 +102,14 @@ python tools/train.py -f exps/solo/solov2_r50_fpn_3x_coco.py -d 1 -b 2 -eb 1 -c 
 - - - - - - - - - - - - - - - - - - - - - -
 新建一个配置训练COCO2017
 
-python tools/train.py -f exps/solo/solov2_r50_enhance_test_coco.py -d 1 -b 2 -eb 1 -c solov2_r50_enhance_coco.pth
+python tools/train.py -f exps/solo/solov2_r50_enhance_test_coco.py -d 1 -b 3 -eb 1 -c solov2_r50_enhance_coco.pth
 
 
+python tools/demo.py image -f exps/solo/solov2_r50_enhance_test_coco.py -c SOLO_outputs/solov2_r50_enhance_test_coco/6.pth --path assets/000000000019.jpg --conf 0.15 --tsize 416 --save_result --device gpu
+
+
+
+python tools/eval.py -f exps/solo/solov2_r50_enhance_test_coco.py -d 1 -b 1 -c SOLO_outputs/solov2_r50_enhance_test_coco/6.pth --tsize 416
 
 
 ----------------------- 恢复训练（加上参数--resume） -----------------------

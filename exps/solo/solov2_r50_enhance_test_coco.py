@@ -43,7 +43,7 @@ class Exp(SOLO_Method_Exp):
         self.weight_decay = 1e-4
         self.momentum = 0.9
         self.print_interval = 20
-        self.eval_interval = 1
+        self.eval_interval = 1111
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
         # learning_rate
