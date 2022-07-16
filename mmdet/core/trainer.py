@@ -305,6 +305,16 @@ class Trainer:
                 获得损失（训练）、推理 都要放在forward()中进行，否则DDP会计算错误结果。
                 '''
                 outputs = self.model(inps, None, targets)
+        elif self.archi_name == 'SOLO':
+            inps, *labels, fg_nums, im_ids = self.prefetcher.next()
+            inps = inps.to(self.data_type)
+            data_end_time = time.time()
+
+            with torch.cuda.amp.autocast(enabled=self.amp_training):
+                '''
+                获得损失（训练）、推理 都要放在forward()中进行，否则DDP会计算错误结果。
+                '''
+                outputs = self.model(inps, None, None, labels, fg_nums)
         elif self.archi_name == 'FCOS':
             if self.n_layers == 5:
                 inps, labels0, reg_target0, centerness0, labels1, reg_target1, centerness1, labels2, reg_target2, centerness2, labels3, reg_target3, centerness3, labels4, reg_target4, centerness4 = self.prefetcher.next()
@@ -572,7 +582,7 @@ class Trainer:
         if self.args.occupy:
             occupy_mem(self.local_rank)
 
-        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'FCOS']:
+        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
             # 多卡训练时，使用同步bn。
             # torch.nn.SyncBatchNorm.convert_sync_batchnorm()的使用一定要在创建优化器之后，创建DDP之前。
             if self.is_distributed:
@@ -586,7 +596,7 @@ class Trainer:
             if self.archi_name == 'YOLOX':
                 self.ema_model = ModelEMA(model, self.exp.ema_decay)
                 self.ema_model.updates = self.max_iter * self.start_epoch
-            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'FCOS']:
+            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
                 ema_decay = getattr(self.exp, 'ema_decay', 0.9998)
                 cycle_epoch = getattr(self.exp, 'cycle_epoch', -1)
                 ema_decay_type = getattr(self.exp, 'ema_decay_type', 'threshold')
@@ -647,6 +657,8 @@ class Trainer:
             pass
         elif self.archi_name == 'PPYOLOE':
             pass
+        elif self.archi_name == 'SOLO':
+            pass
         elif self.archi_name == 'FCOS':
             self.train_loader.dataset.set_epoch(self.epoch)
         else:
@@ -698,6 +710,8 @@ class Trainer:
                 log_msg += (", {}".format(eta_str))
             elif self.archi_name == 'PPYOLOE':
                 log_msg += (", {}".format(eta_str))
+            elif self.archi_name == 'SOLO':
+                log_msg += (", {}".format(eta_str))
             elif self.archi_name == 'FCOS':
                 log_msg += (", {}".format(eta_str))
             else:
@@ -714,6 +728,8 @@ class Trainer:
         elif self.archi_name == 'PPYOLO':
             pass
         elif self.archi_name == 'PPYOLOE':
+            pass
+        elif self.archi_name == 'SOLO':
             pass
         elif self.archi_name == 'FCOS':
             pass

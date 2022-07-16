@@ -18,14 +18,14 @@ class SOLO(torch.nn.Module):
         self.solov2_head = solo_head
         self.mask_head = mask_head
 
-    def forward(self, x, im_shape=None, ori_shape=None, targets=None):
+    def forward(self, x, im_shape=None, ori_shape=None, targets=None, fg_nums=None):
         '''
         获得损失（训练）、推理 都要放在forward()中进行，否则DDP会计算错误结果。
         '''
         body_feats = self.backbone(x)
         fpn_feats = self.neck(body_feats)
         seg_pred = self.mask_head(fpn_feats)
-        out = self.solov2_head(fpn_feats, seg_pred, im_shape, ori_shape)
+        out = self.solov2_head(fpn_feats, seg_pred, im_shape, ori_shape, targets, fg_nums)
         return out
 
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):

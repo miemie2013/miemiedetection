@@ -3506,19 +3506,19 @@ class Gt2Solov2Target(BaseOperator):
         max_ins_num = [0] * len(self.num_grids)
         for sample in samples:
             gt_bboxes_raw = sample['gt_bbox']
-            gt_labels_raw = sample['gt_class'] + 1
+            gt_labels_raw = sample['gt_class'] + 1   # 类别id+1
             im_c, im_h, im_w = sample['image'].shape[:]
             gt_masks_raw = sample['gt_segm'].astype(np.uint8)
             mask_feat_size = [
                 int(im_h / self.sampling_ratio), int(im_w / self.sampling_ratio)
             ]
             gt_areas = np.sqrt((gt_bboxes_raw[:, 2] - gt_bboxes_raw[:, 0]) *
-                               (gt_bboxes_raw[:, 3] - gt_bboxes_raw[:, 1]))
+                               (gt_bboxes_raw[:, 3] - gt_bboxes_raw[:, 1]))  # gt的平均边长
             ins_ind_label_list = []
             idx = 0
             for (lower_bound, upper_bound), num_grid \
                     in zip(self.scale_ranges, self.num_grids):
-
+                # gt的平均边长位于指定范围内，这个感受野的特征图负责预测这些满足条件的gt
                 hit_indices = ((gt_areas >= lower_bound) &
                                (gt_areas <= upper_bound)).nonzero()[0]
                 num_ins = len(hit_indices)
@@ -3529,52 +3529,38 @@ class Gt2Solov2Target(BaseOperator):
                 ins_ind_label = np.zeros([num_grid**2], dtype=np.bool)
 
                 if num_ins == 0:
-                    ins_label = np.zeros(
-                        [1, mask_feat_size[0], mask_feat_size[1]],
-                        dtype=np.uint8)
+                    ins_label = np.zeros([1, mask_feat_size[0], mask_feat_size[1]], dtype=np.uint8)
                     ins_ind_label_list.append(ins_ind_label)
                     sample['cate_label{}'.format(idx)] = cate_label.flatten()
                     sample['ins_label{}'.format(idx)] = ins_label
-                    sample['grid_order{}'.format(idx)] = np.asarray(
-                        [sample_id * num_grid * num_grid + 0], dtype=np.int32)
+                    sample['grid_order{}'.format(idx)] = np.asarray([sample_id * num_grid * num_grid + 0], dtype=np.int32)
                     idx += 1
                     continue
-                gt_bboxes = gt_bboxes_raw[hit_indices]
-                gt_labels = gt_labels_raw[hit_indices]
-                gt_masks = gt_masks_raw[hit_indices, ...]
+                gt_bboxes = gt_bboxes_raw[hit_indices]   # [M, 4] 这个感受野的gt
+                gt_labels = gt_labels_raw[hit_indices]   # [M, 1] 这个感受野的类别id(+1)
+                gt_masks = gt_masks_raw[hit_indices, ...]   # [M, h, w] 这个感受野的gt_mask
 
-                half_ws = 0.5 * (
-                    gt_bboxes[:, 2] - gt_bboxes[:, 0]) * self.coord_sigma
-                half_hs = 0.5 * (
-                    gt_bboxes[:, 3] - gt_bboxes[:, 1]) * self.coord_sigma
+                # 这个感受野的gt的宽的一半 * self.coord_sigma
+                half_ws = 0.5 * (gt_bboxes[:, 2] - gt_bboxes[:, 0]) * self.coord_sigma
+                # 这个感受野的gt的高的一半 * self.coord_sigma
+                half_hs = 0.5 * (gt_bboxes[:, 3] - gt_bboxes[:, 1]) * self.coord_sigma
 
+                # 遍历这个感受野的每一个gt
                 for seg_mask, gt_label, half_h, half_w in zip(
                         gt_masks, gt_labels, half_hs, half_ws):
                     if seg_mask.sum() == 0:
                         continue
                     # mass center
-                    upsampled_size = (mask_feat_size[0] * 4,
-                                      mask_feat_size[1] * 4)
-                    center_h, center_w = ndimage.measurements.center_of_mass(
-                        seg_mask)
-                    coord_w = int(
-                        (center_w / upsampled_size[1]) // (1. / num_grid))
-                    coord_h = int(
-                        (center_h / upsampled_size[0]) // (1. / num_grid))
+                    upsampled_size = (mask_feat_size[0] * 4, mask_feat_size[1] * 4)
+                    center_h, center_w = ndimage.measurements.center_of_mass(seg_mask)
+                    coord_w = int((center_w / upsampled_size[1]) // (1. / num_grid))
+                    coord_h = int((center_h / upsampled_size[0]) // (1. / num_grid))
 
                     # left, top, right, down
-                    top_box = max(0,
-                                  int(((center_h - half_h) / upsampled_size[0])
-                                      // (1. / num_grid)))
-                    down_box = min(num_grid - 1,
-                                   int(((center_h + half_h) / upsampled_size[0])
-                                       // (1. / num_grid)))
-                    left_box = max(0,
-                                   int(((center_w - half_w) / upsampled_size[1])
-                                       // (1. / num_grid)))
-                    right_box = min(num_grid - 1,
-                                    int(((center_w + half_w) /
-                                         upsampled_size[1]) // (1. / num_grid)))
+                    top_box = max(0, int(((center_h - half_h) / upsampled_size[0]) // (1. / num_grid)))
+                    down_box = min(num_grid - 1, int(((center_h + half_h) / upsampled_size[0]) // (1. / num_grid)))
+                    left_box = max(0, int(((center_w - half_w) / upsampled_size[1]) // (1. / num_grid)))
+                    right_box = min(num_grid - 1, int(((center_w + half_w) / upsampled_size[1]) // (1. / num_grid)))
 
                     top = max(top_box, coord_h - 1)
                     down = min(down_box, coord_h + 1)

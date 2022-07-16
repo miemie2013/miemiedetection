@@ -13,6 +13,7 @@ from .losses.yolov3_loss import YOLOv3Loss
 from .losses.losses import IOUloss
 from .losses.iou_losses import MyIOUloss, IouLoss, IouAwareLoss
 from .losses.fcos_loss import FCOSLoss
+from .losses.solov2_loss import SOLOv2Loss
 
 
 from .heads.yolov3_head import YOLOv3Head

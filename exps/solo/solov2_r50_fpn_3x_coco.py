@@ -12,14 +12,14 @@ class Exp(SOLO_Method_Exp):
     def __init__(self):
         super(Exp, self).__init__()
         # COCO2017 dataset。用来调试。
-        self.num_classes = 80
-        self.data_dir = '../COCO'
-        self.cls_names = 'class_names/coco_classes.txt'
-        self.ann_folder = "annotations"
-        self.train_ann = "instances_val2017.json"
-        self.val_ann = "instances_val2017.json"
-        self.train_image_folder = "val2017"
-        self.val_image_folder = "val2017"
+        # self.num_classes = 80
+        # self.data_dir = '../COCO'
+        # self.cls_names = 'class_names/coco_classes.txt'
+        # self.ann_folder = "annotations"
+        # self.train_ann = "instances_val2017.json"
+        # self.val_ann = "instances_val2017.json"
+        # self.train_image_folder = "val2017"
+        # self.val_image_folder = "val2017"
 
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 

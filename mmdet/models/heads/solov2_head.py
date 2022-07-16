@@ -22,6 +22,7 @@ import torch.nn.functional as F
 
 from mmdet.models.custom_layers import DropBlock, ConvNormLayer
 from mmdet.models.initializer import Normal, XavierNormal, XavierUniform
+from mmdet.models.ops import gather_1d, gather_nd
 
 from six.moves import zip
 import numpy as np
@@ -326,7 +327,7 @@ class SOLOv2Head(nn.Module):
         x4 = F.interpolate(feats[4], size=feats[3].shape[-2:], align_corners=False, mode='bilinear')
         return (x0, feats[1], feats[2], feats[3], x4)
 
-    def forward(self, input, seg_pred, im_shape, ori_shape):
+    def forward(self, input, seg_pred, im_shape, ori_shape, targets, fg_nums):
         """
         Get SOLOv2 head output
 
@@ -348,8 +349,17 @@ class SOLOv2Head(nn.Module):
 
         # return cate_pred_list, kernel_pred_list
         if self.training:
-            pass
-            # return self.forward_train(feats, targets)
+            ins_labels = []
+            cate_labels = []
+            grid_order_list = []
+            i = 0
+            for lvl in range(len(self.seg_num_grids)):
+                ins_labels.append(targets[i]); i += 1
+            for lvl in range(len(self.seg_num_grids)):
+                cate_labels.append(targets[i].to(torch.int32)); i += 1
+            for lvl in range(len(self.seg_num_grids)):
+                grid_order_list.append(targets[i].to(torch.int32)); i += 1
+            return self.forward_train(cate_pred_list, kernel_pred_list, seg_pred, ins_labels, cate_labels, grid_order_list, fg_nums)
         else:
             seg_masks, cate_labels, cate_scores, bbox_num = self.forward_eval(cate_pred_list, kernel_pred_list,
                                                                               seg_pred, im_shape, ori_shape)
@@ -427,8 +437,7 @@ class SOLOv2Head(nn.Module):
             cate_pred = cate_pred.permute((0, 2, 3, 1))
         return cate_pred, kernel_pred
 
-    def get_loss(self, cate_preds, kernel_preds, ins_pred, ins_labels,
-                 cate_labels, grid_order_list, fg_num):
+    def forward_train(self, cate_preds, kernel_preds, ins_pred, ins_labels, cate_labels, grid_order_list, fg_num):
         """
         Get loss of network of SOLOv2.
 
@@ -444,53 +453,55 @@ class SOLOv2Head(nn.Module):
             loss_ins (Tensor): The instance loss Tensor of SOLOv2 network.
             loss_cate (Tensor): The category loss Tensor of SOLOv2 network.
         """
-        batch_size = paddle.shape(grid_order_list[0])[0]
+        batch_size = grid_order_list[0].shape[0]
         ins_pred_list = []
         for kernel_preds_level, grid_orders_level in zip(kernel_preds,
                                                          grid_order_list):
             if grid_orders_level.shape[1] == 0:
                 ins_pred_list.append(None)
                 continue
-            grid_orders_level = paddle.reshape(grid_orders_level, [-1])
-            reshape_pred = paddle.reshape(
+            grid_orders_level = torch.reshape(grid_orders_level, [-1])
+            reshape_pred = torch.reshape(
                 kernel_preds_level,
-                shape=(paddle.shape(kernel_preds_level)[0],
-                       paddle.shape(kernel_preds_level)[1], -1))
-            reshape_pred = paddle.transpose(reshape_pred, [0, 2, 1])
-            reshape_pred = paddle.reshape(
-                reshape_pred, shape=(-1, paddle.shape(reshape_pred)[2]))
-            gathered_pred = paddle.gather(reshape_pred, index=grid_orders_level)
-            gathered_pred = paddle.reshape(
+                shape=(kernel_preds_level.shape[0],
+                       kernel_preds_level.shape[1], -1))
+            reshape_pred = reshape_pred.permute((0, 2, 1))
+            reshape_pred = torch.reshape(
+                reshape_pred, shape=(-1, reshape_pred.shape[2]))
+            grid_orders_level = grid_orders_level.to(torch.int64)
+            gathered_pred = gather_1d(reshape_pred, index=grid_orders_level)
+            gathered_pred = torch.reshape(
                 gathered_pred,
-                shape=[batch_size, -1, paddle.shape(gathered_pred)[1]])
+                shape=[batch_size, -1, gathered_pred.shape[1]])
             cur_ins_pred = ins_pred
-            cur_ins_pred = paddle.reshape(
+            cur_ins_pred = torch.reshape(
                 cur_ins_pred,
-                shape=(paddle.shape(cur_ins_pred)[0],
-                       paddle.shape(cur_ins_pred)[1], -1))
-            ins_pred_conv = paddle.matmul(gathered_pred, cur_ins_pred)
-            cur_ins_pred = paddle.reshape(
+                shape=(cur_ins_pred.shape[0],
+                       cur_ins_pred.shape[1], -1))
+            ins_pred_conv = torch.matmul(gathered_pred, cur_ins_pred)
+            cur_ins_pred = torch.reshape(
                 ins_pred_conv,
-                shape=(-1, paddle.shape(ins_pred)[-2],
-                       paddle.shape(ins_pred)[-1]))
+                shape=(-1, ins_pred.shape[-2], ins_pred.shape[-1]))
             ins_pred_list.append(cur_ins_pred)
 
-        num_ins = paddle.sum(fg_num)
+        num_ins = torch.sum(fg_num)
         cate_preds = [
-            paddle.reshape(
-                paddle.transpose(cate_pred, [0, 2, 3, 1]),
+            torch.reshape(
+                cate_pred.permute((0, 2, 3, 1)),
                 shape=(-1, self.cate_out_channels)) for cate_pred in cate_preds
         ]
         flatten_cate_preds = torch.cat(cate_preds)
         new_cate_labels = []
         for cate_label in cate_labels:
-            new_cate_labels.append(paddle.reshape(cate_label, shape=[-1]))
+            new_cate_labels.append(torch.reshape(cate_label, shape=[-1]))
         cate_labels = torch.cat(new_cate_labels)
 
         loss_ins, loss_cate = self.solov2_loss(
             ins_pred_list, ins_labels, flatten_cate_preds, cate_labels, num_ins)
-
-        return {'loss_ins': loss_ins, 'loss_cate': loss_cate}
+        loss_ins = loss_ins.sum()
+        loss_cate = loss_cate.sum()
+        total_loss = loss_ins + loss_cate
+        return {'total_loss': total_loss, 'loss_ins': loss_ins, 'loss_cate': loss_cate}
 
     def forward_eval(self, cate_preds, kernel_preds, seg_pred, im_shape, ori_shape):
         """

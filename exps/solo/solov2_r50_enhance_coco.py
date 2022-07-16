@@ -12,37 +12,38 @@ class Exp(SOLO_Method_Exp):
     def __init__(self):
         super(Exp, self).__init__()
         # COCO2017 dataset。用来调试。
-        self.num_classes = 80
-        self.data_dir = '../COCO'
-        self.cls_names = 'class_names/coco_classes.txt'
-        self.ann_folder = "annotations"
-        self.train_ann = "instances_val2017.json"
-        self.val_ann = "instances_val2017.json"
-        self.train_image_folder = "val2017"
-        self.val_image_folder = "val2017"
+        # self.num_classes = 80
+        # self.data_dir = '../COCO'
+        # self.cls_names = 'class_names/coco_classes.txt'
+        # self.ann_folder = "annotations"
+        # self.train_ann = "instances_val2017.json"
+        # self.val_ann = "instances_val2017.json"
+        # self.train_image_folder = "val2017"
+        # self.val_image_folder = "val2017"
 
         # ---------------- architecture name(算法名) ---------------- #
         self.archi_name = 'SOLO'
 
         # --------------  training config --------------------- #
-        self.max_epoch = 16
-        self.aug_epochs = 16  # 前几轮进行mixup、cutmix、mosaic
+        self.max_epoch = 36
+        self.aug_epochs = 0  # 前几轮进行mixup、cutmix、mosaic
 
         self.ema = True
         self.ema_decay = 0.9998
-        self.weight_decay = 5e-4
+        self.weight_decay = 1e-4
         self.momentum = 0.9
         self.print_interval = 20
-        self.eval_interval = 10
+        self.eval_interval = 2
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
         # learning_rate
         self.scheduler = "warm_piecewisedecay"
-        self.warmup_epochs = 5
-        self.basic_lr_per_img = 0.01 / 192.0
+        self.warmup_epochs = 1
+        self.basic_lr_per_img = 0.01 / 16.0
+        self.clip_grad_by_norm = 35.0
         self.start_factor = 0.0
         self.decay_gamma = 0.1
-        self.milestones_epoch = [649, 730]
+        self.milestones_epoch = [24, 33]
 
         # -----------------  testing config ------------------ #
         self.test_size = (512, 512)
@@ -85,13 +86,6 @@ class Exp(SOLO_Method_Exp):
             end_level=3,
             use_dcn_in_tower=True,
         )
-        self.iou_loss = dict(
-            loss_weight=2.5,
-            loss_square=True,
-        )
-        self.iou_aware_loss = dict(
-            loss_weight=1.0,
-        )
         self.solo_loss = dict(
             ins_loss_weight=3.0,
             focal_loss_gamma=2.0,
@@ -112,50 +106,23 @@ class Exp(SOLO_Method_Exp):
         # DecodeImage
         self.decodeImage = dict(
             to_rgb=True,
-            with_mixup=True,
-            with_cutmix=False,
-            with_mosaic=False,
         )
-        # MixupImage
-        self.mixupImage = dict(
-            alpha=1.5,
-            beta=1.5,
-        )
-        # CutmixImage
-        self.cutmixImage = dict(
-            alpha=1.5,
-            beta=1.5,
-        )
-        # MosaicImage
-        self.mosaicImage = dict(
-            alpha=1.5,
-            beta=1.5,
-        )
-        # ColorDistort
-        self.colorDistort = dict()
-        # RandomExpand
-        self.randomExpand = dict(
-            fill_value=[123.675, 116.28, 103.53],
-        )
+        # Decode
+        self.decode = dict()
+        # Poly2Mask
+        self.poly2Mask = dict()
+        # RandomDistort
+        self.randomDistort = dict()
         # RandomCrop
         self.randomCrop = dict()
-        # RandomFlipImage
-        self.randomFlipImage = dict(
-            is_normalized=False,
+        # RandomResize
+        self.randomResize = dict(
+            target_size=[[352, 852], [384, 852], [416, 852], [448, 852], [480, 852], [512, 852]],
+            keep_ratio=True,
+            interp=1,
         )
-        # NormalizeBox
-        self.normalizeBox = dict()
-        # PadBox
-        self.padBox = dict(
-            num_max_boxes=50,
-        )
-        # BboxXYXY2XYWH
-        self.bboxXYXY2XYWH = dict()
-        # RandomShape
-        self.randomShape = dict(
-            sizes=[320, 352, 384, 416, 448, 480, 512, 544, 576, 608],
-            random_inter=True,
-        )
+        # RandomFlip
+        self.randomFlip = dict()
         # NormalizeImage
         self.normalizeImage = dict(
             mean=[0.485, 0.456, 0.406],
@@ -168,14 +135,11 @@ class Exp(SOLO_Method_Exp):
             to_bgr=False,
             channel_first=True,
         )
-        # Gt2YoloTarget
-        self.gt2YoloTarget = dict(
-            anchor_masks=[[6, 7, 8], [3, 4, 5], [0, 1, 2]],
-            anchors=[[10, 13], [16, 30], [33, 23],
-                     [30, 61], [62, 45], [59, 119],
-                     [116, 90], [156, 198], [373, 326]],
-            downsample_ratios=[32, 16, 8],
-            num_classes=self.num_classes,
+        # Gt2Solov2Target
+        self.gt2Solov2Target = dict(
+            num_grids=[40, 36, 24, 16, 12],
+            scale_ranges=[[1, 96], [48, 192], [96, 384], [192, 768], [384, 2048]],
+            coord_sigma=0.2,
         )
         # ResizeImage
         self.resizeImage = dict(
@@ -195,32 +159,21 @@ class Exp(SOLO_Method_Exp):
 
         # 预处理顺序。增加一些数据增强时这里也要加上，否则train.py中相当于没加！
         self.sample_transforms_seq = []
-        self.sample_transforms_seq.append('decodeImage')
-        if self.decodeImage['with_mixup']:
-            self.sample_transforms_seq.append('mixupImage')
-        elif self.decodeImage['with_cutmix']:
-            self.sample_transforms_seq.append('cutmixImage')
-        elif self.decodeImage['with_mosaic']:
-            self.sample_transforms_seq.append('mosaicImage')
-        self.sample_transforms_seq.append('colorDistort')
-        self.sample_transforms_seq.append('randomExpand')
+        self.sample_transforms_seq.append('decode')
+        self.sample_transforms_seq.append('poly2Mask')
+        self.sample_transforms_seq.append('randomDistort')
         self.sample_transforms_seq.append('randomCrop')
-        self.sample_transforms_seq.append('randomFlipImage')
-        self.sample_transforms_seq.append('normalizeBox')
-        self.sample_transforms_seq.append('padBox')
-        self.sample_transforms_seq.append('bboxXYXY2XYWH')
-        self.sample_transforms_seq.append('randomShape')
+        self.sample_transforms_seq.append('randomResize')
+        self.sample_transforms_seq.append('randomFlip')
         self.sample_transforms_seq.append('normalizeImage')
         self.sample_transforms_seq.append('permute')
-        self.sample_transforms_seq.append('gt2YoloTarget')
         self.batch_transforms_seq = []
-        # self.batch_transforms_seq.append('randomShape')
-        # self.batch_transforms_seq.append('normalizeImage')
-        # self.batch_transforms_seq.append('permute')
-        # self.batch_transforms_seq.append('gt2YoloTarget')
+        self.batch_transforms_seq.append('padBatch')
+        self.batch_transforms_seq.append('gt2Solov2Target')
 
         # ---------------- dataloader config ---------------- #
         # 默认是4。如果报错“OSError: [WinError 1455] 页面文件太小,无法完成操作”，设置为2或0解决。
+        # 如果报错“self = reduction.pickle.load(from_parent) EOFError: Ran out of input”，设置为0解决。
         self.data_num_workers = 2
         self.eval_data_num_workers = 1
 

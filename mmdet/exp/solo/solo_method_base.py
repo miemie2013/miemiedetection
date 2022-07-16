@@ -26,15 +26,17 @@ class SOLOTrainCollater():
         for i, item in enumerate(batch):
             sample = {}
             sample['image'] = item[0]
-            sample['im_info'] = item[1]
-            sample['im_id'] = item[2]
-            sample['h'] = item[3]
-            sample['w'] = item[4]
-            sample['is_crowd'] = item[5]
-            sample['gt_class'] = item[6]
-            sample['gt_bbox'] = item[7]
-            sample['gt_score'] = item[8]
-            # sample['curr_iter'] = item[9]
+            sample['im_shape'] = item[1]
+            sample['scale_factor'] = item[2]
+            sample['im_id'] = item[3]
+            sample['h'] = item[4]
+            sample['w'] = item[5]
+            sample['is_crowd'] = item[6]
+            sample['gt_class'] = item[7]
+            sample['gt_bbox'] = item[8]
+            sample['gt_segm'] = item[9]
+            sample['gt_poly'] = item[10]
+            sample['gt_score'] = item[11]
             samples.append(sample)
 
         # batch_transforms
@@ -43,36 +45,43 @@ class SOLOTrainCollater():
 
         # 取出感兴趣的项
         images = []
-        gt_bbox = []
-        target0 = []
-        target1 = []
-        target2 = []
+        # gt_ins_labels = [[]] * self.n_layers
+        # gt_cate_labels = [[]] * self.n_layers
+        # gt_grid_orders = [[]] * self.n_layers
+        gt_ins_labels = []
+        gt_cate_labels = []
+        gt_grid_orders = []
+        for lvl in range(self.n_layers):
+            gt_ins_labels.append([])
+            gt_cate_labels.append([])
+            gt_grid_orders.append([])
+        fg_nums = []
         im_ids = []
         for i, sample in enumerate(samples):
             images.append(sample['image'].astype(np.float32))
-            gt_bbox.append(sample['gt_bbox'].astype(np.float32))
-            target0.append(sample['target0'].astype(np.float32))
-            target1.append(sample['target1'].astype(np.float32))
-            if self.n_layers == 3:
-                target2.append(sample['target2'].astype(np.float32))
+            for lvl in range(self.n_layers):
+                ins_label = 'ins_label{}'.format(lvl)
+                gt_ins_labels[lvl].append(sample[ins_label].astype(np.float32))
+                cate_label = 'cate_label{}'.format(lvl)
+                gt_cate_labels[lvl].append(sample[cate_label].astype(np.int32))
+                grid_order = 'grid_order{}'.format(lvl)
+                gt_grid_orders[lvl].append(sample[grid_order].astype(np.int32))
+            fg_nums.append(np.array([sample['fg_num']]).astype(np.int32))
             im_ids.append(sample['im_id'].astype(np.int32))
         images = np.stack(images, axis=0)
-        gt_bbox = np.stack(gt_bbox, axis=0)
-        target0 = np.stack(target0, axis=0)
-        target1 = np.stack(target1, axis=0)
-        im_ids = np.stack(im_ids, axis=0)
-
         images = torch.Tensor(images)
-        gt_bbox = torch.Tensor(gt_bbox)
-        target0 = torch.Tensor(target0)
-        target1 = torch.Tensor(target1)
+        for lvl in range(self.n_layers):
+            gt_ins_labels[lvl] = np.stack(gt_ins_labels[lvl], axis=0)
+            gt_cate_labels[lvl] = np.stack(gt_cate_labels[lvl], axis=0)
+            gt_grid_orders[lvl] = np.stack(gt_grid_orders[lvl], axis=0)
+            gt_ins_labels[lvl] = torch.Tensor(gt_ins_labels[lvl])
+            gt_cate_labels[lvl] = torch.Tensor(gt_cate_labels[lvl])
+            gt_grid_orders[lvl] = torch.Tensor(gt_grid_orders[lvl])
+        fg_nums = np.stack(fg_nums, axis=0)
+        im_ids = np.stack(im_ids, axis=0)
+        fg_nums = torch.Tensor(fg_nums)
         im_ids = torch.Tensor(im_ids)
-        if self.n_layers == 3:
-            target2 = np.stack(target2, axis=0)
-
-            target2 = torch.Tensor(target2)
-            return images, gt_bbox, target0, target1, target2, im_ids
-        return images, gt_bbox, target0, target1, im_ids
+        return [images, ] + gt_ins_labels + gt_cate_labels + gt_grid_orders + [fg_nums, im_ids]
 
 
 class SOLOEvalCollater():
@@ -125,24 +134,25 @@ class SOLO_Method_Exp(COCOBaseExp):
         self.archi_name = 'SOLO'
 
         # --------------  training config --------------------- #
-        self.max_epoch = 811
-        self.aug_epochs = 811  # 前几轮进行mixup、cutmix、mosaic
+        self.max_epoch = 36
+        self.aug_epochs = 0  # 前几轮进行mixup、cutmix、mosaic
 
         self.ema = True
         self.ema_decay = 0.9998
-        self.weight_decay = 5e-4
+        self.weight_decay = 1e-4
         self.momentum = 0.9
         self.print_interval = 20
-        self.eval_interval = 10
+        self.eval_interval = 2
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
         # learning_rate
         self.scheduler = "warm_piecewisedecay"
-        self.warmup_epochs = 5
-        self.basic_lr_per_img = 0.01 / 192.0
+        self.warmup_epochs = 1
+        self.basic_lr_per_img = 0.01 / 16.0
+        self.clip_grad_by_norm = 35.0
         self.start_factor = 0.0
         self.decay_gamma = 0.1
-        self.milestones_epoch = [649, 730]
+        self.milestones_epoch = [24, 33]
 
         # -----------------  testing config ------------------ #
         self.test_size = (800, 800)
@@ -177,13 +187,6 @@ class SOLO_Method_Exp(COCOBaseExp):
             start_level=0,
             end_level=3,
         )
-        self.iou_loss = dict(
-            loss_weight=2.5,
-            loss_square=True,
-        )
-        self.iou_aware_loss = dict(
-            loss_weight=1.0,
-        )
         self.solo_loss = dict(
             ins_loss_weight=3.0,
             focal_loss_gamma=2.0,
@@ -215,7 +218,7 @@ class SOLO_Method_Exp(COCOBaseExp):
         self.randomCrop = dict()
         # RandomResize
         self.randomResize = dict(
-            target_size=[[352, 852], [384, 852], [416, 852], [448, 852], [480, 852], [512, 852]],
+            target_size=[[640, 1333], [672, 1333], [704, 1333], [736, 1333], [768, 1333], [800, 1333]],
             keep_ratio=True,
             interp=1,
         )
@@ -275,7 +278,7 @@ class SOLO_Method_Exp(COCOBaseExp):
         self.eval_data_num_workers = 2
 
     def get_model(self):
-        from mmdet.models import ResNet, IouLoss, IouAwareLoss, YOLOv3Loss, SOLOv2Head, SOLOv2MaskHead, SOLO
+        from mmdet.models import ResNet, SOLOv2Loss, SOLOv2Head, SOLOv2MaskHead, SOLO
         from mmdet.models.necks.fpn import FPN
         if getattr(self, "model", None) is None:
             Backbone = None
@@ -288,11 +291,8 @@ class SOLO_Method_Exp(COCOBaseExp):
             if self.fpn_type == 'FPN':
                 Fpn = FPN
             fpn = Fpn(**self.fpn)
-            # iou_loss = IouLoss(**self.iou_loss)
-            # iou_aware_loss = None
-            # yolo_loss = YOLOv3Loss(iou_loss=iou_loss, iou_aware_loss=iou_aware_loss, **self.yolo_loss)
-            # head = SOLOv2Head(loss=yolo_loss, nms_cfg=self.nms_cfg, **self.head)
-            head = SOLOv2Head(nms_cfg=self.nms_cfg, **self.head)
+            solov2_loss = SOLOv2Loss(**self.solo_loss)
+            head = SOLOv2Head(solov2_loss=solov2_loss, nms_cfg=self.nms_cfg, **self.head)
             mask_head = SOLOv2MaskHead(**self.solomaskhead)
             self.model = SOLO(backbone, fpn, head, mask_head)
         return self.model

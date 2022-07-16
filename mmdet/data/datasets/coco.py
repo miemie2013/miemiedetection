@@ -736,28 +736,27 @@ class SOLO_COCOTrainDataset(torch.utils.data.Dataset):
             sample = sample_transform(sample, self.context)
 
         # 取出感兴趣的项
-        # pimage = sample['image']
-        # im_info = sample['im_info']
-        # im_id = sample['im_id']
-        # h = sample['h']
-        # w = sample['w']
-        # is_crowd = sample['is_crowd']
-        # gt_class = sample['gt_class']
-        # gt_bbox = sample['gt_bbox']
-        # gt_score = sample['gt_score']
-        # curr_iter = sample['curr_iter']
-        # return pimage, im_info, im_id, h, w, is_crowd, gt_class, gt_bbox, gt_score, curr_iter
+        pimage = sample['image']
+        im_shape = sample['im_shape']
+        scale_factor = sample['scale_factor']
+        im_id = sample['im_id']
+        h = sample['h']
+        w = sample['w']
+        is_crowd = sample['is_crowd']
+        gt_class = sample['gt_class']
+        gt_bbox = sample['gt_bbox']
+        gt_segm = sample['gt_segm']
+        gt_poly = sample['gt_poly']
+        gt_score = sample['gt_score']
+        return pimage, im_shape, scale_factor, im_id, h, w, is_crowd, gt_class, gt_bbox, gt_segm, gt_poly, gt_score
 
         # 取出感兴趣的项
-        image = sample['image'].astype(np.float32)
-        gt_bbox = sample['gt_bbox'].astype(np.float32)
-        target0 = sample['target0'].astype(np.float32)
-        target1 = sample['target1'].astype(np.float32)
-        im_id = sample['im_id'].astype(np.int32)
-        if self.n_layers == 3:
-            target2 = sample['target2'].astype(np.float32)
-            return image, gt_bbox, target0, target1, target2, im_id
-        return image, gt_bbox, target0, target1, im_id
+        # image = sample['image'].astype(np.float32)
+        # gt_bbox = sample['gt_bbox'].astype(np.float32)
+        # target0 = sample['target0'].astype(np.float32)
+        # target1 = sample['target1'].astype(np.float32)
+        # im_id = sample['im_id'].astype(np.int32)
+        # return image, gt_bbox, target0, target1, im_id
 
 
 class PPYOLOE_COCOTrainDataset(torch.utils.data.Dataset):
