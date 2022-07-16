@@ -22,14 +22,14 @@ class Exp(SOLO_Method_Exp):
         self.val_image_folder = "val2017"
 
         # COCO2017 dataset。用来调试。
-        # self.num_classes = 80
-        # self.data_dir = '../COCO'
-        # self.cls_names = 'class_names/coco_classes.txt'
-        # self.ann_folder = "annotations"
-        # self.train_ann = "instances_val2017.json"
-        # self.val_ann = "instances_val2017.json"
-        # self.train_image_folder = "val2017"
-        # self.val_image_folder = "val2017"
+        self.num_classes = 80
+        self.data_dir = '../COCO'
+        self.cls_names = 'class_names/coco_classes.txt'
+        self.ann_folder = "annotations"
+        self.train_ann = "instances_val2017.json"
+        self.val_ann = "instances_val2017.json"
+        self.train_image_folder = "val2017"
+        self.val_image_folder = "val2017"
 
         # ---------------- architecture name(算法名) ---------------- #
         self.archi_name = 'SOLO'
@@ -56,7 +56,7 @@ class Exp(SOLO_Method_Exp):
         self.milestones_epoch = [24, 33]
 
         # -----------------  testing config ------------------ #
-        self.test_size = (512, 512)
+        self.test_size = (416, 416)
 
         # ---------------- model config ---------------- #
         self.output_dir = "SOLO_outputs"
@@ -75,23 +75,24 @@ class Exp(SOLO_Method_Exp):
         self.fpn_type = 'FPN'
         self.fpn = dict(
             in_channels=[256, 512, 1024, 2048],
-            out_channel=256,
+            out_channel=64,
         )
         self.head_type = 'SOLOv2Head'
         self.head = dict(
-            in_channels=256,
-            seg_feat_channels=256,
+            in_channels=64,
+            seg_feat_channels=128,
             num_classes=self.num_classes,
-            stacked_convs=4,
+            stacked_convs=3,
             num_grids=[40, 36, 24, 16, 12],
-            kernel_out_channels=128,
+            kernel_out_channels=64,
             dcn_v2_stages=[2],
             drop_block=True,
         )
         self.solomaskhead_type = 'SOLOv2MaskHead'
         self.solomaskhead = dict(
-            mid_channels=128,
-            out_channels=128,
+            in_channels=64,
+            mid_channels=64,
+            out_channels=64,
             start_level=0,
             end_level=3,
             use_dcn_in_tower=True,
@@ -127,7 +128,7 @@ class Exp(SOLO_Method_Exp):
         self.randomCrop = dict()
         # RandomResize
         self.randomResize = dict(
-            target_size=[[352, 852], [384, 852], [416, 852], [448, 852], [480, 852], [512, 852]],
+            target_size=[[352, 512], [384, 512], [416, 512], [448, 512], [480, 512], [512, 512]],
             keep_ratio=True,
             interp=1,
         )
@@ -153,8 +154,8 @@ class Exp(SOLO_Method_Exp):
         )
         # ResizeImage
         self.resizeImage = dict(
-            target_size=512,
-            max_size=852,
+            target_size=416,
+            max_size=512,
             interp=1,
         )
         # PadBatch
@@ -164,7 +165,7 @@ class Exp(SOLO_Method_Exp):
         )
         # SOLOv2Pad
         self.sOLOv2Pad = dict(
-            max_size=864,
+            max_size=512,
         )
 
         # 预处理顺序。增加一些数据增强时这里也要加上，否则train.py中相当于没加！

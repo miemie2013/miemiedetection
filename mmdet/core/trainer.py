@@ -423,7 +423,7 @@ class Trainer:
         # model related init
         torch.cuda.set_device(self.local_rank)
 
-        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'FCOS']:
+        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
             torch.backends.cudnn.benchmark = True  # Improves training speed.
             torch.backends.cuda.matmul.allow_tf32 = False  # Allow PyTorch to internally use tf32 for matmul
             torch.backends.cudnn.allow_tf32 = False  # Allow PyTorch to internally use tf32 for convolutions
@@ -774,7 +774,7 @@ class Trainer:
         if self.use_model_ema:
             if self.archi_name == 'YOLOX':
                 evalmodel = self.ema_model.ema
-            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'FCOS']:
+            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
                 cur_weight = copy.deepcopy(self.model.state_dict())
                 if self.is_distributed:
                     self.model.module.load_state_dict(self.ema_model.apply())
@@ -795,7 +795,7 @@ class Trainer:
         )
         self.model.train()
         if self.use_model_ema:
-            if self.archi_name in ['PPYOLO', 'PPYOLOE', 'FCOS']:
+            if self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
                 self.model.load_state_dict(cur_weight)
                 del cur_weight
             elif self.archi_name in ['YOLOX']:
@@ -817,7 +817,7 @@ class Trainer:
                 save_model = self.ema_model.ema if self.use_model_ema else self.model
                 if self.is_distributed and not self.use_model_ema:
                     save_model = save_model.module
-            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'FCOS']:
+            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
                 if self.use_model_ema:
                     cur_weight = copy.deepcopy(self.model.state_dict())
                     if self.is_distributed:
@@ -842,7 +842,7 @@ class Trainer:
                 self.file_name,
                 ckpt_name,
             )
-            if self.archi_name in ['PPYOLO', 'PPYOLOE', 'FCOS']:
+            if self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
                 if self.use_model_ema:
                     self.model.load_state_dict(cur_weight)
                     del cur_weight

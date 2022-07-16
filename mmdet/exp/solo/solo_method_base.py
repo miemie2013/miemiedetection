@@ -278,15 +278,20 @@ class SOLO_Method_Exp(COCOBaseExp):
         self.eval_data_num_workers = 2
 
     def get_model(self):
-        from mmdet.models import ResNet, SOLOv2Loss, SOLOv2Head, SOLOv2MaskHead, SOLO
+        from mmdet.models import ResNet, CSPResNet, SOLOv2Loss, SOLOv2Head, SOLOv2MaskHead, SOLO
         from mmdet.models.necks.fpn import FPN
         if getattr(self, "model", None) is None:
             Backbone = None
             if self.backbone_type == 'ResNet':
                 Backbone = ResNet
+            elif self.backbone_type == 'CSPResNet':
+                Backbone = CSPResNet
             backbone = Backbone(**self.backbone)
             # 冻结骨干网络
-            backbone.fix_bn()
+            if self.backbone_type == 'ResNet':
+                backbone.fix_bn()
+            elif self.backbone_type == 'CSPResNet':
+                pass
             Fpn = None
             if self.fpn_type == 'FPN':
                 Fpn = FPN
@@ -460,4 +465,4 @@ class SOLO_Method_Exp(COCOBaseExp):
         return evaluator
 
     def eval(self, model, evaluator, is_distributed, half=False):
-        return evaluator.evaluate_ppyolo(model, is_distributed, half)
+        return evaluator.evaluate_solo(model, is_distributed, half)

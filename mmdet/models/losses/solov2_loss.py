@@ -83,8 +83,12 @@ class SOLOv2Loss(object):
             dice_out = dice_loss * weights
             total_weights += torch.sum(weights)
             loss_ins.append(dice_out)
-        loss_ins = torch.sum(torch.cat(loss_ins)) / total_weights
-        loss_ins = loss_ins * self.ins_loss_weight
+
+        if len(loss_ins) == 0:
+            loss_ins = torch.zeros([]).to(num_ins.device)
+        else:
+            loss_ins = torch.sum(torch.cat(loss_ins)) / total_weights
+            loss_ins = loss_ins * self.ins_loss_weight
 
         #2. Ues sigmoid_focal_loss to calculate category loss
         # expand onehot labels
