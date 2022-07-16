@@ -99,6 +99,13 @@ python tools/train.py -f exps/solo/solov2_r50_fpn_3x_coco.py -d 1 -b 2 -eb 1 -c 
 
 
 
+- - - - - - - - - - - - - - - - - - - - - -
+新建一个配置训练COCO2017
+
+python tools/train.py -f exps/solo/solov2_r50_enhance_test_coco.py -d 1 -b 2 -eb 1 -c solov2_r50_enhance_coco.pth
+
+
+
 
 ----------------------- 恢复训练（加上参数--resume） -----------------------
 python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 4 -c PPYOLO_outputs/ppyolo_r50vd_2x/13.pth --resume

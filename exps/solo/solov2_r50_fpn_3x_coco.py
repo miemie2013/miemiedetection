@@ -27,7 +27,7 @@ class Exp(SOLO_Method_Exp):
         # 默认是4。如果报错“OSError: [WinError 1455] 页面文件太小,无法完成操作”，设置为2或0解决。
         # 如果报错“self = reduction.pickle.load(from_parent) EOFError: Ran out of input”，设置为0解决。
         self.data_num_workers = 0
-        self.eval_data_num_workers = 1
+        self.eval_data_num_workers = 0
 
         # 判断是否是调试状态
         isDebug = True if sys.gettrace() else False

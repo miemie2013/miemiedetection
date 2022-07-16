@@ -11,6 +11,16 @@ from mmdet.exp import SOLO_Method_Exp
 class Exp(SOLO_Method_Exp):
     def __init__(self):
         super(Exp, self).__init__()
+        # COCO2017 dataset
+        self.num_classes = 80
+        self.data_dir = '../COCO'
+        self.cls_names = 'class_names/coco_classes.txt'
+        self.ann_folder = "annotations"
+        self.train_ann = "instances_train2017.json"
+        self.val_ann = "instances_val2017.json"
+        self.train_image_folder = "train2017"
+        self.val_image_folder = "val2017"
+
         # COCO2017 dataset。用来调试。
         # self.num_classes = 80
         # self.data_dir = '../COCO'
@@ -33,7 +43,7 @@ class Exp(SOLO_Method_Exp):
         self.weight_decay = 1e-4
         self.momentum = 0.9
         self.print_interval = 20
-        self.eval_interval = 2
+        self.eval_interval = 1
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
         # learning_rate
@@ -54,7 +64,7 @@ class Exp(SOLO_Method_Exp):
         self.backbone = dict(
             depth=50,
             variant='d',
-            freeze_at=0,
+            freeze_at=3,
             freeze_norm=False,
             norm_type='sync_bn',
             return_idx=[0, 1, 2, 3],
@@ -72,7 +82,7 @@ class Exp(SOLO_Method_Exp):
             in_channels=256,
             seg_feat_channels=256,
             num_classes=self.num_classes,
-            stacked_convs=3,
+            stacked_convs=4,
             num_grids=[40, 36, 24, 16, 12],
             kernel_out_channels=128,
             dcn_v2_stages=[2],
