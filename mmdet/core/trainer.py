@@ -744,7 +744,7 @@ class Trainer:
         if self.args.resume:
             logger.info("resume training")
             if self.args.ckpt is None:
-                ckpt_file = os.path.join(self.file_name, "latest" + "_ckpt.pth")
+                ckpt_file = os.path.join(self.file_name, "last_ckpt.pth")
             else:
                 ckpt_file = self.args.ckpt
 
@@ -808,7 +808,7 @@ class Trainer:
             logger.info("\n" + summary)
         synchronize()
 
-        self.save_ckpt("last_epoch", ap50_95 > self.best_ap)
+        self.save_ckpt("last_ckpt", ap50_95 > self.best_ap)
         self.best_ap = max(self.best_ap, ap50_95)
 
     def save_ckpt(self, ckpt_name, update_best_ckpt=False):
