@@ -3,7 +3,7 @@
 # miemiedetection
 
 ## 概述
-miemiedetection是[咩酱](https://github.com/miemie2013)基于[YOLOX](https://github.com/Megvii-BaseDetection/YOLOX)进行二次开发的个人检测库（使用的深度学习框架为pytorch），实现了可变形卷积DCNv2、Matrix NMS等高难度算子，支持单机单卡、单机多卡、多机多卡训练模式（多卡训练模式建议使用Linux系统），支持Windows、Linux系统，以咩酱的名字命名。miemiedetection是一个不需要安装的检测库用户可以直接更改其代码改变执行逻辑，所见即所得！所以往miemiedetection里加入新的算法是一件很容易的事情（可以参考PPYOLO的写法往miemiedetection里加入新的算法）。得益于YOLOX的优秀架构，miemiedetection里的算法训练速度都非常快，数据读取不再是训练速度的瓶颈！目前miemiedetection支持YOLOX、PPYOLO、PPYOLOv2、PPYOLOE等算法，预计未来会加入更多算法，所以请大家点个star吧！
+miemiedetection是[咩酱](https://github.com/miemie2013)基于[YOLOX](https://github.com/Megvii-BaseDetection/YOLOX)进行二次开发的个人检测库（使用的深度学习框架为pytorch），实现了可变形卷积DCNv2、Matrix NMS等高难度算子，支持单机单卡、单机多卡、多机多卡训练模式（多卡训练模式建议使用Linux系统），支持Windows、Linux系统，以咩酱的名字命名。miemiedetection是一个不需要安装的检测库用户可以直接更改其代码改变执行逻辑，所见即所得！所以往miemiedetection里加入新的算法是一件很容易的事情（可以参考PPYOLO的写法往miemiedetection里加入新的算法）。得益于YOLOX的优秀架构，miemiedetection里的算法训练速度都非常快，数据读取不再是训练速度的瓶颈！目前miemiedetection支持YOLOX、PPYOLO、PPYOLOv2、PPYOLOE、SOLOv2等算法，预计未来会加入更多算法，所以请大家点个star吧！
 
 ## 安装依赖
 
@@ -19,6 +19,7 @@ torch版本建议1.10.1+cu102或者更高；torchvision版本建议0.11.2+cu102�
 - [PPYOLO](docs/README_PPYOLO.md)
 - [PPYOLOv2](docs/README_PPYOLO.md)
 - [PPYOLOE](docs/README_PPYOLO.md)
+- [SOLOv2](readme_solo.txt)
 - [FCOS](docs/README_FCOS.md)
 
 ## Updates!!
