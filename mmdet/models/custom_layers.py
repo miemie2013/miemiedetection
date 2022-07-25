@@ -13,12 +13,9 @@ import torch as T
 import torch.nn.functional as F
 import torch.nn as nn
 import numpy as np
-# import paddle.fluid as fluid
-# from paddle import ParamAttr
-# from paddle.regularizer import L2Decay
-# from paddle.nn.initializer import Uniform
-# from paddle.nn.initializer import Constant
-# from paddle.vision.ops import DeformConv2D
+import math
+import collections
+from itertools import repeat
 from mmdet.models.initializer import Normal, XavierNormal, XavierUniform
 
 
@@ -87,6 +84,15 @@ def paddle_yolo_box(conv_output, anchors, stride, num_classes, scale_x_y, im_siz
         pred_xyxy = T.cat([pred_x0y0, pred_x1y1], -1)
     return pred_xyxy, pred_scores
 
+def _ntuple(n):
+    def parse(x):
+        if isinstance(x, collections.abc.Iterable):
+            return tuple(x)
+        return tuple(repeat(x, n))
+    return parse
+
+_pair = _ntuple(2)
+
 class MyDCNv2(nn.Module):
     def __init__(self,
                  in_channels,
@@ -98,59 +104,69 @@ class MyDCNv2(nn.Module):
                  groups=1,
                  bias=False):
         super(MyDCNv2, self).__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.stride = stride
-        self.padding = padding
-        self.dilation = dilation
+        assert groups == 1
         if in_channels % groups != 0:
             raise ValueError("in_channels must be divisible by groups.")
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = _pair(kernel_size)
+        self.stride = _pair(stride)
+        self.padding = _pair(padding)
+        self.dilation = _pair(dilation)
         self.groups = groups
 
-        filter_shape = [out_channels, in_channels // groups, kernel_size, kernel_size]
-
-        self.weight = torch.nn.Parameter(torch.randn(filter_shape))
+        self.weight = torch.nn.Parameter(torch.randn(out_channels, in_channels // groups, self.kernel_size[0], self.kernel_size[1]))
+        torch.nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
         self.bias = None
         if bias:
             self.bias = torch.nn.Parameter(torch.randn(out_channels, ))
+            fan_in, _ = torch.nn.init._calculate_fan_in_and_fan_out(self.weight)
+            bound = 1 / math.sqrt(fan_in)
+            torch.nn.init.uniform_(self.bias, -bound, bound)
 
     def forward(self, x, offset, mask):
         in_C = self.in_channels
         out_C = self.out_channels
-        stride = self.stride
-        padding = self.padding
-        # dilation = self.dilation
+        stride_h = self.stride[0]
+        stride_w = self.stride[1]
+        padding_h = self.padding[0]
+        padding_w = self.padding[1]
+        dilation_h = self.dilation[0]
+        dilation_w = self.dilation[1]
         groups = self.groups
         N, _, H, W = x.shape
         _, w_in, kH, kW = self.weight.shape
-        out_W = (W + 2 * padding - (kW - 1)) // stride
-        out_H = (H + 2 * padding - (kH - 1)) // stride
+
+        kernel_extent_w = dilation_w * (kW - 1) + 1
+        kernel_extent_h = dilation_h * (kH - 1) + 1
+        out_W = (W + padding_w * 2 - kernel_extent_w) / stride_w + 1
+        out_H = (H + padding_h * 2 - kernel_extent_h) / stride_h + 1
+        out_W = int(out_W)
+        out_H = int(out_H)
 
         # ================== 1.先对图片x填充得到填充后的图片pad_x ==================
-        pad_x_H = H + padding * 2 + 1
-        pad_x_W = W + padding * 2 + 1
+        pad_x_H = H + padding_h * 2
+        pad_x_W = W + padding_w * 2
         pad_x = torch.zeros((N, in_C, pad_x_H, pad_x_W), dtype=torch.float32, device=x.device)
-        pad_x[:, :, padding:padding + H, padding:padding + W] = x
+        pad_x[:, :, padding_h:padding_h + H, padding_w:padding_w + W] = x
 
         # ================== 2.求所有采样点的坐标 ==================
-        # 卷积核中心点在pad_x中的位置
+        # 卷积核左上角在pad_x中的位置
         y_outer, x_outer = torch.meshgrid([torch.arange(out_H, device=x.device), torch.arange(out_W, device=x.device)])
-        y_outer = y_outer * stride + padding
-        x_outer = x_outer * stride + padding
-        start_pos_yx = torch.stack((y_outer, x_outer), 2).float()       # [out_H, out_W, 2]         仅仅是卷积核中心点在pad_x中的位置
-        start_pos_yx = start_pos_yx.unsqueeze(0).unsqueeze(3)           # [1, out_H, out_W, 1, 2]   仅仅是卷积核中心点在pad_x中的位置
-        start_pos_yx = torch.tile(start_pos_yx, [N, 1, 1, kH * kW, 1])  # [N, out_H, out_W, kH*kW, 2]   仅仅是卷积核中心点在pad_x中的位置
-        start_pos_y = start_pos_yx[:, :, :, :, :1]  # [N, out_H, out_W, kH*kW, 1]   仅仅是卷积核中心点在pad_x中的位置
-        start_pos_x = start_pos_yx[:, :, :, :, 1:]  # [N, out_H, out_W, kH*kW, 1]   仅仅是卷积核中心点在pad_x中的位置
+        y_outer = y_outer * stride_h
+        x_outer = x_outer * stride_w
+        start_pos_yx = torch.stack((y_outer, x_outer), 2).float()       # [out_H, out_W, 2]         仅仅是卷积核左上角在pad_x中的位置
+        start_pos_yx = start_pos_yx.unsqueeze(0).unsqueeze(3)           # [1, out_H, out_W, 1, 2]   仅仅是卷积核左上角在pad_x中的位置
+        start_pos_yx = torch.tile(start_pos_yx, [N, 1, 1, kH * kW, 1])  # [N, out_H, out_W, kH*kW, 2]   仅仅是卷积核左上角在pad_x中的位置
+        start_pos_y = start_pos_yx[:, :, :, :, :1]  # [N, out_H, out_W, kH*kW, 1]   仅仅是卷积核左上角在pad_x中的位置
+        start_pos_x = start_pos_yx[:, :, :, :, 1:]  # [N, out_H, out_W, kH*kW, 1]   仅仅是卷积核左上角在pad_x中的位置
         start_pos_y.requires_grad = False
         start_pos_x.requires_grad = False
 
         # 卷积核内部的偏移
-        half_W = (kW - 1) // 2
-        half_H = (kH - 1) // 2
-        y_inner2, x_inner2 = torch.meshgrid([torch.arange(kH, device=x.device), torch.arange(kW, device=x.device)])
-        y_inner = y_inner2 - half_H
-        x_inner = x_inner2 - half_W
+        y_inner, x_inner = torch.meshgrid([torch.arange(kH, device=x.device), torch.arange(kW, device=x.device)])
+        y_inner = y_inner * dilation_h
+        x_inner = x_inner * dilation_w
         filter_inner_offset_yx = torch.stack((y_inner, x_inner), 2).float()                    # [kH, kW, 2]       卷积核内部的偏移
         filter_inner_offset_yx = torch.reshape(filter_inner_offset_yx, (1, 1, 1, kH * kW, 2))  # [1, 1, 1, kH*kW, 2]   卷积核内部的偏移
         filter_inner_offset_yx = torch.tile(filter_inner_offset_yx, [N, out_H, out_W, 1, 1])  # [N, out_H, out_W, kH*kW, 2]   卷积核内部的偏移
@@ -168,8 +184,9 @@ class MyDCNv2(nn.Module):
         # 最终采样位置。
         pos_y = start_pos_y + filter_inner_offset_y + offset_y  # [N, out_H, out_W, kH*kW, 1]
         pos_x = start_pos_x + filter_inner_offset_x + offset_x  # [N, out_H, out_W, kH*kW, 1]
-        pos_y = torch.clamp(pos_y, 0.0, H + padding * 2 - 1.0)  # 最终采样位置限制在pad_x内
-        pos_x = torch.clamp(pos_x, 0.0, W + padding * 2 - 1.0)  # 最终采样位置限制在pad_x内
+        # 限制采样点位置。如果调用F.grid_sample()，已经在F.grid_sample()里限制了，就注释掉。
+        # pos_y = torch.clamp(pos_y, -1.0, pad_x_H)  # 最终采样位置限制在-1到pad_x_H之间。（看DCN C++源码得知）
+        # pos_x = torch.clamp(pos_x, -1.0, pad_x_W)  # 最终采样位置限制在-1到pad_x_H之间。（看DCN C++源码得知）
 
         # ================== 3.采样。用F.grid_sample()双线性插值采样。 ==================
         pos_x = pos_x / (pad_x_W - 1) * 2.0 - 1.0
