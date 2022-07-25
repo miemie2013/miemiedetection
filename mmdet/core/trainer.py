@@ -14,7 +14,7 @@ import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 
-from mmdet.data import DataPrefetcher, PPYOLODataPrefetcher, PPYOLOEDataPrefetcher
+from mmdet.data import DataPrefetcher, PPYOLODataPrefetcher, PPYOLOEDataPrefetcher, SOLODataPrefetcher
 from mmdet.data.data_prefetcher import FCOSDataPrefetcher
 from mmdet.utils import (
     MeterBuffer,
@@ -74,6 +74,8 @@ class Trainer:
         elif self.archi_name == 'PPYOLO':
             pass
         elif self.archi_name == 'PPYOLOE':
+            pass
+        elif self.archi_name == 'SOLO':
             pass
         elif self.archi_name == 'FCOS':
             pass
@@ -303,6 +305,16 @@ class Trainer:
                 获得损失（训练）、推理 都要放在forward()中进行，否则DDP会计算错误结果。
                 '''
                 outputs = self.model(inps, None, targets)
+        elif self.archi_name == 'SOLO':
+            inps, *labels, fg_nums, im_ids = self.prefetcher.next()
+            inps = inps.to(self.data_type)
+            data_end_time = time.time()
+
+            with torch.cuda.amp.autocast(enabled=self.amp_training):
+                '''
+                获得损失（训练）、推理 都要放在forward()中进行，否则DDP会计算错误结果。
+                '''
+                outputs = self.model(inps, None, None, labels, fg_nums)
         elif self.archi_name == 'FCOS':
             if self.n_layers == 5:
                 inps, labels0, reg_target0, centerness0, labels1, reg_target1, centerness1, labels2, reg_target2, centerness2, labels3, reg_target3, centerness3, labels4, reg_target4, centerness4 = self.prefetcher.next()
@@ -382,6 +394,9 @@ class Trainer:
         elif self.archi_name == 'PPYOLOE':
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
+        elif self.archi_name == 'SOLO':
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
         elif self.archi_name == 'FCOS':
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
@@ -408,7 +423,7 @@ class Trainer:
         # model related init
         torch.cuda.set_device(self.local_rank)
 
-        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'FCOS']:
+        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
             torch.backends.cudnn.benchmark = True  # Improves training speed.
             torch.backends.cuda.matmul.allow_tf32 = False  # Allow PyTorch to internally use tf32 for matmul
             torch.backends.cudnn.allow_tf32 = False  # Allow PyTorch to internally use tf32 for convolutions
@@ -496,6 +511,36 @@ class Trainer:
 
             logger.info("init prefetcher, this might take one minute or less...")
             self.prefetcher = PPYOLOEDataPrefetcher(self.train_loader, self.n_layers)
+        elif self.archi_name == 'SOLO':
+            # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
+            self.base_lr = self.exp.basic_lr_per_img * self.args.batch_size
+            param_groups = []
+            base_wd = self.exp.weight_decay
+            momentum = self.exp.momentum
+            # 是否进行梯度裁剪
+            self.need_clip = hasattr(self.exp, 'clip_grad_by_norm')
+            self.clip_norm = 1000000.0
+            if self.need_clip:
+                self.clip_norm = getattr(self.exp, 'clip_grad_by_norm')
+            model.add_param_group(param_groups, self.base_lr, base_wd, self.need_clip, self.clip_norm)
+
+            # solver related init
+            self.optimizer = self.exp.get_optimizer(self.args.batch_size, param_groups, momentum=momentum, weight_decay=base_wd)
+
+            # value of epoch will be set in `resume_train`
+            model = self.resume_train(model)
+
+
+            self.train_loader = self.exp.get_data_loader(
+                batch_size=self.args.batch_size,
+                is_distributed=self.is_distributed,
+                num_gpus=self.world_size,
+                cache_img=self.args.cache,
+            )
+            self.n_layers = self.exp.n_layers
+
+            logger.info("init prefetcher, this might take one minute or less...")
+            self.prefetcher = SOLODataPrefetcher(self.train_loader, self.n_layers)
         elif self.archi_name == 'FCOS':
             # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
             self.base_lr = self.exp.basic_lr_per_img * self.args.batch_size
@@ -537,7 +582,7 @@ class Trainer:
         if self.args.occupy:
             occupy_mem(self.local_rank)
 
-        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'FCOS']:
+        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
             # 多卡训练时，使用同步bn。
             # torch.nn.SyncBatchNorm.convert_sync_batchnorm()的使用一定要在创建优化器之后，创建DDP之前。
             if self.is_distributed:
@@ -551,7 +596,7 @@ class Trainer:
             if self.archi_name == 'YOLOX':
                 self.ema_model = ModelEMA(model, self.exp.ema_decay)
                 self.ema_model.updates = self.max_iter * self.start_epoch
-            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'FCOS']:
+            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
                 ema_decay = getattr(self.exp, 'ema_decay', 0.9998)
                 cycle_epoch = getattr(self.exp, 'cycle_epoch', -1)
                 ema_decay_type = getattr(self.exp, 'ema_decay_type', 'threshold')
@@ -612,6 +657,8 @@ class Trainer:
             pass
         elif self.archi_name == 'PPYOLOE':
             pass
+        elif self.archi_name == 'SOLO':
+            pass
         elif self.archi_name == 'FCOS':
             self.train_loader.dataset.set_epoch(self.epoch)
         else:
@@ -663,6 +710,8 @@ class Trainer:
                 log_msg += (", {}".format(eta_str))
             elif self.archi_name == 'PPYOLOE':
                 log_msg += (", {}".format(eta_str))
+            elif self.archi_name == 'SOLO':
+                log_msg += (", {}".format(eta_str))
             elif self.archi_name == 'FCOS':
                 log_msg += (", {}".format(eta_str))
             else:
@@ -679,6 +728,8 @@ class Trainer:
         elif self.archi_name == 'PPYOLO':
             pass
         elif self.archi_name == 'PPYOLOE':
+            pass
+        elif self.archi_name == 'SOLO':
             pass
         elif self.archi_name == 'FCOS':
             pass
@@ -723,7 +774,7 @@ class Trainer:
         if self.use_model_ema:
             if self.archi_name == 'YOLOX':
                 evalmodel = self.ema_model.ema
-            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'FCOS']:
+            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
                 cur_weight = copy.deepcopy(self.model.state_dict())
                 if self.is_distributed:
                     self.model.module.load_state_dict(self.ema_model.apply())
@@ -744,7 +795,7 @@ class Trainer:
         )
         self.model.train()
         if self.use_model_ema:
-            if self.archi_name in ['PPYOLO', 'PPYOLOE', 'FCOS']:
+            if self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
                 self.model.load_state_dict(cur_weight)
                 del cur_weight
             elif self.archi_name in ['YOLOX']:
@@ -766,7 +817,7 @@ class Trainer:
                 save_model = self.ema_model.ema if self.use_model_ema else self.model
                 if self.is_distributed and not self.use_model_ema:
                     save_model = save_model.module
-            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'FCOS']:
+            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
                 if self.use_model_ema:
                     cur_weight = copy.deepcopy(self.model.state_dict())
                     if self.is_distributed:
@@ -791,7 +842,7 @@ class Trainer:
                 self.file_name,
                 ckpt_name,
             )
-            if self.archi_name in ['PPYOLO', 'PPYOLOE', 'FCOS']:
+            if self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
                 if self.use_model_ema:
                     self.model.load_state_dict(cur_weight)
                     del cur_weight

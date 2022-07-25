@@ -18,6 +18,7 @@ this repo needs torch 1.9.1+cu102 or higher, torchvision 0.10.1+cu102 or higher.
 - [PPYOLO](docs/README_PPYOLO.md)
 - [PPYOLOv2](docs/README_PPYOLO.md)
 - [PPYOLOE](docs/README_PPYOLO.md)
+- [SOLOv2](readme_solo.txt)
 - [FCOS](docs/README_FCOS.md)
 
 ## Updates!!

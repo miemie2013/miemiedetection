@@ -302,6 +302,93 @@ def main(exp, args):
         if args.only_backbone:
             delattr(model, "neck")
             delattr(model, "yolo_head")
+    elif model_class_name == 'SOLO':
+        temp_x = torch.randn((1, 3, 640, 640))
+        temp_im_shape = torch.ones((1, 2)) * 640
+        temp_ori_shape = torch.ones((1, 2)) * 640
+        if args.device == "gpu":
+            temp_x = temp_x.cuda()
+            temp_im_shape = temp_im_shape.cuda()
+            temp_ori_shape = temp_ori_shape.cuda()
+        temp_out = model(temp_x, temp_im_shape, temp_ori_shape)
+        with open(args.ckpt, 'rb') as f:
+            state_dict = pickle.load(f) if six.PY2 else pickle.load(f, encoding='latin1')
+        # state_dict = fluid.io.load_program_state(args.ckpt)
+        backbone_dic = {}
+        fpn_dic = {}
+        solov2_head_dic = {}
+        mask_head_dic = {}
+        others = {}
+        for key, value in state_dict.items():
+            if 'tracked' in key:
+                continue
+            if 'backbone.' in key:
+                backbone_dic[key] = value
+            elif 'neck.' in key:
+                fpn_dic[key] = value
+            elif 'solov2_head.' in key:
+                solov2_head_dic[key] = value
+            elif 'mask_head.' in key:
+                mask_head_dic[key] = value
+            else:
+                others[key] = value
+        backbone_dic2 = {}
+        fpn_dic2 = {}
+        solov2_head_dic2 = {}
+        mask_head_dic2 = {}
+        others2 = {}
+        for key, value in model_std.items():
+            if 'tracked' in key:
+                continue
+            if 'backbone.' in key:
+                backbone_dic2[key] = value
+            elif 'neck.' in key:
+                fpn_dic2[key] = value
+            elif 'solov2_head.' in key:
+                solov2_head_dic2[key] = value
+            elif 'mask_head.' in key:
+                mask_head_dic2[key] = value
+            else:
+                others2[key] = value
+        for key in state_dict.keys():
+            name2 = key
+            w = state_dict[key]
+            if 'StructuredToParameterName@@' in key:
+                continue
+            else:
+                if '._mean' in key:
+                    name2 = name2.replace('._mean', '.running_mean')
+                if '._variance' in key:
+                    name2 = name2.replace('._variance', '.running_var')
+
+                # SOLOv2Head
+                if 'bbox_head.kernel_convs.' in key:
+                    name2 = name2.replace('bbox_head.kernel_convs.', 'bbox_head_kernel_convs_')
+                if 'bbox_head.cate_convs.' in key:
+                    name2 = name2.replace('bbox_head.cate_convs.', 'bbox_head_cate_convs_')
+                if 'bbox_head.solo_kernel' in key:
+                    name2 = name2.replace('bbox_head.solo_kernel', 'bbox_head_solo_kernel')
+                if 'bbox_head.solo_cate' in key:
+                    name2 = name2.replace('bbox_head.solo_cate', 'bbox_head_solo_cate')
+
+                # SOLOv2MaskHead
+                if 'mask_feat_head.conv_pred.0' in key:
+                    name2 = name2.replace('mask_feat_head.conv_pred.0', 'mask_feat_head_conv_pred_0')
+                if 'mask_feat_head.convs_all_levels.0.conv' in key:
+                    name2 = name2.replace('mask_feat_head.convs_all_levels.0.conv', 'mask_feat_head_convs_all_levels_0_conv')
+                if 'mask_feat_head.convs_all_levels.1.conv' in key:
+                    name2 = name2.replace('mask_feat_head.convs_all_levels.1.conv', 'mask_feat_head_convs_all_levels_1_conv')
+                if 'mask_feat_head.convs_all_levels.2.conv' in key:
+                    name2 = name2.replace('mask_feat_head.convs_all_levels.2.conv', 'mask_feat_head_convs_all_levels_2_conv')
+                if 'mask_feat_head.convs_all_levels.3.conv' in key:
+                    name2 = name2.replace('mask_feat_head.convs_all_levels.3.conv', 'mask_feat_head_convs_all_levels_3_conv')
+
+                if args.only_backbone:
+                    name2 = 'backbone.' + name2
+                copy(name2, w, model_std)
+        if args.only_backbone:
+            delattr(model, "neck")
+            delattr(model, "yolo_head")
     elif model_class_name == 'FCOS':
         pass
     else:

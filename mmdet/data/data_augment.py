@@ -15,6 +15,8 @@ import random
 import cv2
 import numpy as np
 from loguru import logger
+from numbers import Number, Integral
+
 from mmdet.utils import xyxy2cxcywh
 
 
@@ -314,6 +316,36 @@ class PPYOLOValTransform:
         return pimage, im_size
 
 
+class SOLOValTransform:
+    def __init__(self, context, to_rgb, resizeImage, normalizeImage, permute, padBatch):
+        self.context = context
+        self.to_rgb = to_rgb
+        self.resizeImage = resizeImage
+        self.normalizeImage = normalizeImage
+        self.permute = permute
+        self.padBatch = padBatch
+
+    def __call__(self, img):
+        if self.to_rgb:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        context = self.context
+        sample = {}
+        sample['image'] = img
+        sample['h'] = img.shape[0]
+        sample['w'] = img.shape[1]
+
+        sample = self.normalizeImage(sample, context)
+        sample = self.resizeImage(sample, context)
+        sample = self.permute(sample, context)
+        samples = self.padBatch([sample, ], context)
+        sample = samples[0]
+
+        pimage = np.expand_dims(sample['image'], axis=0)
+        im_size = np.array([[sample['im_info'][0], sample['im_info'][1]]]).astype(np.int32)
+        ori_shape = np.array([[img.shape[0], img.shape[1]]]).astype(np.int32)
+        return pimage, im_size, ori_shape
+
+
 class PPYOLOEValTransform:
     def __init__(self, context, to_rgb, resizeImage, normalizeImage, permute):
         self.context = context
@@ -498,6 +530,48 @@ class DecodeImage(BaseOperator):
             sem = cv2.imread(sem_file, cv2.IMREAD_GRAYSCALE)
             sample['semantic'] = sem.astype('int32')
 
+        return sample
+
+class Decode(BaseOperator):
+    def __init__(self):
+        """ Transform the image data to numpy format following the rgb format
+        """
+        super(Decode, self).__init__()
+
+    def __call__(self, sample, context=None):
+        """ load image if 'im_file' field is not empty but 'image' is"""
+        if 'image' not in sample:
+            with open(sample['im_file'], 'rb') as f:
+                sample['image'] = f.read()
+            sample.pop('im_file')
+
+        im = sample['image']
+        data = np.frombuffer(im, dtype='uint8')
+        im = cv2.imdecode(data, 1)  # BGR mode, but need RGB mode
+        if 'keep_ori_im' in sample and sample['keep_ori_im']:
+            sample['ori_image'] = im
+        im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+
+        sample['image'] = im
+        if 'h' not in sample:
+            sample['h'] = im.shape[0]
+        elif sample['h'] != im.shape[0]:
+            logger.warning(
+                "The actual image height: {} is not equal to the "
+                "height: {} in annotation, and update sample['h'] by actual "
+                "image height.".format(im.shape[0], sample['h']))
+            sample['h'] = im.shape[0]
+        if 'w' not in sample:
+            sample['w'] = im.shape[1]
+        elif sample['w'] != im.shape[1]:
+            logger.warning(
+                "The actual image width: {} is not equal to the "
+                "width: {} in annotation, and update sample['w'] by actual "
+                "image width.".format(im.shape[1], sample['w']))
+            sample['w'] = im.shape[1]
+
+        sample['im_shape'] = np.array(im.shape[:2], dtype=np.float32)
+        sample['scale_factor'] = np.array([1., 1.], dtype=np.float32)
         return sample
 
 
@@ -2370,6 +2444,22 @@ class PadBatch(BaseOperator):
         return samples
 
 
+class SOLOv2Pad(BaseOperator):
+    def __init__(self, max_size=0):
+        super(SOLOv2Pad, self).__init__()
+        self.max_size = max_size
+
+    def __call__(self, sample, context=None):
+        max_size = self.max_size
+
+        im = sample['image']
+        im_c, im_h, im_w = im.shape[:]
+        padding_im = np.zeros((im_c, max_size, max_size), dtype=np.float32)
+        padding_im[:, :im_h, :im_w] = im
+        sample['image'] = padding_im
+        return sample
+
+
 class PadBatchSingle(BaseOperator):
     """
     一张图片的PadBatch
@@ -3384,6 +3474,8 @@ class Gt2FCOSTargetSingle(BaseOperator):
 
 class Gt2Solov2Target(BaseOperator):
     """Assign mask target and labels in SOLOv2 network.
+    The code of this function is based on:
+        https://github.com/WXinlong/SOLO/blob/master/mmdet/models/anchor_heads/solov2_head.py#L271
     Args:
         num_grids (list): The list of feature map grids size.
         scale_ranges (list): The list of mask boundary range.
@@ -3411,53 +3503,87 @@ class Gt2Solov2Target(BaseOperator):
         return resized_img
 
     def __call__(self, samples, context=None):
-        '''
-        SOLOv2算法其实非常复杂。复杂的地方有2：一是正样本的分配（预处理），二是后处理。即使是咩酱也被该算法绕晕了。梳理一下正样本的分配：
-
-        遍历每张图片->
-            遍历5个输出层->
-                若某些gt的平均边长落在这一层的边界范围内时，这一层负责预测这些gt；
-                遍历这些gt->
-                    本gt可被多个格子（该层最多9个）预测。负责预测gt的格子叫正样本，一个gt可对应多个（该层最多9个）正样本。
-                    遍历负责预测本gt的格子->
-                        填写掩码、类别id、ins_ind_label正样本处为True等等。
-
-        有了多个for循环嵌套，非常容易绕晕。原版SOLO仓库中的该部分代码也是非常难读的。
-        :param samples:
-        :param context:
-        :return:
-        '''
         sample_id = 0
+        max_ins_num = [0] * len(self.num_grids)
         for sample in samples:
             gt_bboxes_raw = sample['gt_bbox']
-            gt_labels_raw = sample['gt_class']
-
-            # 改动PaddleDetection中Gt2Solov2Target的地方。
-            # 类别id需要加1。类别id取值范围是[0, 80]共81个值。类别id是0时表示的是背景。这里是正样本的类别id，肯定大于0
-            gt_labels_raw = gt_labels_raw + 1
-
+            gt_labels_raw = sample['gt_class'] + 1   # 类别id+1
             im_c, im_h, im_w = sample['image'].shape[:]
             gt_masks_raw = sample['gt_segm'].astype(np.uint8)
             mask_feat_size = [
                 int(im_h / self.sampling_ratio), int(im_w / self.sampling_ratio)
             ]
             gt_areas = np.sqrt((gt_bboxes_raw[:, 2] - gt_bboxes_raw[:, 0]) *
-                               (gt_bboxes_raw[:, 3] - gt_bboxes_raw[:, 1]))  # 每个gt框的平均边长
+                               (gt_bboxes_raw[:, 3] - gt_bboxes_raw[:, 1]))  # gt的平均边长
             ins_ind_label_list = []
             idx = 0
             for (lower_bound, upper_bound), num_grid \
-                    in zip(self.scale_ranges, self.num_grids):  # 遍历每一层的边界范围，每列（每行）的格子数
-
+                    in zip(self.scale_ranges, self.num_grids):
+                # gt的平均边长位于指定范围内，这个感受野的特征图负责预测这些满足条件的gt
                 hit_indices = ((gt_areas >= lower_bound) &
-                               (gt_areas <= upper_bound)).nonzero()[0]  # 若某些gt的平均边长落在这一层的边界范围内时，这一层负责预测这些gt
-                num_ins = len(hit_indices)  # 这一层负责预测的gt数
+                               (gt_areas <= upper_bound)).nonzero()[0]
+                num_ins = len(hit_indices)
 
-                ins_label = []  # 用来装 正样本的掩码。里面每个元素的shape=[input_h/4, input_w/4]。最终形态是[m2, input_h/4, input_w/4]。 不同图片的该层的grid_order的m2很大概率是不同的。
-                grid_order = []  # 里面每个元素的shape=[1, ]。用来装 正样本在ins_ind_label中的下标。最终形态是[m2, 1]。 不同图片的该层的grid_order的m2很大概率是不同的。
-                cate_label = np.zeros([num_grid, num_grid], dtype=np.int64)  # [num_grid, num_grid]   正样本处填正样本的类别id
-                ins_ind_label = np.zeros([num_grid ** 2], dtype=np.bool)  # [num_grid*num_grid, ]  正样本处填True
+                ins_label = []
+                grid_order = []
+                cate_label = np.zeros([num_grid, num_grid], dtype=np.int64)
+                ins_ind_label = np.zeros([num_grid**2], dtype=np.bool)
 
-                if num_ins == 0:  # 这一层没有正样本
+                if num_ins == 0:
+                    ins_label = np.zeros([1, mask_feat_size[0], mask_feat_size[1]], dtype=np.uint8)
+                    ins_ind_label_list.append(ins_ind_label)
+                    sample['cate_label{}'.format(idx)] = cate_label.flatten()
+                    sample['ins_label{}'.format(idx)] = ins_label
+                    sample['grid_order{}'.format(idx)] = np.asarray([sample_id * num_grid * num_grid + 0], dtype=np.int32)
+                    idx += 1
+                    continue
+                gt_bboxes = gt_bboxes_raw[hit_indices]   # [M, 4] 这个感受野的gt
+                gt_labels = gt_labels_raw[hit_indices]   # [M, 1] 这个感受野的类别id(+1)
+                gt_masks = gt_masks_raw[hit_indices, ...]   # [M, h, w] 这个感受野的gt_mask
+
+                # 这个感受野的gt的宽的一半 * self.coord_sigma
+                half_ws = 0.5 * (gt_bboxes[:, 2] - gt_bboxes[:, 0]) * self.coord_sigma
+                # 这个感受野的gt的高的一半 * self.coord_sigma
+                half_hs = 0.5 * (gt_bboxes[:, 3] - gt_bboxes[:, 1]) * self.coord_sigma
+
+                # 遍历这个感受野的每一个gt
+                for seg_mask, gt_label, half_h, half_w in zip(
+                        gt_masks, gt_labels, half_hs, half_ws):
+                    if seg_mask.sum() == 0:
+                        continue
+                    # mass center
+                    upsampled_size = (mask_feat_size[0] * 4, mask_feat_size[1] * 4)
+                    center_h, center_w = ndimage.measurements.center_of_mass(seg_mask)
+                    coord_w = int((center_w / upsampled_size[1]) // (1. / num_grid))
+                    coord_h = int((center_h / upsampled_size[0]) // (1. / num_grid))
+
+                    # left, top, right, down
+                    top_box = max(0, int(((center_h - half_h) / upsampled_size[0]) // (1. / num_grid)))
+                    down_box = min(num_grid - 1, int(((center_h + half_h) / upsampled_size[0]) // (1. / num_grid)))
+                    left_box = max(0, int(((center_w - half_w) / upsampled_size[1]) // (1. / num_grid)))
+                    right_box = min(num_grid - 1, int(((center_w + half_w) / upsampled_size[1]) // (1. / num_grid)))
+
+                    top = max(top_box, coord_h - 1)
+                    down = min(down_box, coord_h + 1)
+                    left = max(coord_w - 1, left_box)
+                    right = min(right_box, coord_w + 1)
+
+                    cate_label[top:(down + 1), left:(right + 1)] = gt_label
+                    seg_mask = self._scale_size(
+                        seg_mask, scale=1. / self.sampling_ratio)
+                    for i in range(top, down + 1):
+                        for j in range(left, right + 1):
+                            label = int(i * num_grid + j)
+                            cur_ins_label = np.zeros(
+                                [mask_feat_size[0], mask_feat_size[1]],
+                                dtype=np.uint8)
+                            cur_ins_label[:seg_mask.shape[0], :seg_mask.shape[
+                                1]] = seg_mask
+                            ins_label.append(cur_ins_label)
+                            ins_ind_label[label] = True
+                            grid_order.append(sample_id * num_grid * num_grid +
+                                              label)
+                if ins_label == []:
                     ins_label = np.zeros(
                         [1, mask_feat_size[0], mask_feat_size[1]],
                         dtype=np.uint8)
@@ -3465,86 +3591,53 @@ class Gt2Solov2Target(BaseOperator):
                     sample['cate_label{}'.format(idx)] = cate_label.flatten()
                     sample['ins_label{}'.format(idx)] = ins_label
                     sample['grid_order{}'.format(idx)] = np.asarray(
-                        [sample_id * num_grid * num_grid + 0])
-                    idx += 1
-                    continue
-                gt_bboxes = gt_bboxes_raw[hit_indices]  # shape=[m, 4]  这一层负责预测的物体的bbox
-                gt_labels = gt_labels_raw[hit_indices]  # shape=[m, 1]   这一层负责预测的物体的类别id
-                gt_masks = gt_masks_raw[hit_indices, ...]  # [m, ?, ?]
-
-                half_ws = 0.5 * (
-                        gt_bboxes[:, 2] - gt_bboxes[:, 0]) * self.coord_sigma  # shape=[m, ]  宽的一半
-                half_hs = 0.5 * (
-                        gt_bboxes[:, 3] - gt_bboxes[:, 1]) * self.coord_sigma  # shape=[m, ]  高的一半
-
-                # 遍历这一层负责预测的m个gt 的 gt_masks, gt_labels, half_hs, half_ws
-                for seg_mask, gt_label, half_h, half_w in zip(
-                        gt_masks, gt_labels, half_hs, half_ws):
-                    if seg_mask.sum() == 0:
-                        continue
-                    # mass center
-                    upsampled_size = (mask_feat_size[0] * 4, mask_feat_size[1] * 4)  # 也就是输入图片的大小
-                    center_h, center_w = ndimage.measurements.center_of_mass(seg_mask)  # 求物体掩码的质心。scipy提供技术支持。
-                    coord_w = int((center_w / upsampled_size[1]) // (1. / num_grid))  # 物体质心落在了第几列格子
-                    coord_h = int((center_h / upsampled_size[0]) // (1. / num_grid))  # 物体质心落在了第几行格子
-
-                    # left, top, right, down
-                    top_box = max(0, int(((center_h - half_h) / upsampled_size[0]) // (1. / num_grid)))  # 物体左上角落在了第几行格子
-                    down_box = min(num_grid - 1,
-                                   int(((center_h + half_h) / upsampled_size[0]) // (1. / num_grid)))  # 物体右下角落在了第几行格子
-                    left_box = max(0,
-                                   int(((center_w - half_w) / upsampled_size[1]) // (1. / num_grid)))  # 物体左上角落在了第几列格子
-                    right_box = min(num_grid - 1,
-                                    int(((center_w + half_w) / upsampled_size[1]) // (1. / num_grid)))  # 物体右下角落在了第几列格子
-
-                    # 物体的宽高并没有那么重要。将物体的左上角、右下角限制在质心所在的九宫格内。当物体很小时，物体的左上角、右下角、质心位于同一个格子。
-                    top = max(top_box, coord_h - 1)
-                    down = min(down_box, coord_h + 1)
-                    left = max(coord_w - 1, left_box)
-                    right = min(right_box, coord_w + 1)
-
-                    # 40x40的网格，将负责预测gt的格子填上gt_label。一个gt可被多个格子（该层最多9个）预测。负责预测gt的格子叫正样本，一个gt可对应多个（该层最多9个）正样本。
-                    cate_label[top:(down + 1), left:(right + 1)] = gt_label
-                    seg_mask = self._scale_size(seg_mask, scale=1. / self.sampling_ratio)  # 该gt的掩码下采样4倍。
-                    # 遍历负责预测本gt的格子
-                    for i in range(top, down + 1):
-                        for j in range(left, right + 1):
-                            label = int(i * num_grid + j)  # 正样本在 ins_ind_label (shape=[num_grid*num_grid, ]) 中的下标
-                            ins_ind_label[label] = True  # ins_ind_label (shape=[num_grid*num_grid, ]) 的正样本处填上True
-                            cur_ins_label = np.zeros(
-                                [mask_feat_size[0], mask_feat_size[1]],
-                                dtype=np.uint8)  # [input_h/4, input_w/4]  正样本的掩码。
-                            cur_ins_label[:seg_mask.shape[0], :seg_mask.shape[
-                                1]] = seg_mask  # [input_h/4, input_w/4]  正样本的掩码。
-                            ins_label.append(cur_ins_label)
-                            # ins_label加入的掩码是属于第几个格子的掩码。由于不同图片本层的grid_order会无差别地拼接起来。所以加上图片的偏移。
-                            grid_order.append([sample_id * num_grid * num_grid + label])
-                if ins_label == []:
-                    ins_label = np.zeros(
-                        [1, mask_feat_size[0], mask_feat_size[1]],
-                        dtype=np.uint8)
-                    ins_ind_label_list.append(ins_ind_label)
-                    sample['cate_label{}'.format(idx)] = cate_label.flatten()  # [num_grid*num_grid, ]   正样本处填正样本的类别id
-                    sample['ins_label{}'.format(idx)] = ins_label
-                    sample['grid_order{}'.format(idx)] = np.asarray(
-                        [sample_id * num_grid * num_grid + 0])
+                        [sample_id * num_grid * num_grid + 0], dtype=np.int32)
                 else:
                     ins_label = np.stack(ins_label, axis=0)
                     ins_ind_label_list.append(ins_ind_label)
-                    sample['cate_label{}'.format(idx)] = cate_label.flatten()  # [num_grid*num_grid, ]   正样本处填正样本的类别id
-                    sample['ins_label{}'.format(idx)] = ins_label  # [m2, input_h/4, input_w/4]   正样本的掩码。
-                    sample['grid_order{}'.format(idx)] = np.asarray(grid_order)  # [m2, 1]
+                    sample['cate_label{}'.format(idx)] = cate_label.flatten()
+                    sample['ins_label{}'.format(idx)] = ins_label
+                    sample['grid_order{}'.format(idx)] = np.asarray(
+                        grid_order, dtype=np.int32)
                     assert len(grid_order) > 0
+                max_ins_num[idx] = max(
+                    max_ins_num[idx],
+                    sample['ins_label{}'.format(idx)].shape[0])
                 idx += 1
             ins_ind_labels = np.concatenate([
                 ins_ind_labels_level_img
                 for ins_ind_labels_level_img in ins_ind_label_list
             ])
             fg_num = np.sum(ins_ind_labels)
-            sample['fg_num'] = fg_num  # 本图片全部输出层的正样本个数
+            sample['fg_num'] = fg_num
             sample_id += 1
 
+            sample.pop('is_crowd')
+            sample.pop('gt_class')
+            sample.pop('gt_bbox')
+            sample.pop('gt_poly')
+            sample.pop('gt_segm')
+
+        # padding batch
+        for data in samples:
+            for idx in range(len(self.num_grids)):
+                gt_ins_data = np.zeros(
+                    [
+                        max_ins_num[idx],
+                        data['ins_label{}'.format(idx)].shape[1],
+                        data['ins_label{}'.format(idx)].shape[2]
+                    ],
+                    dtype=np.uint8)
+                gt_ins_data[0:data['ins_label{}'.format(idx)].shape[
+                    0], :, :] = data['ins_label{}'.format(idx)]
+                gt_grid_order = np.zeros([max_ins_num[idx]], dtype=np.int32)
+                gt_grid_order[0:data['grid_order{}'.format(idx)].shape[
+                    0]] = data['grid_order{}'.format(idx)]
+                data['ins_label{}'.format(idx)] = gt_ins_data
+                data['grid_order{}'.format(idx)] = gt_grid_order
+
         return samples
+
 
 
 class Gt2RepPointsTargetSingle(BaseOperator):
@@ -3801,12 +3894,504 @@ class Gt2RepPointsTargetSingle(BaseOperator):
         return sample
 
 
+
+class RandomDistort(BaseOperator):
+    """Random color distortion.
+    Args:
+        hue (list): hue settings. in [lower, upper, probability] format.
+        saturation (list): saturation settings. in [lower, upper, probability] format.
+        contrast (list): contrast settings. in [lower, upper, probability] format.
+        brightness (list): brightness settings. in [lower, upper, probability] format.
+        random_apply (bool): whether to apply in random (yolo) or fixed (SSD)
+            order.
+        count (int): the number of doing distrot
+        random_channel (bool): whether to swap channels randomly
+    """
+
+    def __init__(self,
+                 hue=[-18, 18, 0.5],
+                 saturation=[0.5, 1.5, 0.5],
+                 contrast=[0.5, 1.5, 0.5],
+                 brightness=[0.5, 1.5, 0.5],
+                 random_apply=True,
+                 count=4,
+                 random_channel=False):
+        super(RandomDistort, self).__init__()
+        self.hue = hue
+        self.saturation = saturation
+        self.contrast = contrast
+        self.brightness = brightness
+        self.random_apply = random_apply
+        self.count = count
+        self.random_channel = random_channel
+
+    def apply_hue(self, img):
+        low, high, prob = self.hue
+        if np.random.uniform(0., 1.) < prob:
+            return img
+
+        img = img.astype(np.float32)
+        # it works, but result differ from HSV version
+        delta = np.random.uniform(low, high)
+        u = np.cos(delta * np.pi)
+        w = np.sin(delta * np.pi)
+        bt = np.array([[1.0, 0.0, 0.0], [0.0, u, -w], [0.0, w, u]])
+        tyiq = np.array([[0.299, 0.587, 0.114], [0.596, -0.274, -0.321],
+                         [0.211, -0.523, 0.311]])
+        ityiq = np.array([[1.0, 0.956, 0.621], [1.0, -0.272, -0.647],
+                          [1.0, -1.107, 1.705]])
+        t = np.dot(np.dot(ityiq, bt), tyiq).T
+        img = np.dot(img, t)
+        return img
+
+    def apply_saturation(self, img):
+        low, high, prob = self.saturation
+        if np.random.uniform(0., 1.) < prob:
+            return img
+        delta = np.random.uniform(low, high)
+        img = img.astype(np.float32)
+        # it works, but result differ from HSV version
+        gray = img * np.array([[[0.299, 0.587, 0.114]]], dtype=np.float32)
+        gray = gray.sum(axis=2, keepdims=True)
+        gray *= (1.0 - delta)
+        img *= delta
+        img += gray
+        return img
+
+    def apply_contrast(self, img):
+        low, high, prob = self.contrast
+        if np.random.uniform(0., 1.) < prob:
+            return img
+        delta = np.random.uniform(low, high)
+        img = img.astype(np.float32)
+        img *= delta
+        return img
+
+    def apply_brightness(self, img):
+        low, high, prob = self.brightness
+        if np.random.uniform(0., 1.) < prob:
+            return img
+        delta = np.random.uniform(low, high)
+        img = img.astype(np.float32)
+        img += delta
+        return img
+
+    def __call__(self, sample, context=None):
+        img = sample['image']
+        if self.random_apply:
+            functions = [
+                self.apply_brightness, self.apply_contrast,
+                self.apply_saturation, self.apply_hue
+            ]
+            distortions = np.random.permutation(functions)[:self.count]
+            for func in distortions:
+                img = func(img)
+            sample['image'] = img
+            return sample
+
+        img = self.apply_brightness(img)
+        mode = np.random.randint(0, 2)
+
+        if mode:
+            img = self.apply_contrast(img)
+
+        img = self.apply_saturation(img)
+        img = self.apply_hue(img)
+
+        if not mode:
+            img = self.apply_contrast(img)
+
+        if self.random_channel:
+            if np.random.randint(0, 2):
+                img = img[..., np.random.permutation(3)]
+        sample['image'] = img
+        return sample
+
+
+class Resize(BaseOperator):
+    def __init__(self, target_size, keep_ratio, interp=cv2.INTER_LINEAR):
+        """
+        Resize image to target size. if keep_ratio is True,
+        resize the image's long side to the maximum of target_size
+        if keep_ratio is False, resize the image to target size(h, w)
+        Args:
+            target_size (int|list): image target size
+            keep_ratio (bool): whether keep_ratio or not, default true
+            interp (int): the interpolation method
+        """
+        super(Resize, self).__init__()
+        self.keep_ratio = keep_ratio
+        self.interp = interp
+        if not isinstance(target_size, (Integral, Sequence)):
+            raise TypeError(
+                "Type of target_size is invalid. Must be Integer or List or Tuple, now is {}".
+                format(type(target_size)))
+        if isinstance(target_size, Integral):
+            target_size = [target_size, target_size]
+        self.target_size = target_size
+
+    def apply_image(self, image, scale):
+        im_scale_x, im_scale_y = scale
+
+        return cv2.resize(
+            image,
+            None,
+            None,
+            fx=im_scale_x,
+            fy=im_scale_y,
+            interpolation=self.interp)
+
+    def apply_bbox(self, bbox, scale, size):
+        im_scale_x, im_scale_y = scale
+        resize_w, resize_h = size
+        bbox[:, 0::2] *= im_scale_x
+        bbox[:, 1::2] *= im_scale_y
+        bbox[:, 0::2] = np.clip(bbox[:, 0::2], 0, resize_w)
+        bbox[:, 1::2] = np.clip(bbox[:, 1::2], 0, resize_h)
+        return bbox
+
+    def apply_segm(self, segms, im_size, scale):
+        def _resize_poly(poly, im_scale_x, im_scale_y):
+            resized_poly = np.array(poly).astype('float32')
+            resized_poly[0::2] *= im_scale_x
+            resized_poly[1::2] *= im_scale_y
+            return resized_poly.tolist()
+
+        def _resize_rle(rle, im_h, im_w, im_scale_x, im_scale_y):
+            if 'counts' in rle and type(rle['counts']) == list:
+                rle = mask_util.frPyObjects(rle, im_h, im_w)
+
+            mask = mask_util.decode(rle)
+            mask = cv2.resize(
+                mask,
+                None,
+                None,
+                fx=im_scale_x,
+                fy=im_scale_y,
+                interpolation=self.interp)
+            rle = mask_util.encode(np.array(mask, order='F', dtype=np.uint8))
+            return rle
+
+        im_h, im_w = im_size
+        im_scale_x, im_scale_y = scale
+        resized_segms = []
+        for segm in segms:
+            if is_poly(segm):
+                # Polygon format
+                resized_segms.append([
+                    _resize_poly(poly, im_scale_x, im_scale_y) for poly in segm
+                ])
+            else:
+                # RLE format
+                import pycocotools.mask as mask_util
+                resized_segms.append(
+                    _resize_rle(segm, im_h, im_w, im_scale_x, im_scale_y))
+
+        return resized_segms
+
+    def __call__(self, sample, context=None):
+        """ Resize the image numpy.
+        """
+        im = sample['image']
+        if not isinstance(im, np.ndarray):
+            raise TypeError("{}: image type is not numpy.".format(self))
+        if len(im.shape) != 3:
+            raise ImageError('{}: image is not 3-dimensional.'.format(self))
+
+        # apply image
+        im_shape = im.shape
+        if self.keep_ratio:
+
+            im_size_min = np.min(im_shape[0:2])
+            im_size_max = np.max(im_shape[0:2])
+
+            target_size_min = np.min(self.target_size)
+            target_size_max = np.max(self.target_size)
+
+            im_scale = min(target_size_min / im_size_min,
+                           target_size_max / im_size_max)
+
+            resize_h = im_scale * float(im_shape[0])
+            resize_w = im_scale * float(im_shape[1])
+
+            im_scale_x = im_scale
+            im_scale_y = im_scale
+        else:
+            resize_h, resize_w = self.target_size
+            im_scale_y = resize_h / im_shape[0]
+            im_scale_x = resize_w / im_shape[1]
+
+        im = self.apply_image(sample['image'], [im_scale_x, im_scale_y])
+        sample['image'] = im
+        sample['im_shape'] = np.asarray([resize_h, resize_w], dtype=np.float32)
+        if 'scale_factor' in sample:
+            scale_factor = sample['scale_factor']
+            sample['scale_factor'] = np.asarray(
+                [scale_factor[0] * im_scale_y, scale_factor[1] * im_scale_x],
+                dtype=np.float32)
+        else:
+            sample['scale_factor'] = np.asarray(
+                [im_scale_y, im_scale_x], dtype=np.float32)
+
+        # apply bbox
+        if 'gt_bbox' in sample and len(sample['gt_bbox']) > 0:
+            sample['gt_bbox'] = self.apply_bbox(sample['gt_bbox'],
+                                                [im_scale_x, im_scale_y],
+                                                [resize_w, resize_h])
+
+        # apply rbox
+        if 'gt_rbox2poly' in sample:
+            if np.array(sample['gt_rbox2poly']).shape[1] != 8:
+                logger.warning(
+                    "gt_rbox2poly's length shoule be 8, but actually is {}".
+                    format(len(sample['gt_rbox2poly'])))
+            sample['gt_rbox2poly'] = self.apply_bbox(sample['gt_rbox2poly'],
+                                                     [im_scale_x, im_scale_y],
+                                                     [resize_w, resize_h])
+
+        # apply polygon
+        if 'gt_poly' in sample and len(sample['gt_poly']) > 0:
+            sample['gt_poly'] = self.apply_segm(sample['gt_poly'], im_shape[:2],
+                                                [im_scale_x, im_scale_y])
+
+        # apply semantic
+        if 'semantic' in sample and sample['semantic']:
+            semantic = sample['semantic']
+            semantic = cv2.resize(
+                semantic.astype('float32'),
+                None,
+                None,
+                fx=im_scale_x,
+                fy=im_scale_y,
+                interpolation=self.interp)
+            semantic = np.asarray(semantic).astype('int32')
+            semantic = np.expand_dims(semantic, 0)
+            sample['semantic'] = semantic
+
+        # apply gt_segm
+        if 'gt_segm' in sample and len(sample['gt_segm']) > 0:
+            masks = [
+                cv2.resize(
+                    gt_segm,
+                    None,
+                    None,
+                    fx=im_scale_x,
+                    fy=im_scale_y,
+                    interpolation=cv2.INTER_NEAREST)
+                for gt_segm in sample['gt_segm']
+            ]
+            sample['gt_segm'] = np.asarray(masks).astype(np.uint8)
+
+        return sample
+
+
+class RandomResize(BaseOperator):
+    def __init__(self,
+                 target_size,
+                 keep_ratio=True,
+                 interp=cv2.INTER_LINEAR,
+                 random_size=True,
+                 random_interp=False):
+        """
+        Resize image to target size randomly. random target_size and interpolation method
+        Args:
+            target_size (int, list, tuple): image target size, if random size is True, must be list or tuple
+            keep_ratio (bool): whether keep_raio or not, default true
+            interp (int): the interpolation method
+            random_size (bool): whether random select target size of image
+            random_interp (bool): whether random select interpolation method
+        """
+        super(RandomResize, self).__init__()
+        self.keep_ratio = keep_ratio
+        self.interp = interp
+        self.interps = [
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_AREA,
+            cv2.INTER_CUBIC,
+            cv2.INTER_LANCZOS4,
+        ]
+        assert isinstance(target_size, (
+            Integral, Sequence)), "target_size must be Integer, List or Tuple"
+        if random_size and not isinstance(target_size, Sequence):
+            raise TypeError(
+                "Type of target_size is invalid when random_size is True. Must be List or Tuple, now is {}".
+                format(type(target_size)))
+        self.target_size = target_size
+        self.random_size = random_size
+        self.random_interp = random_interp
+
+    def __call__(self, sample, context=None):
+        """ Resize the image numpy.
+        """
+        if self.random_size:
+            target_size = random.choice(self.target_size)
+        else:
+            target_size = self.target_size
+
+        if self.random_interp:
+            interp = random.choice(self.interps)
+        else:
+            interp = self.interp
+
+        resizer = Resize(target_size, self.keep_ratio, interp)
+        return resizer(sample, context=context)
+
+
+def cal_line_length(point1, point2):
+    import math
+    return math.sqrt(
+        math.pow(point1[0] - point2[0], 2) + math.pow(point1[1] - point2[1], 2))
+
+
+def get_best_begin_point_single(coordinate):
+    x1, y1, x2, y2, x3, y3, x4, y4 = coordinate
+    xmin = min(x1, x2, x3, x4)
+    ymin = min(y1, y2, y3, y4)
+    xmax = max(x1, x2, x3, x4)
+    ymax = max(y1, y2, y3, y4)
+    combinate = [[[x1, y1], [x2, y2], [x3, y3], [x4, y4]],
+                 [[x4, y4], [x1, y1], [x2, y2], [x3, y3]],
+                 [[x3, y3], [x4, y4], [x1, y1], [x2, y2]],
+                 [[x2, y2], [x3, y3], [x4, y4], [x1, y1]]]
+    dst_coordinate = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]]
+    force = 100000000.0
+    force_flag = 0
+    for i in range(4):
+        temp_force = cal_line_length(combinate[i][0], dst_coordinate[0]) \
+                     + cal_line_length(combinate[i][1], dst_coordinate[1]) \
+                     + cal_line_length(combinate[i][2], dst_coordinate[2]) \
+                     + cal_line_length(combinate[i][3], dst_coordinate[3])
+        if temp_force < force:
+            force = temp_force
+            force_flag = i
+    if force_flag != 0:
+        pass
+    return np.array(combinate[force_flag]).reshape(8)
+
+
+
+class RandomFlip(BaseOperator):
+    def __init__(self, prob=0.5):
+        """
+        Args:
+            prob (float): the probability of flipping image
+        """
+        super(RandomFlip, self).__init__()
+        self.prob = prob
+        if not (isinstance(self.prob, float)):
+            raise TypeError("{}: input type is invalid.".format(self))
+
+    def apply_segm(self, segms, height, width):
+        def _flip_poly(poly, width):
+            flipped_poly = np.array(poly)
+            flipped_poly[0::2] = width - np.array(poly[0::2])
+            return flipped_poly.tolist()
+
+        def _flip_rle(rle, height, width):
+            if 'counts' in rle and type(rle['counts']) == list:
+                rle = mask_util.frPyObjects(rle, height, width)
+            mask = mask_util.decode(rle)
+            mask = mask[:, ::-1]
+            rle = mask_util.encode(np.array(mask, order='F', dtype=np.uint8))
+            return rle
+
+        flipped_segms = []
+        for segm in segms:
+            if is_poly(segm):
+                # Polygon format
+                flipped_segms.append([_flip_poly(poly, width) for poly in segm])
+            else:
+                # RLE format
+                import pycocotools.mask as mask_util
+                flipped_segms.append(_flip_rle(segm, height, width))
+        return flipped_segms
+
+    def apply_keypoint(self, gt_keypoint, width):
+        for i in range(gt_keypoint.shape[1]):
+            if i % 2 == 0:
+                old_x = gt_keypoint[:, i].copy()
+                gt_keypoint[:, i] = width - old_x
+        return gt_keypoint
+
+    def apply_image(self, image):
+        return image[:, ::-1, :]
+
+    def apply_bbox(self, bbox, width):
+        oldx1 = bbox[:, 0].copy()
+        oldx2 = bbox[:, 2].copy()
+        bbox[:, 0] = width - oldx2
+        bbox[:, 2] = width - oldx1
+        return bbox
+
+    def apply_rbox(self, bbox, width):
+        oldx1 = bbox[:, 0].copy()
+        oldx2 = bbox[:, 2].copy()
+        oldx3 = bbox[:, 4].copy()
+        oldx4 = bbox[:, 6].copy()
+        bbox[:, 0] = width - oldx1
+        bbox[:, 2] = width - oldx2
+        bbox[:, 4] = width - oldx3
+        bbox[:, 6] = width - oldx4
+        bbox = [get_best_begin_point_single(e) for e in bbox]
+        return bbox
+
+    def __call__(self, sample, context=None):
+        """Filp the image and bounding box.
+        Operators:
+            1. Flip the image numpy.
+            2. Transform the bboxes' x coordinates.
+              (Must judge whether the coordinates are normalized!)
+            3. Transform the segmentations' x coordinates.
+              (Must judge whether the coordinates are normalized!)
+        Output:
+            sample: the image, bounding box and segmentation part
+                    in sample are flipped.
+        """
+        if np.random.uniform(0, 1) < self.prob:
+            im = sample['image']
+            height, width = im.shape[:2]
+            im = self.apply_image(im)
+            if 'gt_bbox' in sample and len(sample['gt_bbox']) > 0:
+                sample['gt_bbox'] = self.apply_bbox(sample['gt_bbox'], width)
+            if 'gt_poly' in sample and len(sample['gt_poly']) > 0:
+                sample['gt_poly'] = self.apply_segm(sample['gt_poly'], height,
+                                                    width)
+            if 'gt_keypoint' in sample and len(sample['gt_keypoint']) > 0:
+                sample['gt_keypoint'] = self.apply_keypoint(
+                    sample['gt_keypoint'], width)
+
+            if 'semantic' in sample and sample['semantic']:
+                sample['semantic'] = sample['semantic'][:, ::-1]
+
+            if 'gt_segm' in sample and sample['gt_segm'].any():
+                sample['gt_segm'] = sample['gt_segm'][:, :, ::-1]
+
+            if 'gt_rbox2poly' in sample and sample['gt_rbox2poly'].any():
+                sample['gt_rbox2poly'] = self.apply_rbox(sample['gt_rbox2poly'],
+                                                         width)
+
+            sample['flipped'] = True
+            sample['image'] = im
+        return sample
+
+
 def get_sample_transforms(cfg):
     # sample_transforms
     sample_transforms = []
     for preprocess_name in cfg.sample_transforms_seq:
         if preprocess_name == 'decodeImage':
             preprocess = DecodeImage(**cfg.decodeImage)   # 对图片解码。最开始的一步。
+        elif preprocess_name == 'decode':
+            preprocess = Decode(**cfg.decode)   # 对图片解码。最开始的一步。
+        elif preprocess_name == 'poly2Mask':
+            preprocess = Poly2Mask(**cfg.poly2Mask)   #
+        elif preprocess_name == 'randomDistort':
+            preprocess = RandomDistort(**cfg.randomDistort)   #
+        elif preprocess_name == 'randomResize':
+            preprocess = RandomResize(**cfg.randomResize)   #
+        elif preprocess_name == 'randomFlip':
+            preprocess = RandomFlip(**cfg.randomFlip)   #
         elif preprocess_name == 'mixupImage':
             preprocess = MixupImage(**cfg.mixupImage)      # mixup增强
         elif preprocess_name == 'cutmixImage':

@@ -39,6 +39,17 @@ def get_model_info(archi_name, model, tsize):
         stride = 64
         params = -1
         flops = -1
+    elif archi_name == 'SOLO':
+        # stride = 64
+        # img = torch.zeros((1, 3, stride, stride), device=next(model.parameters()).device)
+        # scale_factor = torch.ones((1, 2), device=next(model.parameters()).device)
+        # model_copy = deepcopy(model)
+        # model_copy.eval_size = None
+        # flops, params = profile(model_copy, inputs=(img, scale_factor), verbose=False)
+        pass
+        stride = 64
+        params = -1
+        flops = -1
     elif archi_name == 'FCOS':
         stride = 64
         img = torch.zeros((1, 3, stride, stride), device=next(model.parameters()).device)

@@ -126,6 +126,101 @@ class PPYOLODataPrefetcher:
         input.record_stream(torch.cuda.current_stream())
 
 
+class SOLODataPrefetcher:
+    """
+    xxxDataPrefetcher is inspired by code of following file:
+    https://github.com/NVIDIA/apex/blob/master/examples/imagenet/main_amp.py
+    It could speedup your pytorch dataloader. For more information, please check
+    https://github.com/NVIDIA/apex/issues/304#issuecomment-493562789.
+    """
+
+    def __init__(self, loader, n_layers):
+        self.loader = iter(loader)
+        self.stream = torch.cuda.Stream()
+        self.n_layers = n_layers
+        self.input_cuda = self._input_cuda_for_image
+        self.record_stream = SOLODataPrefetcher._record_stream_for_image
+        self.preload()
+
+    def preload(self):
+        try:
+            self.next_input, *labels, self.fg_nums, self.im_ids = next(self.loader)
+            i = 0
+            for lvl in range(self.n_layers):
+                setattr(self, 'ins_label{}'.format(lvl), labels[i]); i += 1
+            for lvl in range(self.n_layers):
+                setattr(self, 'cate_label{}'.format(lvl), labels[i]); i += 1
+            for lvl in range(self.n_layers):
+                setattr(self, 'grid_order{}'.format(lvl), labels[i]); i += 1
+        except StopIteration:
+            self.next_input = None
+            for lvl in range(self.n_layers):
+                setattr(self, 'ins_label{}'.format(lvl), None)
+                setattr(self, 'cate_label{}'.format(lvl), None)
+                setattr(self, 'grid_order{}'.format(lvl), None)
+            self.fg_nums = None
+            self.im_ids = None
+            return
+
+        with torch.cuda.stream(self.stream):
+            self.input_cuda()
+            for lvl in range(self.n_layers):
+                ins_label = 'ins_label{}'.format(lvl)
+                cate_label = 'cate_label{}'.format(lvl)
+                grid_order = 'grid_order{}'.format(lvl)
+                l0 = getattr(self, ins_label)
+                l0 = l0.cuda(non_blocking=True)
+                setattr(self, ins_label, l0)
+                l1 = getattr(self, cate_label)
+                l1 = l1.cuda(non_blocking=True)
+                setattr(self, cate_label, l1)
+                l2 = getattr(self, grid_order)
+                l2 = l2.cuda(non_blocking=True)
+                setattr(self, grid_order, l2)
+            self.fg_nums = self.fg_nums.cuda(non_blocking=True)
+            self.im_ids = self.im_ids.cuda(non_blocking=True)
+
+    def next(self):
+        torch.cuda.current_stream().wait_stream(self.stream)
+        input = self.next_input
+        fg_nums = self.fg_nums
+        im_ids = self.im_ids
+        if input is not None:
+            self.record_stream(input)
+        gt_ins_labels = []
+        gt_cate_labels = []
+        gt_grid_orders = []
+        for lvl in range(self.n_layers):
+            ins_label = 'ins_label{}'.format(lvl)
+            cate_label = 'cate_label{}'.format(lvl)
+            grid_order = 'grid_order{}'.format(lvl)
+            l0 = getattr(self, ins_label)
+            l1 = getattr(self, cate_label)
+            l2 = getattr(self, grid_order)
+            if l0 is not None:
+                l0.record_stream(torch.cuda.current_stream())
+                gt_ins_labels.append(l0)
+            if l1 is not None:
+                l1.record_stream(torch.cuda.current_stream())
+                gt_cate_labels.append(l1)
+            if l2 is not None:
+                l2.record_stream(torch.cuda.current_stream())
+                gt_grid_orders.append(l2)
+        if fg_nums is not None:
+            fg_nums.record_stream(torch.cuda.current_stream())
+        if im_ids is not None:
+            im_ids.record_stream(torch.cuda.current_stream())
+        self.preload()
+        return [input, ] + gt_ins_labels + gt_cate_labels + gt_grid_orders + [fg_nums, im_ids]
+
+    def _input_cuda_for_image(self):
+        self.next_input = self.next_input.cuda(non_blocking=True)
+
+    @staticmethod
+    def _record_stream_for_image(input):
+        input.record_stream(torch.cuda.current_stream())
+
+
 class PPYOLOEDataPrefetcher:
     """
     xxxDataPrefetcher is inspired by code of following file:

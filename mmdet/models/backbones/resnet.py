@@ -16,6 +16,7 @@ import math
 from numbers import Integral
 
 import torch
+import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 from mmdet.models.custom_layers import MyDCNv2, ShapeSpec
@@ -158,6 +159,17 @@ class ConvNormLayer(nn.Module):
                 dilation=1,
                 groups=groups,
                 bias=False)
+            # 官方DCN
+            # self.conv = torchvision.ops.DeformConv2d(
+            #     in_channels=ch_in,
+            #     out_channels=ch_out,
+            #     kernel_size=filter_size,
+            #     stride=stride,
+            #     padding=(filter_size - 1) // 2,
+            #     dilation=1,
+            #     groups=groups,
+            #     bias=False)
+
             self.dcn_w_lr = lr
             # 初始化权重
             torch.nn.init.xavier_normal_(self.conv.weight, gain=1.)
@@ -212,7 +224,7 @@ class ConvNormLayer(nn.Module):
                 param_group_conv['need_clip'] = need_clip
                 param_group_conv['clip_norm'] = clip_norm
                 param_groups.append(param_group_conv)
-        elif isinstance(self.conv, MyDCNv2):   # 自实现的DCNv2
+        elif isinstance(self.conv, (MyDCNv2, torchvision.ops.DeformConv2d)):   # 自实现的DCNv2、官方DCNv2
             if self.conv_offset.weight.requires_grad:
                 param_group_conv_offset_w = {'params': [self.conv_offset.weight]}
                 param_group_conv_offset_w['lr'] = base_lr
@@ -237,8 +249,6 @@ class ConvNormLayer(nn.Module):
                 param_group_dcn_weight['need_clip'] = need_clip
                 param_group_dcn_weight['clip_norm'] = clip_norm
                 param_groups.append(param_group_dcn_weight)
-        else:   # 官方DCNv2
-            pass
         if self.norm is not None:
             if not self.freeze_norm:
                 if self.norm.weight.requires_grad:

@@ -26,9 +26,7 @@ import torch.nn as nn
 
 def _no_grad_uniform_(tensor, a, b):
     with torch.no_grad():
-        tensor.copy_(
-            torch.uniform(
-                shape=tensor.shape, dtype=tensor.dtype, min=a, max=b))
+        tensor.copy_(tensor.uniform_(a, b))
     return tensor
 
 
@@ -302,3 +300,50 @@ def reset_initialized_parameter(model, include_self=True):
             _no_grad_fill_(m.weight, 1.)
             if hasattr(m, 'bias') and getattr(m, 'bias') is not None:
                 _no_grad_fill_(m.bias, 0)
+
+
+
+class Normal:
+    def __init__(self, mean=0., std=0.01):
+        self.mean = mean
+        self.std = std
+
+    def init(self, tensor):
+        normal_(tensor, mean=self.mean, std=self.std)
+
+
+class XavierUniform:
+    def __init__(self, fan_in=None, fan_out=None, gain=1., reverse=False):
+        self._fan_in = fan_in
+        self._fan_out = fan_out
+        self.gain = gain
+        self.reverse = reverse
+
+    def init(self, tensor):
+        f_in, f_out = _calculate_fan_in_and_fan_out(tensor, reverse=self.reverse)
+
+        fan_in = f_in if self._fan_in is None else self._fan_in
+        fan_out = f_out if self._fan_out is None else self._fan_out
+
+        std = self.gain * math.sqrt(2.0 / float(fan_in + fan_out))
+        k = math.sqrt(3.0) * std
+        _no_grad_uniform_(tensor, -k, k)
+
+
+class XavierNormal:
+    def __init__(self, fan_in=None, fan_out=None, gain=1., reverse=False):
+        self._fan_in = fan_in
+        self._fan_out = fan_out
+        self.gain = gain
+        self.reverse = reverse
+
+    def init(self, tensor):
+        f_in, f_out = _calculate_fan_in_and_fan_out(tensor, reverse=self.reverse)
+
+        fan_in = f_in if self._fan_in is None else self._fan_in
+        fan_out = f_out if self._fan_out is None else self._fan_out
+
+        std = self.gain * math.sqrt(2.0 / float(fan_in + fan_out))
+        _no_grad_normal_(tensor, 0, std)
+
+
