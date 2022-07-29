@@ -4,7 +4,7 @@
 #
 #   Author      : miemie2013
 #   Created date:
-#   Description : 大部分参考了onnx2ncnn.cpp的代码
+#   Description : 参考了部分onnx2ncnn.cpp的代码
 #
 # ================================================================
 import struct
@@ -14,6 +14,23 @@ import numpy as np
 def newest_bottom_names(ncnn_data):
     tensor_id = ncnn_data['tensor_id']
     bottom_names = ['tensor_%.8d' % (tensor_id - 1,), ]
+    return bottom_names
+
+
+def check_bottom_names(bottom_names):
+    if isinstance(bottom_names, str):
+        bottom_names = [bottom_names, ]
+    elif isinstance(bottom_names, list):
+        all_is_str = True
+        num_input = len(bottom_names)
+        for i in range(num_input):
+            if not isinstance(bottom_names[i], str):
+                all_is_str = False
+                break
+        if not all_is_str:
+            raise NotImplementedError("bottom_names elements type not implemented.")
+    else:
+        raise NotImplementedError("bottom_names type not implemented.")
     return bottom_names
 
 
@@ -42,7 +59,7 @@ def pretty_format(ncnn_data, bottom_names):
         line2 = ''
         for kkk, s in enumerate(ss):
             if kkk == 0:
-                line2 += "%-16s"%s
+                line2 += "%-24s"%s
             elif kkk == 1:
                 line2 += ' %-24s'%s
             elif kkk == 2:
@@ -128,6 +145,7 @@ def rename_tensor(ncnn_data, bottom_names):
 
 
 def split_input_tensor(ncnn_data, bottom_names):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
@@ -219,6 +237,7 @@ def split_input_tensor(ncnn_data, bottom_names):
 
 
 def conv2d(ncnn_data, bottom_names, conv):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
@@ -279,7 +298,75 @@ def conv2d(ncnn_data, bottom_names, conv):
     return top_names
 
 
+def deformable_conv2d(ncnn_data, bottom_names, conv):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    num = len(bottom_names)
+    pp += 'DeformableConv2D\tlayer_%.8d\t%d 1' % (layer_id, num)
+    for i in range(num):
+        pp += ' %s' % bottom_names[i]
+    pp += ' %s' % top_names[0]
+    pp += ' 0=%d' % conv.out_channels
+    if len(conv.kernel_size) == 2:
+        pp += ' 1=%d' % conv.kernel_size[1]
+        pp += ' 11=%d' % conv.kernel_size[0]
+    else:
+        raise NotImplementedError("not implemented.")
+    if len(conv.stride) == 2:
+        pp += ' 3=%d' % conv.stride[1]
+        pp += ' 13=%d' % conv.stride[0]
+    elif len(conv.stride) == 1:
+        pp += ' 3=%d' % conv.stride[1]
+        pp += ' 13=%d' % conv.stride[0]
+    else:
+        raise NotImplementedError("not implemented.")
+    if len(conv.padding) == 2:
+        pp += ' 4=%d' % conv.padding[1]
+        pp += ' 14=%d' % conv.padding[0]
+    else:
+        raise NotImplementedError("not implemented.")
+    if conv.bias is not None:
+        pp += ' 5=1'
+    else:
+        pp += ' 5=0'
+    out_C, in_C, kH, kW = conv.weight.shape
+    w_ele_num = out_C * in_C * kH * kW
+    pp += ' 6=%d' % w_ele_num
+    assert conv.groups == 1
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    # 卷积层写入权重。参考了onnx2ncnn，开头写个0
+    s = struct.pack('i', 0)
+    bp.write(s)
+
+    conv_w = conv.weight.cpu().detach().numpy()
+    for i1 in range(out_C):
+        for i2 in range(in_C):
+            for i3 in range(kH):
+                for i4 in range(kW):
+                    s = struct.pack('f', conv_w[i1][i2][i3][i4])
+                    bp.write(s)
+    if conv.bias is not None:
+        conv_b = conv.bias.cpu().detach().numpy()
+        for i1 in range(out_C):
+            s = struct.pack('f', conv_b[i1])
+            bp.write(s)
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
 def fuse_conv_bn(ncnn_data, bottom_names, conv, bn):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
@@ -360,6 +447,7 @@ def fuse_conv_bn(ncnn_data, bottom_names, conv, bn):
 
 
 def pooling(ncnn_data, bottom_names, op, pool):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
@@ -418,6 +506,7 @@ def pooling(ncnn_data, bottom_names, op, pool):
 
 
 def activation(ncnn_data, bottom_names, act_name, args={}):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
@@ -463,6 +552,7 @@ def activation(ncnn_data, bottom_names, act_name, args={}):
 
 
 def coordconcat(ncnn_data, bottom_names):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
@@ -481,6 +571,7 @@ def coordconcat(ncnn_data, bottom_names):
 
 
 def split(ncnn_data, bottom_names, num):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
@@ -502,6 +593,7 @@ def split(ncnn_data, bottom_names, num):
 
 
 def binaryOp(ncnn_data, bottom_names, op):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
@@ -548,6 +640,7 @@ def binaryOp(ncnn_data, bottom_names, op):
 
 
 def reduction(ncnn_data, bottom_names, op, input_dims, dims, keepdim=False):
+    bottom_names = check_bottom_names(bottom_names)
     assert isinstance(dims, (list, tuple))
     assert len(dims) > 0
     bp = ncnn_data['bp']
@@ -641,6 +734,115 @@ def reduction(ncnn_data, bottom_names, op, input_dims, dims, keepdim=False):
         pp += ' 4=1'
     else:
         pp += ' 4=0'
+    fixbug0 = False
+    if fixbug0:
+        pp += ' 5=0'
+    else:
+        pp += ' 5=1'
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def really_reduction(ncnn_data, bottom_names, op, dims, keepdim=False):
+    bottom_names = check_bottom_names(bottom_names)
+    assert isinstance(dims, (list, tuple))
+    assert len(dims) > 0
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    '''
+    见
+    int Reduction::load_param(const ParamDict& pd)
+        {
+            operation = pd.get(0, 0);
+            reduce_all = pd.get(1, 1);
+            coeff = pd.get(2, 1.f);
+            axes = pd.get(3, Mat());
+            keepdims = pd.get(4, 0);
+
+            return 0;
+        }
+    0=3表示mean
+
+
+    onnx2ncnn.cpp
+        else if (op == "ReduceMax" || op == "ReduceMin" || op == "ReduceMean" || op == "ReduceProd" || op == "ReduceSum" || op == "ReduceSumSquare" || op == "ReduceL1" || op == "ReduceL2" || op == "ReduceLogSum" || op == "ReduceLogSumExp")
+        {
+            int op_type = -233;
+            if (op == "ReduceSum")
+                op_type = 0;
+            else if (op == "ReduceSumSquare")
+                op_type = 2;
+            else if (op == "ReduceMean")
+                op_type = 3;
+            else if (op == "ReduceMax")
+                op_type = 4;
+            else if (op == "ReduceMin")
+                op_type = 5;
+            else if (op == "ReduceProd")
+                op_type = 6;
+            else if (op == "ReduceL1")
+                op_type = 7;
+            else if (op == "ReduceL2")
+                op_type = 8;
+            else if (op == "ReduceLogSum")
+                op_type = 9;
+            else if (op == "ReduceLogSumExp")
+                op_type = 10;
+            fprintf(pp, " 0=%d", op_type);
+
+            std::vector<int> axes = get_node_attr_ai(node, "axes");
+            int keepdims = get_node_attr_i(node, "keepdims", 1);
+    '''
+
+    top_names = create_top_names(ncnn_data, num=1)
+    op_id = -1
+    if op == 'ReduceSum':
+        op_id = 0
+    elif op == 'ReduceSumSquare':
+        op_id = 2
+    elif op == 'ReduceMean':
+        op_id = 3
+    elif op == 'ReduceMax':
+        op_id = 4
+    elif op == 'ReduceMin':
+        op_id = 5
+    elif op == 'ReduceProd':
+        op_id = 6
+    elif op == 'ReduceL1':
+        op_id = 7
+    elif op == 'ReduceL2':
+        op_id = 8
+    elif op == 'ReduceLogSum':
+        op_id = 9
+    elif op == 'ReduceLogSumExp':
+        op_id = 10
+    else:
+        raise NotImplementedError("not implemented.")
+
+    pp += 'Reduction\tlayer_%.8d\t1 1 %s %s 0=%d' % (layer_id, bottom_names[0], top_names[0], op_id)
+    reduce_all = False
+    if reduce_all:
+        pp += ' 1=1'
+    else:
+        pp += ' 1=0'
+    # 被干掉的维的信息。
+    pp += ' -23303=%d' % (len(dims),)
+    for dim in dims:
+        pp += ',%d' % (dim,)
+    if keepdim:
+        pp += ' 4=1'
+    else:
+        pp += ' 4=0'
     pp += '\n'
     layer_id += 1
     tensor_id += 1
@@ -653,6 +855,7 @@ def reduction(ncnn_data, bottom_names, op, input_dims, dims, keepdim=False):
 
 
 def crop(ncnn_data, bottom_names, starts, ends, axes):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
@@ -686,6 +889,7 @@ Crop             layer_name                  1 1 tensor_xx tensor_xxx -23309=1,0
 
 
 def concat(ncnn_data, bottom_names, dim):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
@@ -714,6 +918,7 @@ Concat           Concat_33                2 1 67 83 84 0=0
 
 
 def interpolate(ncnn_data, bottom_names, size=None, scale_factor=None, mode='nearest', align_corners=None, recompute_scale_factor=None):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
@@ -752,6 +957,7 @@ def interpolate(ncnn_data, bottom_names, size=None, scale_factor=None, mode='nea
 
 
 def permute(ncnn_data, bottom_names, perm=None):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
@@ -767,6 +973,10 @@ def permute(ncnn_data, bottom_names, perm=None):
         args = ' 0=2'
     elif perm == '(0, 2, 1)':
         args = ' 0=1'
+    elif perm == '(1, 0)':
+        args = ' 0=1'
+    elif perm == '(1, 0, 2, 3)':
+        args = ' 0=11111'
     else:
         raise NotImplementedError("not implemented.")
 
@@ -785,6 +995,7 @@ def permute(ncnn_data, bottom_names, perm=None):
 
 
 def adaptive_avg_pool2d(ncnn_data, bottom_names, output_size=None):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
@@ -812,6 +1023,7 @@ def adaptive_avg_pool2d(ncnn_data, bottom_names, output_size=None):
 
 
 def reshape(ncnn_data, bottom_names, shape):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
@@ -846,7 +1058,145 @@ def reshape(ncnn_data, bottom_names, shape):
     return top_names
 
 
+def really_reshape(ncnn_data, bottom_names, shape):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    '''
+    针对ncnn的CDHW格式的四维张量进行真正的reshape
+    '''
+    #
+    assert isinstance(shape, (list, tuple))
+    args = ''
+    if len(shape) == 4:  # 此时shape代表ncnn中的CDHW
+        args = ' 0=%d 1=%d 11=%d 2=%d' % (shape[3], shape[2], shape[1], shape[0])
+    elif len(shape) == 3:  # 此时shape代表ncnn中的CHW
+        args = ' 0=%d 1=%d 2=%d' % (shape[2], shape[1], shape[0])
+    elif len(shape) == 2:  # 此时shape代表ncnn中的HW
+        args = ' 0=%d 1=%d' % (shape[1], shape[0])
+    elif len(shape) == 1:  # 此时shape代表ncnn中的W
+        args = ' 0=%d' % (shape[0], )
+    else:
+        raise NotImplementedError("not implemented.")
+
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'Reshape\tlayer_%.8d\t1 1 %s %s' % (layer_id, bottom_names[0], top_names[0])
+    pp += args
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def list_equal(arr1, arr2):
+    if len(arr1) == 4:
+        return arr1[0] == arr2[0] and arr1[1] == arr2[1] and arr1[2] == arr2[2] and arr1[3] == arr2[3]
+    elif len(arr1) == 3:
+        return arr1[0] == arr2[0] and arr1[1] == arr2[1] and arr1[2] == arr2[2]
+    elif len(arr1) == 2:
+        return arr1[0] == arr2[0] and arr1[1] == arr2[1]
+
+def really_permute(ncnn_data, bottom_names, perm):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    assert isinstance(perm, (list, tuple))
+
+    '''
+    针对ncnn的CDHW格式的四维张量进行真正的permute
+        // order_type
+        // 0 = w h d c
+        // 1 = h w d c
+        // 2 = w d h c
+        // 3 = d w h c
+        // 4 = h d w c
+        // 5 = d h w c
+        // 6 = w h c d
+        // 7 = h w c d
+        // 8 = w c h d
+        // 9 = c w h d
+        //10 = h c w d
+        //11 = c h w d
+        //12 = w d c h
+        //13 = d w c h
+        //14 = w c d h
+        //15 = c w d h
+        //16 = d c w h
+        //17 = c d w h
+        //18 = h d c w
+        //19 = d h c w
+        //20 = h c d w
+        //21 = c h d w
+        //22 = d c h w
+        //23 = c d h w
+    但是维度排列你要倒着看。比如 CDHW格式 对应 上图的 w h d c，
+    你要转成 DCHW格式(即python端perm==[1, 0, 2, 3])  对应 上图的 w h c d，所以参数填6。其它情况同理。
+    
+        // order_type
+        // 0 = w h
+        // 1 = h w
+        
+        // order_type
+        // 0 = w h c
+        // 1 = h w c
+        // 2 = w c h
+        // 3 = c w h
+        // 4 = h c w
+        // 5 = c h w
+    '''
+    #
+    args = ''
+    if len(perm) == 4:
+        if list_equal(perm, [0, 1, 2, 3]):
+            raise NotImplementedError("not implemented.")
+        elif list_equal(perm, [1, 0, 2, 3]):
+            args = ' 0=6'
+        else:
+            raise NotImplementedError("not implemented.")
+    elif len(perm) == 3:
+        if list_equal(perm, [0, 1, 2]):
+            raise NotImplementedError("not implemented.")
+        elif list_equal(perm, [2, 0, 1]):
+            args = ' 0=4'
+        else:
+            raise NotImplementedError("not implemented.")
+    elif len(perm) == 2:
+        if list_equal(perm, [0, 1]):
+            raise NotImplementedError("not implemented.")
+        elif list_equal(perm, [1, 0]):
+            args = ' 0=1'
+        else:
+            raise NotImplementedError("not implemented.")
+    else:
+        raise NotImplementedError("not implemented.")
+
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'Permute\tlayer_%.8d\t1 1 %s %s' % (layer_id, bottom_names[0], top_names[0])
+    pp += args
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
 def softmax(ncnn_data, bottom_names, dim):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
@@ -871,6 +1221,7 @@ def softmax(ncnn_data, bottom_names, dim):
 
 
 def square(ncnn_data, bottom_names):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
@@ -889,14 +1240,15 @@ def square(ncnn_data, bottom_names):
     return top_names
 
 
-def rsqrt(ncnn_data, bottom_names, eps=0.0):
+def abs(ncnn_data, bottom_names):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
     tensor_id = ncnn_data['tensor_id']
 
     top_names = create_top_names(ncnn_data, num=1)
-    pp += 'Rsqrt\tlayer_%.8d\t1 1 %s %s 0=%e' % (layer_id, bottom_names[0], top_names[0], eps)
+    pp += 'Abs\tlayer_%.8d\t1 1 %s %s' % (layer_id, bottom_names[0], top_names[0])
     pp += '\n'
     layer_id += 1
     tensor_id += 1
@@ -908,24 +1260,172 @@ def rsqrt(ncnn_data, bottom_names, eps=0.0):
     return top_names
 
 
-def shell(ncnn_data, bottom_names, weight, bias):
+def rsqrt(ncnn_data, bottom_names, eps=0.0, scale=None):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
     tensor_id = ncnn_data['tensor_id']
 
-    w_dims = len(weight.shape)
-    assert w_dims in [2, 4]
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'Rsqrt\tlayer_%.8d\t1 1 %s %s 0=%e' % (layer_id, bottom_names[0], top_names[0], eps)
+    if scale is not None:
+        pp += ' 1=%e' % (scale, )
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
 
-    if w_dims == 2:
-        out_C, in_C = weight.shape
-        kH = 1
-        kW = 1
-    elif w_dims == 4:
-        out_C, in_C, kH, kW = weight.shape
-    # num = 2
-    # if bias is not None:
-    #     num = 3
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def sqrt(ncnn_data, bottom_names, eps=0.0):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'Sqrt\tlayer_%.8d\t1 1 %s %s 0=%e' % (layer_id, bottom_names[0], top_names[0], eps)
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def sin(ncnn_data, bottom_names, scale=1.0):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'Sin\tlayer_%.8d\t1 1 %s %s 0=%e' % (layer_id, bottom_names[0], top_names[0], scale)
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def clamp(ncnn_data, bottom_names, min_v=0.0, max_v=1.0):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'Clamp\tlayer_%.8d\t1 1 %s %s 0=%e 1=%e' % (layer_id, bottom_names[0], top_names[0], min_v, max_v)
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def lerp(ncnn_data, bottom_names):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    num = len(bottom_names)
+    pp += 'Lerp\tlayer_%.8d\t%d 1' % (layer_id, num)
+    for i in range(num):
+        pp += ' %s' % bottom_names[i]
+    pp += ' %s' % top_names[0]
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def StyleMixingSwitcher(ncnn_data, bottom_names, ws_i=0):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    num = len(bottom_names)
+    pp += 'StyleMixingSwitcher\tlayer_%.8d\t%d 1' % (layer_id, num)
+    for i in range(num):
+        pp += ' %s' % bottom_names[i]
+    pp += ' %s' % top_names[0]
+    pp += ' 0=%d' % (ws_i,)
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def MulConstant(ncnn_data, bottom_names, scale=1.0, bias=0.0):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'MulConstant\tlayer_%.8d\t1 1 %s %s 0=%e 1=%e' % (layer_id, bottom_names[0], top_names[0], scale, bias)
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def shell(ncnn_data, bottom_names, weight, bias, ncnn_weight_dims=4):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    '''
+    weight 是2维张量时，要求传入的weight reshape成 CD11形状(ncnn中的形状也是CD11)，bias形状要求是[C, ](ncnn中的形状是111C)；
+    weight 是4维张量时，要求传入的weight是CDHW形状(ncnn中的形状也是CDHW)，bias形状要求是[C, ](ncnn中的形状是111C)；
+    '''
+
+    w_dims = len(weight.shape)
+    assert w_dims == 4
+    C, D, H, W = weight.shape
     num = 1
     if bias is not None:
         num = 2
@@ -936,20 +1436,20 @@ def shell(ncnn_data, bottom_names, weight, bias):
     for i in range(num):
         pp += ' %s' % top_names[i]
 
-    pp += ' 0=%d' % out_C
-    pp += ' 2=%d' % in_C
-    pp += ' 3=%d' % w_dims
-    pp += ' 1=%d' % kW
-    pp += ' 11=%d' % kH
+    pp += ' 2=%d' % C
+    pp += ' 11=%d' % D
+    pp += ' 1=%d' % H
+    pp += ' 0=%d' % W
+    pp += ' 3=%d' % ncnn_weight_dims
     if bias is not None:
         pp += ' 5=1'
     else:
         pp += ' 5=0'
-    w_ele_num = out_C * in_C * kH * kW
+    w_ele_num = C * D * H * W
     pp += ' 6=%d' % w_ele_num
     pp += '\n'
     layer_id += 1
-    tensor_id += 1
+    tensor_id += num
 
     # 卷积层写入权重。参考了onnx2ncnn，开头写个0
     s = struct.pack('i', 0)
@@ -957,21 +1457,16 @@ def shell(ncnn_data, bottom_names, weight, bias):
 
     conv_w = weight.cpu().detach().numpy()
 
-    if w_dims == 2:
-        for i1 in range(out_C):
-            for i2 in range(in_C):
-                s = struct.pack('f', conv_w[i1][i2])
-                bp.write(s)
-    elif w_dims == 4:
-        for i1 in range(out_C):
-            for i2 in range(in_C):
-                for i3 in range(kH):
-                    for i4 in range(kW):
+    if w_dims == 4:
+        for i1 in range(C):
+            for i2 in range(D):
+                for i3 in range(H):
+                    for i4 in range(W):
                         s = struct.pack('f', conv_w[i1][i2][i3][i4])
                         bp.write(s)
     if bias is not None:
         conv_b = bias.cpu().detach().numpy()
-        for i1 in range(out_C):
+        for i1 in range(C):
             s = struct.pack('f', conv_b[i1])
             bp.write(s)
     ncnn_data['bp'] = bp
@@ -981,67 +1476,43 @@ def shell(ncnn_data, bottom_names, weight, bias):
     return top_names
 
 
-def matmul(ncnn_data, bottom_names, weight, bias):
+def Fmatmul(ncnn_data, bottom_names, weight_shape):
+    bottom_names = check_bottom_names(bottom_names)
     bp = ncnn_data['bp']
     pp = ncnn_data['pp']
     layer_id = ncnn_data['layer_id']
     tensor_id = ncnn_data['tensor_id']
 
-    w_dims = len(weight.shape)
-    assert w_dims in [2, 4]
+    '''
+    注意！Fmatmul层借鉴了卷积层的代码，当kH==1和kW==1时，调用InnerProduct层。
+    卷积层的权重的形状是[out_C, in_C, kH, kW]
+    所以必须要保证传入Fmatmul层的w的形状是[out_C, in_C]而不能是[in_C, out_C]，否则会计算出错误结果！
+    '''
 
+    num_input = len(bottom_names)
+    assert num_input in [2, 3]
+    bias_term = 1
+    if num_input == 2:
+        bias_term = 0
+
+    w_dims = len(weight_shape)
+    assert w_dims in [2, ]
     if w_dims == 2:
-        out_C, in_C = weight.shape
-        kH = 1
-        kW = 1
-    elif w_dims == 4:
-        out_C, in_C, kH, kW = weight.shape
-    num = 2
-    if bias is not None:
-        num = 3
+        out_C, in_C = weight_shape
 
-
-    top_names = create_top_names(ncnn_data, num=num)
-    pp += 'Shell\tlayer_%.8d\t1 %d %s' % (layer_id, num, bottom_names[0])
-    for i in range(num):
-        pp += ' %s' % top_names[i]
-
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'Fmatmul\tlayer_%.8d\t%d 1' % (layer_id, num_input)
+    for i in range(num_input):
+        pp += ' %s' % bottom_names[i]
+    pp += ' %s' % top_names[0]
     pp += ' 0=%d' % out_C
-    pp += ' 1=%d' % kW
-    pp += ' 11=%d' % kH
-    if bias is not None:
-        pp += ' 5=1'
-    else:
-        pp += ' 5=0'
-    w_ele_num = out_C * in_C * kH * kW
-    pp += ' 6=%d' % w_ele_num
+    pp += ' 1=%d' % bias_term
+    w_ele_num = out_C * in_C
+    pp += ' 2=%d' % w_ele_num
     pp += '\n'
     layer_id += 1
     tensor_id += 1
 
-    # 卷积层写入权重。参考了onnx2ncnn，开头写个0
-    s = struct.pack('i', 0)
-    bp.write(s)
-
-    conv_w = weight.cpu().detach().numpy()
-
-    if w_dims == 2:
-        for i1 in range(out_C):
-            for i2 in range(in_C):
-                s = struct.pack('f', conv_w[i1][i2])
-                bp.write(s)
-    elif w_dims == 4:
-        for i1 in range(out_C):
-            for i2 in range(in_C):
-                for i3 in range(kH):
-                    for i4 in range(kW):
-                        s = struct.pack('f', conv_w[i1][i2][i3][i4])
-                        bp.write(s)
-    if bias is not None:
-        conv_b = bias.cpu().detach().numpy()
-        for i1 in range(out_C):
-            s = struct.pack('f', conv_b[i1])
-            bp.write(s)
     ncnn_data['bp'] = bp
     ncnn_data['pp'] = pp
     ncnn_data['layer_id'] = layer_id
@@ -1049,5 +1520,463 @@ def matmul(ncnn_data, bottom_names, weight, bias):
     return top_names
 
 
+def BiasAct(ncnn_data, bottom_names, act_type, alpha, gain, clamp):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    num_input = len(bottom_names)
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'BiasAct\tlayer_%.8d\t%d 1' % (layer_id, num_input)
+    for i in range(num_input):
+        pp += ' %s' % bottom_names[i]
+    pp += ' %s' % top_names[0]
+    pp += ' 0=%d' % act_type
+    pp += ' 1=%e' % alpha
+    pp += ' 2=%e' % gain
+    pp += ' 3=%e' % clamp
+    if num_input == 1:
+        pp += ' 4=0'
+    elif num_input == 2:
+        pp += ' 4=1'
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def F4DOp1D(ncnn_data, bottom_names, dim, op):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    op_id = -1
+    if op == 'Mul':
+        op_id = 0
+    elif op == 'Div':
+        op_id = 1
+    elif op == 'Add':
+        op_id = 2
+    elif op == 'Sub':
+        op_id = 3
+    else:
+        raise NotImplementedError("not implemented.")
+
+    num_input = len(bottom_names)
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'F4DOp1D\tlayer_%.8d\t%d 1' % (layer_id, num_input)
+    for i in range(num_input):
+        pp += ' %s' % bottom_names[i]
+    pp += ' %s' % top_names[0]
+    pp += ' 0=%d' % dim
+    pp += ' 1=%d' % op_id
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def AddNoise(ncnn_data, bottom_names):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    num_input = len(bottom_names)
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'AddNoise\tlayer_%.8d\t%d 1' % (layer_id, num_input)
+    for i in range(num_input):
+        pp += ' %s' % bottom_names[i]
+    pp += ' %s' % top_names[0]
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def Fconv2d(ncnn_data, bottom_names, stride=1, padding=0, dilation=1, groups=1):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    num = len(bottom_names)
+    pp += 'Convolution\tlayer_%.8d\t%d 1' % (layer_id, num)
+    for i in range(num):
+        pp += ' %s' % bottom_names[i]
+    pp += ' %s' % top_names[0]
+
+    pad_left, pad_right, pad_top, pad_bottom = 0, 0, 0, 0
+    if isinstance(padding, int):
+        pad_left = padding
+        pad_right = padding
+        pad_top = padding
+        pad_bottom = padding
+    elif isinstance(padding, list) or isinstance(padding, tuple):
+        if len(padding) == 2:
+            pad_left = padding[1]
+            pad_right = padding[1]
+            pad_top = padding[0]
+            pad_bottom = padding[0]
+        elif len(padding) == 4:
+            pad_left = padding[2]
+            pad_right = padding[3]
+            pad_top = padding[0]
+            pad_bottom = padding[1]
+        else:
+            raise NotImplementedError("not implemented.")
+    else:
+        raise NotImplementedError("not implemented.")
+    pp += ' 4=%d' % pad_left
+    pp += ' 15=%d' % pad_right
+    pp += ' 14=%d' % pad_top
+    pp += ' 16=%d' % pad_bottom
+
+    stride_h, stride_w = 1, 1
+    if isinstance(stride, int):
+        stride_h = stride
+        stride_w = stride
+    elif isinstance(stride, list) or isinstance(stride, tuple):
+        if len(padding) == 2:
+            stride_h = stride[0]
+            stride_w = stride[1]
+        else:
+            raise NotImplementedError("not implemented.")
+    else:
+        raise NotImplementedError("not implemented.")
+    pp += ' 3=%d' % stride_w
+    pp += ' 13=%d' % stride_h
+
+    if num == 3:
+        pp += ' 5=1'
+    else:
+        pp += ' 5=0'
+
+    # dynamic_weight
+    pp += ' 19=1'
+    assert dilation == 1
+    assert groups == 1
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def Fconv2d_depthwise(ncnn_data, bottom_names, stride=1, padding=0, dilation=1, groups=1):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    num = len(bottom_names)
+    pp += 'ConvolutionDepthWise\tlayer_%.8d\t%d 1' % (layer_id, num)
+    for i in range(num):
+        pp += ' %s' % bottom_names[i]
+    pp += ' %s' % top_names[0]
+
+    pad_left, pad_right, pad_top, pad_bottom = 0, 0, 0, 0
+    if isinstance(padding, int):
+        pad_left = padding
+        pad_right = padding
+        pad_top = padding
+        pad_bottom = padding
+    elif isinstance(padding, list) or isinstance(padding, tuple):
+        if len(padding) == 2:
+            pad_left = padding[1]
+            pad_right = padding[1]
+            pad_top = padding[0]
+            pad_bottom = padding[0]
+        elif len(padding) == 4:
+            pad_left = padding[2]
+            pad_right = padding[3]
+            pad_top = padding[0]
+            pad_bottom = padding[1]
+        else:
+            raise NotImplementedError("not implemented.")
+    else:
+        raise NotImplementedError("not implemented.")
+    pp += ' 4=%d' % pad_left
+    pp += ' 15=%d' % pad_right
+    pp += ' 14=%d' % pad_top
+    pp += ' 16=%d' % pad_bottom
+
+    stride_h, stride_w = 1, 1
+    if isinstance(stride, int):
+        stride_h = stride
+        stride_w = stride
+    elif isinstance(stride, list) or isinstance(stride, tuple):
+        if len(padding) == 2:
+            stride_h = stride[0]
+            stride_w = stride[1]
+        else:
+            raise NotImplementedError("not implemented.")
+    else:
+        raise NotImplementedError("not implemented.")
+    pp += ' 3=%d' % stride_w
+    pp += ' 13=%d' % stride_h
+
+    if num == 3:
+        pp += ' 5=1'
+    else:
+        pp += ' 5=0'
+
+    # dynamic_weight
+    pp += ' 19=1'
+    assert dilation == 1
+    pp += ' 7=%d' % groups
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def Fconv_transpose2d(ncnn_data, bottom_names, weight_shape, stride=1, padding=0, output_padding=0, dilation=1, groups=1):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    num = len(bottom_names)
+    pp += 'FconvTranspose2d\tlayer_%.8d\t%d 1' % (layer_id, num)
+    for i in range(num):
+        pp += ' %s' % bottom_names[i]
+    pp += ' %s' % top_names[0]
+
+    pad_left, pad_right, pad_top, pad_bottom = 0, 0, 0, 0
+    if isinstance(padding, int):
+        pad_left = padding
+        pad_right = padding
+        pad_top = padding
+        pad_bottom = padding
+    elif isinstance(padding, list) or isinstance(padding, tuple):
+        if len(padding) == 2:
+            pad_left = padding[1]
+            pad_right = padding[1]
+            pad_top = padding[0]
+            pad_bottom = padding[0]
+        elif len(padding) == 4:
+            pad_left = padding[2]
+            pad_right = padding[3]
+            pad_top = padding[0]
+            pad_bottom = padding[1]
+        else:
+            raise NotImplementedError("not implemented.")
+    else:
+        raise NotImplementedError("not implemented.")
+    pp += ' 4=%d' % pad_left
+    pp += ' 15=%d' % pad_right
+    pp += ' 14=%d' % pad_top
+    pp += ' 16=%d' % pad_bottom
+
+    stride_h, stride_w = 1, 1
+    if isinstance(stride, int):
+        stride_h = stride
+        stride_w = stride
+    elif isinstance(stride, list) or isinstance(stride, tuple):
+        if len(padding) == 2:
+            stride_h = stride[0]
+            stride_w = stride[1]
+        else:
+            raise NotImplementedError("not implemented.")
+    else:
+        raise NotImplementedError("not implemented.")
+    pp += ' 3=%d' % stride_w
+    pp += ' 13=%d' % stride_h
+
+    if num == 3:
+        pp += ' 5=1'
+    else:
+        pp += ' 5=0'
+    out_C, in_C, kH, kW = weight_shape
+    w_ele_num = out_C * in_C * kH * kW
+    pp += ' 6=%d' % w_ele_num
+    pp += ' 11=%d' % kH
+    pp += ' 1=%d' % kW
+    pp += ' 0=%d' % out_C
+    pp += ' 31=%d' % in_C
+
+    assert dilation == 1
+    assert groups == 1
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def pad(ncnn_data, bottom_names, top=0, bottom=0, left=0, right=0, front=0, behind=0, value=0.0, mode="constant"):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    assert mode in ["constant", "edge", "reflect"]
+
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'Padding\tlayer_%.8d\t1 1 %s %s' % (layer_id, bottom_names[0], top_names[0])
+    if mode == "constant":
+        pp += ' 4=0'
+    elif mode == "edge":
+        pp += ' 4=1'
+    elif mode == "reflect":
+        pp += ' 4=2'
+
+    pp += ' 5=%e' % value
+    pp += ' 0=%d' % top
+    pp += ' 1=%d' % bottom
+    pp += ' 2=%d' % left
+    pp += ' 3=%d' % right
+    pp += ' 7=%d' % front
+    pp += ' 8=%d' % behind
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def down2(ncnn_data, bottom_names):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'Down2\tlayer_%.8d\t1 1 %s %s' % (layer_id, bottom_names[0], top_names[0])
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def up2(ncnn_data, bottom_names):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'Up2\tlayer_%.8d\t1 1 %s %s' % (layer_id, bottom_names[0], top_names[0])
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def up4(ncnn_data, bottom_names):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'Up4\tlayer_%.8d\t1 1 %s %s' % (layer_id, bottom_names[0], top_names[0])
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def Transforms(ncnn_data, bottom_names):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'Transforms\tlayer_%.8d\t1 1 %s %s' % (layer_id, bottom_names[0], top_names[0])
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
+def StyleganPost(ncnn_data, bottom_names):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    pp += 'StyleganPost\tlayer_%.8d\t1 1 %s %s' % (layer_id, bottom_names[0], top_names[0])
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 1
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
 
 
