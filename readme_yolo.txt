@@ -50,6 +50,8 @@ python tools/demo.py image -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo_r50vd_2x.
 
 python tools/demo.py image -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pth --path assets/000000000019.jpg --conf 0.15 --tsize 416 --save_result --device gpu
 
+python tools/demo.py image -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pth --path assets/000000013659.jpg --conf 0.15 --tsize 416 --save_result --device gpu
+
 
 
 python tools/demo.py image -f exps/ppyolo/ppyolov2_r50vd_365e.py -c ppyolov2_r50vd_365e.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
@@ -99,11 +101,11 @@ python tools/demo.py ncnn -f exps/ppyolo/ppyolov2_r101vd_365e.py -c ppyolov2_r10
 cd build/examples
 ./test2_06_ppyolo_ncnn ../../my_tests/000000000019.jpg ppyolo_r18vd.param ppyolo_r18vd.bin 416
 
-./test2_06_ppyolo_ncnn ../../my_tests/000000000019.jpg ppyolo_r50vd_2x.param ppyolo_r50vd_2x.bin 608
+./test2_06_ppyolo_ncnn ../../my_tests/000000013659.jpg ppyolo_r50vd_2x.param ppyolo_r50vd_2x.bin 608
 
-./test2_06_ppyolo_ncnn ../../my_tests/000000000019.jpg ppyolov2_r50vd_365e.param ppyolov2_r50vd_365e.bin 640
+./test2_06_ppyolo_ncnn ../../my_tests/000000013659.jpg ppyolov2_r50vd_365e.param ppyolov2_r50vd_365e.bin 640
 
-./test2_06_ppyolo_ncnn ../../my_tests/000000000019.jpg ppyolov2_r101vd_365e.param ppyolov2_r101vd_365e.bin 640
+./test2_06_ppyolo_ncnn ../../my_tests/000000013659.jpg ppyolov2_r101vd_365e.param ppyolov2_r101vd_365e.bin 640
 
 
 (用pnnx导出)
