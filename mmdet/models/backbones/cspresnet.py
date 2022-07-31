@@ -61,8 +61,11 @@ class ConvBNLayer(nn.Module):
         return x
 
     def export_ncnn(self, ncnn_data, bottom_names):
-        bottom_names = ncnn_utils.fuse_conv_bn(ncnn_data, bottom_names, self.conv, self.bn)
-        bottom_names = ncnn_utils.activation(ncnn_data, bottom_names, self.act_name)
+        if ncnn_utils.support_fused_activation(self.act_name):
+            bottom_names = ncnn_utils.fuse_conv_bn(ncnn_data, bottom_names, self.conv, self.bn, self.act_name)
+        else:
+            bottom_names = ncnn_utils.fuse_conv_bn(ncnn_data, bottom_names, self.conv, self.bn)
+            bottom_names = ncnn_utils.activation(ncnn_data, bottom_names, self.act_name)
         return bottom_names
 
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):

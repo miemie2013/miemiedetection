@@ -58,8 +58,7 @@ class ESEAttn(nn.Module):
         feat = bottom_names[0]
         avg_feat = bottom_names[1]
 
-        branch_0 = ncnn_utils.conv2d(ncnn_data, [avg_feat, ], self.fc)
-        weight = ncnn_utils.activation(ncnn_data, branch_0, 'sigmoid')
+        weight = ncnn_utils.conv2d(ncnn_data, [avg_feat, ], self.fc, 'sigmoid')
 
         # 然后是逐元素相乘
         bottom_names = ncnn_utils.binaryOp(ncnn_data, [feat, weight[0]], op='Mul')
@@ -324,7 +323,7 @@ class PPYOLOEHead(nn.Module):
             bottom_names = ncnn_utils.binaryOp(ncnn_data, bottom_names, op='Add')
 
             # 然后是卷积操作
-            cls_logit = ncnn_utils.conv2d(ncnn_data, bottom_names, self.pred_cls[i])
+            cls_score = ncnn_utils.conv2d(ncnn_data, bottom_names, self.pred_cls[i], 'sigmoid')
 
             x = self.stem_reg[i].export_ncnn(ncnn_data, [feat, avg_feat[0]])
             # 然后是卷积操作
@@ -333,8 +332,6 @@ class PPYOLOEHead(nn.Module):
             reg_dist = ncnn_utils.permute(ncnn_data, reg_dist, '(0, 2, 1, 3)')
             reg_dist = ncnn_utils.softmax(ncnn_data, reg_dist, dim=1)
             reg_dist = ncnn_utils.conv2d(ncnn_data, reg_dist, self.proj_conv)
-
-            cls_score = ncnn_utils.activation(ncnn_data, cls_logit, act_name='sigmoid')
 
             cls_score = ncnn_utils.reshape(ncnn_data, cls_score, (1, self.num_classes, -1))
             reg_dist = ncnn_utils.reshape(ncnn_data, reg_dist, (1, 4, -1))

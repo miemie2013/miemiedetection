@@ -93,6 +93,13 @@ class Exp(PPYOLO_Method_Exp):
             use_gaussian=False,
             gaussian_sigma=2.,
         )
+        # self.nms_cfg = dict(
+        #     nms_type='multiclass_nms',
+        #     score_threshold=0.01,
+        #     nms_threshold=0.6,
+        #     nms_top_k=1000,
+        #     keep_top_k=100,
+        # )
 
         # ---------------- 预处理相关 ---------------- #
         self.context = {'fields': ['image', 'gt_bbox', 'gt_class', 'gt_score']}

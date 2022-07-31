@@ -2,6 +2,7 @@
 # -*- encoding: utf-8 -*-
 # Copyright (c) 2014-2021 Megvii Inc. All rights reserved.
 
+import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -10,6 +11,7 @@ from mmdet.models.backbones.darknet import Darknet
 from mmdet.models.network_blocks import BaseConv
 
 from mmdet.models.custom_layers import paddle_yolo_box, CoordConv, SPP, DropBlock, ConvBNLayer
+import mmdet.models.ncnn_utils as ncnn_utils
 
 class YOLOFPN(nn.Module):
     """
@@ -125,6 +127,12 @@ class PPYOLODetBlock(nn.Module):
         route = self.conv_module(inputs)
         tip = self.tip(route)
         return route, tip
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        for layer in self.conv_module:
+            bottom_names = layer.export_ncnn(ncnn_data, bottom_names)
+        tip = self.tip.export_ncnn(ncnn_data, bottom_names)
+        return bottom_names, tip
 
 
 class PPYOLOFPN(nn.Module):
@@ -302,6 +310,25 @@ class PPYOLOFPN(nn.Module):
         else:
             return yolo_feats
 
+    def export_ncnn(self, ncnn_data, bottom_names):
+        blocks = bottom_names[::-1]
+        yolo_feats = []
+
+        for i, block in enumerate(blocks):
+            block = [block, ]
+            if i > 0:
+                if self.data_format == 'NCHW':
+                    block = ncnn_utils.concat(ncnn_data, route + block, dim=1)
+                else:
+                    block = ncnn_utils.concat(ncnn_data, route + block, dim=3)
+            route, tip = self.yolo_blocks[i].export_ncnn(ncnn_data, block)
+            yolo_feats.append(tip[0])
+
+            if i < self.num_blocks - 1:
+                route = self.routes[i].export_ncnn(ncnn_data, route)
+                route = ncnn_utils.interpolate(ncnn_data, route, scale_factor=2., mode='nearest')
+        return yolo_feats
+
 
 class PPYOLODetBlockCSP(nn.Module):
     def __init__(self,
@@ -385,6 +412,20 @@ class PPYOLODetBlockCSP(nn.Module):
 
         conv = self.conv3(conv)
         return conv, conv
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        conv_left = self.conv1.export_ncnn(ncnn_data, bottom_names)
+        conv_right = self.conv2.export_ncnn(ncnn_data, bottom_names)
+        for layer in self.conv_module:
+            conv_left = layer.export_ncnn(ncnn_data, conv_left)
+        if self.data_format == 'NCHW':
+            conv = ncnn_utils.concat(ncnn_data, conv_left + conv_right, dim=1)
+        else:
+            conv = ncnn_utils.concat(ncnn_data, conv_left + conv_right, dim=3)
+
+        conv = self.conv3.export_ncnn(ncnn_data, conv)
+        conv2 = copy.deepcopy(conv)
+        return conv, conv2
 
 
 class PPYOLOPAN(nn.Module):
@@ -576,10 +617,63 @@ class PPYOLOPAN(nn.Module):
             route, tip = self.pan_blocks[i](block)
             pan_feats.append(tip)
 
+        # Debug. calc ddd with ncnn output.
+        # import numpy as np
+        # y2 = pan_feats[0].cpu().detach().numpy()
+        # ncnn_output = 'D://GitHub/ncnn2/build/examples/output.txt'
+        # with open(ncnn_output, 'r', encoding='utf-8') as f:
+        #     for line in f:
+        #         line = line.strip()
+        # line = line[:-1]
+        # ss = line.split(',')
+        # y = []
+        # for s in ss:
+        #     y.append(float(s))
+        # y = np.array(y).astype(np.float32)
+        # y = np.reshape(y, y2.shape)
+        # print(y2.shape)
+        # ddd = np.sum((y - y2) ** 2)
+        # print('ddd=%.9f' % ddd)
+        # ddd2 = np.mean((y - y2) ** 2)
+        # print('ddd=%.9f' % ddd2)
         if for_mot:
             return {'yolo_feats': pan_feats[::-1], 'emb_feats': emb_feats}
         else:
             return pan_feats[::-1]
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        blocks = bottom_names[::-1]
+        fpn_feats = []
+
+        for i, block in enumerate(blocks):
+            block = [block, ]
+            if i > 0:
+                if self.data_format == 'NCHW':
+                    block = ncnn_utils.concat(ncnn_data, route + block, dim=1)
+                else:
+                    block = ncnn_utils.concat(ncnn_data, route + block, dim=3)
+            route, tip = self.fpn_blocks[i].export_ncnn(ncnn_data, block)
+            fpn_feats.append(tip[0])
+
+            if i < self.num_blocks - 1:
+                route = self.fpn_routes[i].export_ncnn(ncnn_data, route)
+                route = ncnn_utils.interpolate(ncnn_data, route, scale_factor=2., mode='nearest')
+
+        pan_feats = [fpn_feats[-1], ]
+        route = fpn_feats[self.num_blocks - 1]
+        route = [route, ]
+        for i in reversed(range(self.num_blocks - 1)):
+            block = fpn_feats[i]
+            block = [block, ]
+            route = self.pan_routes[i].export_ncnn(ncnn_data, route)
+            if self.data_format == 'NCHW':
+                block = ncnn_utils.concat(ncnn_data, route + block, dim=1)
+            else:
+                block = ncnn_utils.concat(ncnn_data, route + block, dim=3)
+
+            route, tip = self.pan_blocks[i].export_ncnn(ncnn_data, block)
+            pan_feats.append(tip[0])
+        return pan_feats[::-1]
 
 
 

@@ -20,6 +20,7 @@ import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 from mmdet.models.custom_layers import MyDCNv2, ShapeSpec
+import mmdet.models.ncnn_utils as ncnn_utils
 
 
 class NameAdapter(object):
@@ -209,6 +210,30 @@ class ConvNormLayer(nn.Module):
             out = getattr(F, self.act)(out)
         return out
 
+    def export_ncnn(self, ncnn_data, bottom_names):
+        assert self.norm is not None
+        assert self.norm_type in ['bn', 'sync_bn']
+        assert isinstance(self.norm, nn.BatchNorm2d)
+        act_name = self.act
+        if not self.dcn_v2:
+            if ncnn_utils.support_fused_activation(act_name):
+                bottom_names = ncnn_utils.fuse_conv_bn(ncnn_data, bottom_names, self.conv, self.norm, act_name)
+            else:
+                bottom_names = ncnn_utils.fuse_conv_bn(ncnn_data, bottom_names, self.conv, self.norm)
+                bottom_names = ncnn_utils.activation(ncnn_data, bottom_names, act_name)
+        else:
+            offset_mask = ncnn_utils.conv2d(ncnn_data, bottom_names, self.conv_offset)
+            offset = ncnn_utils.crop(ncnn_data, offset_mask, starts='1,%d' % (0,), ends='1,%d' % (self.offset_channel,), axes='1,0')
+            mask = ncnn_utils.crop(ncnn_data, offset_mask, starts='1,%d' % (self.offset_channel,),
+                                   ends='1,%d' % (self.offset_channel + self.mask_channel,), axes='1,0')
+            mask = ncnn_utils.activation(ncnn_data, mask, act_name='sigmoid')
+            if ncnn_utils.support_fused_activation(act_name):
+                bottom_names = ncnn_utils.fuse_deformconv_bn(ncnn_data, [bottom_names[0], offset[0], mask[0]], self.conv, self.norm, act_name)
+            else:
+                bottom_names = ncnn_utils.fuse_deformconv_bn(ncnn_data, [bottom_names[0], offset[0], mask[0]], self.conv, self.norm)
+                bottom_names = ncnn_utils.activation(ncnn_data, bottom_names, act_name)
+        return bottom_names
+
     def fix_bn(self):
         if self.norm is not None:
             if self.freeze_norm:
@@ -394,6 +419,31 @@ class BasicBlock(nn.Module):
 
         return out
 
+    def export_ncnn(self, ncnn_data, bottom_names):
+        out = self.branch2a.export_ncnn(ncnn_data, bottom_names)
+        out = self.branch2b.export_ncnn(ncnn_data, out)
+        if self.std_senet:
+            out = self.se.export_ncnn(ncnn_data, out)
+
+        if self.shortcut:
+            short = bottom_names
+        else:
+            if isinstance(self.short, nn.Sequential):
+                short = bottom_names
+                for layer in self.short:
+                    if isinstance(layer, ConvNormLayer):
+                        short = layer.export_ncnn(ncnn_data, short)
+                    elif isinstance(layer, nn.AvgPool2d):
+                        short = ncnn_utils.Fpooling(ncnn_data, short, op='AveragePool', kernel_size=2, stride=2, padding=0, ceil_mode=True)
+                    else:
+                        raise NotImplementedError("not implemented.")
+            else:
+                short = self.short.export_ncnn(ncnn_data, bottom_names)
+
+        out = ncnn_utils.binaryOp(ncnn_data, out + short, op='Add')
+        out = ncnn_utils.activation(ncnn_data, out, 'relu')
+        return out
+
     def fix_bn(self):
         self.branch2a.fix_bn()
         self.branch2b.fix_bn()
@@ -537,6 +587,32 @@ class BottleNeck(nn.Module):
 
         return out
 
+    def export_ncnn(self, ncnn_data, bottom_names):
+        out = self.branch2a.export_ncnn(ncnn_data, bottom_names)
+        out = self.branch2b.export_ncnn(ncnn_data, out)
+        out = self.branch2c.export_ncnn(ncnn_data, out)
+        if self.std_senet:
+            out = self.se.export_ncnn(ncnn_data, out)
+
+        if self.shortcut:
+            short = bottom_names
+        else:
+            if isinstance(self.short, nn.Sequential):
+                short = bottom_names
+                for layer in self.short:
+                    if isinstance(layer, ConvNormLayer):
+                        short = layer.export_ncnn(ncnn_data, short)
+                    elif isinstance(layer, nn.AvgPool2d):
+                        short = ncnn_utils.Fpooling(ncnn_data, short, op='AveragePool', kernel_size=2, stride=2, padding=0, ceil_mode=True)
+                    else:
+                        raise NotImplementedError("not implemented.")
+            else:
+                short = self.short.export_ncnn(ncnn_data, bottom_names)
+
+        out = ncnn_utils.binaryOp(ncnn_data, out + short, op='Add')
+        out = ncnn_utils.activation(ncnn_data, out, 'relu')
+        return out
+
     def fix_bn(self):
         self.branch2a.fix_bn()
         self.branch2b.fix_bn()
@@ -612,6 +688,11 @@ class Blocks(nn.Module):
         for block in self.blocks:
             block_out = block(block_out)
         return block_out
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        for block in self.blocks:
+            bottom_names = block.export_ncnn(ncnn_data, bottom_names)
+        return bottom_names
 
     def fix_bn(self):
         for block in self.blocks:
@@ -776,7 +857,38 @@ class ResNet(nn.Module):
             x = stage(x)
             if idx in self.return_idx:
                 outs.append(x)
+
+        # Debug. calc ddd with ncnn output.
+        # import numpy as np
+        # y2 = outs[2].cpu().detach().numpy()
+        # ncnn_output = 'D://GitHub/ncnn2/build/examples/output.txt'
+        # with open(ncnn_output, 'r', encoding='utf-8') as f:
+        #     for line in f:
+        #         line = line.strip()
+        # line = line[:-1]
+        # ss = line.split(',')
+        # y = []
+        # for s in ss:
+        #     y.append(float(s))
+        # y = np.array(y).astype(np.float32)
+        # y = np.reshape(y, y2.shape)
+        # print(y2.shape)
+        # ddd = np.sum((y - y2) ** 2)
+        # print('ddd=%.9f' % ddd)
+        # ddd2 = np.mean((y - y2) ** 2)
+        # print('ddd=%.9f' % ddd2)
         return outs
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        for layer in self.conv1:
+            bottom_names = layer.export_ncnn(ncnn_data, bottom_names)
+        bottom_names = ncnn_utils.Fpooling(ncnn_data, bottom_names, op='MaxPool', kernel_size=3, stride=2, padding=1)
+        out_names = []
+        for idx, stage in enumerate(self.res_layers):
+            bottom_names = stage.export_ncnn(ncnn_data, bottom_names)
+            if idx in self.return_idx:
+                out_names.append(bottom_names[0])
+        return out_names
 
     def fix_bn(self):
         for layer in self.conv1:

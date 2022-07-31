@@ -206,7 +206,10 @@ class PPYOLOPredictor(object):
         self.model = model
         self.cls_names = get_classes(exp.cls_names)
         self.num_classes = exp.num_classes
-        self.confthre = exp.nms_cfg['post_threshold']
+        if exp.nms_cfg['nms_type'] == 'matrix_nms':
+            self.confthre = exp.nms_cfg['post_threshold']
+        elif exp.nms_cfg['nms_type'] == 'multiclass_nms':
+            self.confthre = exp.nms_cfg['score_threshold']
         self.test_size = exp.test_size
         self.device = device
         self.fp16 = fp16
@@ -400,7 +403,10 @@ class PPYOLOEPredictor(object):
         self.model = model
         self.cls_names = get_classes(exp.cls_names)
         self.num_classes = exp.num_classes
-        self.confthre = exp.nms_cfg['score_threshold']
+        if exp.nms_cfg['nms_type'] == 'matrix_nms':
+            self.confthre = exp.nms_cfg['post_threshold']
+        elif exp.nms_cfg['nms_type'] == 'multiclass_nms':
+            self.confthre = exp.nms_cfg['score_threshold']
         self.test_size = exp.test_size
         self.device = device
         self.fp16 = fp16
@@ -653,14 +659,21 @@ def main(exp, args):
     elif archi_name == 'PPYOLO':
         # PPYOLO使用的是matrix_nms，修改matrix_nms的配置。
         if args.conf is not None:
-            exp.nms_cfg['score_threshold'] = args.conf
-            exp.nms_cfg['post_threshold'] = args.conf
+            if exp.nms_cfg['nms_type'] == 'matrix_nms':
+                exp.nms_cfg['score_threshold'] = args.conf
+                exp.nms_cfg['post_threshold'] = args.conf
+            elif exp.nms_cfg['nms_type'] == 'multiclass_nms':
+                exp.nms_cfg['score_threshold'] = args.conf
         if args.tsize is not None:
             exp.test_size = (args.tsize, args.tsize)
     elif archi_name == 'PPYOLOE':
         # PPYOLOE使用的是multiclass_nms，修改multiclass_nms的配置。
         if args.conf is not None:
-            exp.nms_cfg['score_threshold'] = args.conf
+            if exp.nms_cfg['nms_type'] == 'matrix_nms':
+                exp.nms_cfg['score_threshold'] = args.conf
+                exp.nms_cfg['post_threshold'] = args.conf
+            elif exp.nms_cfg['nms_type'] == 'multiclass_nms':
+                exp.nms_cfg['score_threshold'] = args.conf
         if args.tsize is not None:
             exp.test_size = [args.tsize, args.tsize]
             exp.head['eval_size'] = exp.test_size
@@ -867,40 +880,29 @@ def main(exp, args):
     elif args.demo == "video" or args.demo == "webcam":
         imageflow_demo(predictor, vis_folder, current_time, args)
     elif args.demo == "ncnn":
-        bp = open('%s.bin' % args.ncnn_output_path, 'wb')
-        pp = ''
-        layer_id = 0
-        tensor_id = 0
-        tensor_names = []
         if archi_name == 'YOLOX':
             raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
         elif archi_name == 'PPYOLO':
-            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
+            ncnn_data, bottom_names = ncnn_utils.create_new_param_bin(args.ncnn_output_path, input_num=2)
+            bottom_names = model.export_ncnn(ncnn_data, bottom_names)
+            # 如果1个张量作为了n(n>1)个层的输入张量，应该用Split层将它复制n份，每1层用掉1个。
+            bottom_names = ncnn_utils.split_input_tensor(ncnn_data, bottom_names)
+            ncnn_utils.save_param(args.ncnn_output_path, ncnn_data, bottom_names,
+                                  replace_input_names=['images', 'im_scale'],
+                                  replace_output_names=['bboxes', 'scores'])
+            # dummy_input = torch.randn(1, 3, 640, 640)
+            # mod = torch.jit.trace(model, dummy_input)
+            # mod.save("%s.pt" % args.ncnn_output_path)
         elif archi_name == 'PPYOLOE':
-            pp += 'Input\tlayer_%.8d\t0 1 tensor_%.8d\n' % (layer_id, tensor_id)
-            layer_id += 1
-            tensor_id += 1
+            ncnn_data, bottom_names = ncnn_utils.create_new_param_bin(args.ncnn_output_path, input_num=1)
+            bottom_names = model.export_ncnn(ncnn_data, bottom_names)
+            # 如果1个张量作为了n(n>1)个层的输入张量，应该用Split层将它复制n份，每1层用掉1个。
+            bottom_names = ncnn_utils.split_input_tensor(ncnn_data, bottom_names)
+            ncnn_utils.save_param(args.ncnn_output_path, ncnn_data, bottom_names,
+                                  replace_input_names=['images', ],
+                                  replace_output_names=['cls_score', 'reg_dist'])
         else:
             raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
-        ncnn_data = {}
-        ncnn_data['bp'] = bp
-        ncnn_data['pp'] = pp
-        ncnn_data['layer_id'] = layer_id
-        ncnn_data['tensor_id'] = tensor_id
-        bottom_names = ncnn_utils.newest_bottom_names(ncnn_data)
-        bottom_names = model.export_ncnn(ncnn_data, bottom_names)
-        # 如果1个张量作为了n(n>1)个层的输入张量，应该用Split层将它复制n份，每1层用掉1个。
-        bottom_names = ncnn_utils.split_input_tensor(ncnn_data, bottom_names)
-        pp = ncnn_data['pp']
-        layer_id = ncnn_data['layer_id']
-        tensor_id = ncnn_data['tensor_id']
-        pp = pp.replace('tensor_%.8d' % (0,), 'images')
-        pp = pp.replace(bottom_names[0], 'cls_score')
-        pp = pp.replace(bottom_names[1], 'reg_dist')
-        pp = '7767517\n%d %d\n'%(layer_id, tensor_id) + pp
-        with open('%s.param' % args.ncnn_output_path, 'w', encoding='utf-8') as f:
-            f.write(pp)
-            f.close()
         logger.info("Saving ncnn param file in %s.param" % args.ncnn_output_path)
         logger.info("Saving ncnn bin file in %s.bin" % args.ncnn_output_path)
 

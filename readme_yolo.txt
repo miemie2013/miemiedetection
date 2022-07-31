@@ -87,6 +87,32 @@ python tools/demo.py image -f exps/ppyolo/ppyolo_r50vd_2x.py -c PPYOLO_outputs/y
 
 
 ----------------------- 导出为ncnn -----------------------
+python tools/demo.py ncnn -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pth --ncnn_output_path ppyolo_r18vd
+
+python tools/demo.py ncnn -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo_r50vd_2x.pth --ncnn_output_path ppyolo_r50vd_2x
+
+python tools/demo.py ncnn -f exps/ppyolo/ppyolov2_r50vd_365e.py -c ppyolov2_r50vd_365e.pth --ncnn_output_path ppyolov2_r50vd_365e
+
+python tools/demo.py ncnn -f exps/ppyolo/ppyolov2_r101vd_365e.py -c ppyolov2_r101vd_365e.pth --ncnn_output_path ppyolov2_r101vd_365e
+
+
+cd build/examples
+./test2_06_ppyolo_ncnn ../../my_tests/000000000019.jpg ppyolo_r18vd.param ppyolo_r18vd.bin 416
+
+./test2_06_ppyolo_ncnn ../../my_tests/000000000019.jpg ppyolo_r50vd_2x.param ppyolo_r50vd_2x.bin 608
+
+./test2_06_ppyolo_ncnn ../../my_tests/000000000019.jpg ppyolov2_r50vd_365e.param ppyolov2_r50vd_365e.bin 640
+
+./test2_06_ppyolo_ncnn ../../my_tests/000000000019.jpg ppyolov2_r101vd_365e.param ppyolov2_r101vd_365e.bin 640
+
+
+(用pnnx导出)
+D://GitHub/ncnn2/tools/pnnx/build/install/bin/pnnx ppyolov2_r50vd_365e.pt inputshape=[1,3,640,640]
+
+
+
+
+
 python tools/demo.py ncnn -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -c ppyoloe_crn_s_300e_coco.pth --ncnn_output_path ppyoloe_crn_s_300e_coco
 
 python tools/demo.py ncnn -f exps/ppyoloe/ppyoloe_crn_m_300e_coco.py -c ppyoloe_crn_m_300e_coco.pth --ncnn_output_path ppyoloe_crn_m_300e_coco

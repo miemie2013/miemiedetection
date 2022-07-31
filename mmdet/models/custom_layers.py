@@ -17,6 +17,7 @@ import math
 import collections
 from itertools import repeat
 from mmdet.models.initializer import Normal, XavierNormal, XavierUniform
+import mmdet.models.ncnn_utils as ncnn_utils
 
 
 def paddle_yolo_box(conv_output, anchors, stride, num_classes, scale_x_y, im_size, clip_bbox, conf_thresh):
@@ -603,6 +604,21 @@ class ConvBNLayer(nn.Module):
             out = getattr(F, self.act)(out)
         return out
 
+    def export_ncnn(self, ncnn_data, bottom_names):
+        assert self.batch_norm is not None
+        assert isinstance(self.batch_norm, nn.BatchNorm2d)
+        act_name = self.act
+        act_param_dict = None
+        if act_name == 'leaky':
+            act_name = 'leaky_relu'
+            act_param_dict = {'negative_slope' : 0.1}
+        if ncnn_utils.support_fused_activation(act_name):
+            bottom_names = ncnn_utils.fuse_conv_bn(ncnn_data, bottom_names, self.conv, self.batch_norm, act_name, act_param_dict)
+        else:
+            bottom_names = ncnn_utils.fuse_conv_bn(ncnn_data, bottom_names, self.conv, self.batch_norm)
+            bottom_names = ncnn_utils.activation(ncnn_data, bottom_names, act_name)
+        return bottom_names
+
     def fix_bn(self):
         if self.batch_norm is not None:
             if self.freeze_norm:
@@ -728,6 +744,11 @@ class CoordConv(torch.nn.Module):
         y = self.conv(y)
         return y
 
+    def export_ncnn(self, ncnn_data, bottom_names):
+        y = ncnn_utils.coordconcat(ncnn_data, bottom_names)
+        y = self.conv.export_ncnn(ncnn_data, y)
+        return y
+
 
 class SPP2(torch.nn.Module):
     def __init__(self, seq='asc'):
@@ -803,6 +824,20 @@ class SPP(torch.nn.Module):
 
         y = self.conv(y)
         return y
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        concat_input = [bottom_names[0]]
+        for pool in self.pool:
+            pool_out = ncnn_utils.pooling(ncnn_data, bottom_names, op='MaxPool', pool=pool)
+            concat_input.append(pool_out[0])
+
+        # concat
+        if self.data_format == 'NCHW':
+            bottom_names = ncnn_utils.concat(ncnn_data, concat_input, dim=1)
+        else:
+            bottom_names = ncnn_utils.concat(ncnn_data, concat_input, dim=3)
+        bottom_names = self.conv.export_ncnn(ncnn_data, bottom_names)
+        return bottom_names
 
 
 class DropBlock2(torch.nn.Module):
@@ -895,6 +930,9 @@ class DropBlock(torch.nn.Module):
             y = x * mask * (mask.numel() / mask.sum())
             return y
         # return x
+
+    def export_ncnn(self, ncnn_data, bottom_names):
+        return bottom_names
 
 
 class PointGenerator(object):

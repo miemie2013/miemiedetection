@@ -154,8 +154,11 @@ def main(exp, args, num_gpu):
     elif archi_name == 'PPYOLO':
         # PPYOLO使用的是matrix_nms，修改matrix_nms的配置。
         if args.conf is not None:
-            exp.nms_cfg['score_threshold'] = args.conf
-            exp.nms_cfg['post_threshold'] = args.conf
+            if exp.nms_cfg['nms_type'] == 'matrix_nms':
+                exp.nms_cfg['score_threshold'] = args.conf
+                exp.nms_cfg['post_threshold'] = args.conf
+            elif exp.nms_cfg['nms_type'] == 'multiclass_nms':
+                exp.nms_cfg['score_threshold'] = args.conf
         if args.tsize is not None:
             exp.test_size = (args.tsize, args.tsize)
         model = exp.get_model()
@@ -165,7 +168,11 @@ def main(exp, args, num_gpu):
     elif archi_name == 'PPYOLOE':
         # PPYOLOE使用的是multiclass_nms，修改multiclass_nms的配置。
         if args.conf is not None:
-            exp.nms_cfg['score_threshold'] = args.conf
+            if exp.nms_cfg['nms_type'] == 'matrix_nms':
+                exp.nms_cfg['score_threshold'] = args.conf
+                exp.nms_cfg['post_threshold'] = args.conf
+            elif exp.nms_cfg['nms_type'] == 'multiclass_nms':
+                exp.nms_cfg['score_threshold'] = args.conf
         if args.tsize is not None:
             exp.test_size = [args.tsize, args.tsize]
             exp.head['eval_size'] = exp.test_size

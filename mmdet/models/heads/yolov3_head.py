@@ -16,6 +16,8 @@ import math
 
 from mmdet.models.custom_layers import paddle_yolo_box, CoordConv, Conv2dUnit, SPP, DropBlock
 from mmdet.models.matrix_nms import matrix_nms
+from mmdet.utils import my_multiclass_nms
+import mmdet.models.ncnn_utils as ncnn_utils
 
 
 def _split_ioup(output, an_num, num_classes):
@@ -553,11 +555,22 @@ class YOLOv3Head(torch.nn.Module):
                 for i in range(batch_size):
                     pred = matrix_nms(yolo_boxes[i, :, :], yolo_scores[i, :, :], **nms_cfg)
                     preds.append(pred)
-            # elif nms_type == 'multiclass_nms':
-            #     for i in range(batch_size):
-            #         pred = fluid.layers.multiclass_nms(yolo_boxes[i:i+1, :, :], yolo_scores[i:i+1, :, :], background_label=-1, **nms_cfg)
-            #         preds.append(pred)
+            elif nms_type == 'multiclass_nms':
+                preds = my_multiclass_nms(yolo_boxes, yolo_scores, **nms_cfg)
             return preds
+
+    def export_ncnn(self, ncnn_data, bottom_names, im_scale):
+        assert len(bottom_names) == len(self.anchors)
+        yolo_outputs = []
+        for i, feat in enumerate(bottom_names):
+            feat = [feat, ]
+            yolo_output = ncnn_utils.conv2d(ncnn_data, feat, self.yolo_outputs[i])  # [N, 258, h, w]
+            yolo_outputs.append(yolo_output[0])
+        # yolo_outputs里为大中小感受野的输出
+        out = ncnn_utils.PPYOLODecode(ncnn_data, yolo_outputs + im_scale, self.num_classes, self._anchors, self.anchor_masks,
+                                      self.downsample, self.scale_x_y, self.iou_aware_factor,
+                                      obj_thr=0.1, anchor_per_stride=len(self.anchor_masks[0]))
+        return out
 
 
 
