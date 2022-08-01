@@ -889,7 +889,7 @@ def main(exp, args):
             bottom_names = ncnn_utils.split_input_tensor(ncnn_data, bottom_names)
             ncnn_utils.save_param(args.ncnn_output_path, ncnn_data, bottom_names,
                                   replace_input_names=['images', 'im_scale'],
-                                  replace_output_names=['bboxes', 'scores'])
+                                  replace_output_names=['pred', ])
             # dummy_input = torch.randn(1, 3, 640, 640)
             # mod = torch.jit.trace(model, dummy_input)
             # mod.save("%s.pt" % args.ncnn_output_path)

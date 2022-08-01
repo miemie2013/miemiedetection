@@ -567,9 +567,11 @@ class YOLOv3Head(torch.nn.Module):
             yolo_output = ncnn_utils.conv2d(ncnn_data, feat, self.yolo_outputs[i])  # [N, 258, h, w]
             yolo_outputs.append(yolo_output[0])
         # yolo_outputs里为大中小感受野的输出
-        out = ncnn_utils.PPYOLODecode(ncnn_data, yolo_outputs + im_scale, self.num_classes, self._anchors, self.anchor_masks,
-                                      self.downsample, self.scale_x_y, self.iou_aware_factor,
-                                      obj_thr=0.1, anchor_per_stride=len(self.anchor_masks[0]))
+        nms_cfg = copy.deepcopy(self.nms_cfg)
+        nms_type = nms_cfg.pop('nms_type')
+        out = ncnn_utils.PPYOLODecodeMatrixNMS(ncnn_data, yolo_outputs + im_scale, self.num_classes, self._anchors, self.anchor_masks,
+                                               self.downsample, self.scale_x_y, self.iou_aware_factor,
+                                               anchor_per_stride=len(self.anchor_masks[0]), **nms_cfg)
         return out
 
 

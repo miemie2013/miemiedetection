@@ -451,6 +451,58 @@ def PPYOLODecode(ncnn_data, bottom_names, num_classes, anchors, anchor_masks, st
     return top_names
 
 
+def PPYOLODecodeMatrixNMS(ncnn_data, bottom_names, num_classes, anchors, anchor_masks, strides,
+                          scale_x_y=1., iou_aware_factor=0.5, score_threshold=0.1, anchor_per_stride=3,
+                          post_threshold=0.1, nms_top_k=500, keep_top_k=100, use_gaussian=False, gaussian_sigma=2.):
+    bottom_names = check_bottom_names(bottom_names)
+    bp = ncnn_data['bp']
+    pp = ncnn_data['pp']
+    layer_id = ncnn_data['layer_id']
+    tensor_id = ncnn_data['tensor_id']
+
+    top_names = create_top_names(ncnn_data, num=1)
+    num = len(bottom_names)
+    pp += 'PPYOLODecodeMatrixNMS\tlayer_%.8d\t%d 1' % (layer_id, num)
+    for i in range(num):
+        pp += ' %s' % bottom_names[i]
+    pp += ' %s' % top_names[0]
+    pp += ' 0=%d' % num_classes
+
+    pp += ' -23301=%d' % (anchors.shape[0] * anchors.shape[1], )
+    for i in range(len(strides)):
+        anchors_this_stride = anchors[anchor_masks[i]]
+        anchors_this_stride = np.reshape(anchors_this_stride, (-1, ))
+        for ele in anchors_this_stride:
+            pp += ',%e' % (ele, )
+
+    pp += ' -23302=%d' % (len(strides), )
+    for i in range(len(strides)):
+        stride = strides[i]
+        pp += ',%e' % (stride, )
+
+    pp += ' 3=%e' % scale_x_y
+    pp += ' 4=%e' % iou_aware_factor
+    pp += ' 5=%e' % score_threshold
+    pp += ' 6=%d' % anchor_per_stride
+    pp += ' 7=%e' % post_threshold
+    pp += ' 8=%d' % nms_top_k
+    pp += ' 9=%d' % keep_top_k
+    if use_gaussian:
+        pp += ' 10=0'
+    else:
+        pp += ' 10=1'
+    pp += ' 11=%e' % gaussian_sigma
+    pp += '\n'
+    layer_id += 1
+    tensor_id += 2
+
+    ncnn_data['bp'] = bp
+    ncnn_data['pp'] = pp
+    ncnn_data['layer_id'] = layer_id
+    ncnn_data['tensor_id'] = tensor_id
+    return top_names
+
+
 def support_fused_activation(act_name):
     # print(act_name)
     # 0=none 1=relu 2=leakyrelu 3=clip 4=sigmoid 5=mish 6=hardswish
