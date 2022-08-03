@@ -700,6 +700,7 @@ PPYOLOE使用的是multiclass_nms，也包含在head里面，所以评估时的�
 
 ## NCNN
 
+### PPYOLOE
 PPYOLOE算法可用以下命令导出NCNN所用的*.param和*.bin文件：
 ```
 python tools/demo.py ncnn -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -c ppyoloe_crn_s_300e_coco.pth --ncnn_output_path ppyoloe_crn_s_300e_coco
@@ -734,6 +735,53 @@ cd build/examples
 ```
 
 test2_06_ppyoloe_ncnn的源码位于examples/test2_06_ppyoloe_ncnn.cpp，参考了yolox.cpp。PPYOLOE算法目前在Linux和Windows平台均已成功预测。
+
+### PPYOLOv2 + PPYOLO
+
+(1)第一步，在miemiedetection根目录下输入这些命令下载paddle模型：
+
+```
+wget https://paddledet.bj.bcebos.com/models/ppyolo_r50vd_dcn_2x_coco.pdparams
+wget https://paddledet.bj.bcebos.com/models/ppyolo_r18vd_coco.pdparams
+wget https://paddledet.bj.bcebos.com/models/ppyolov2_r50vd_dcn_365e_coco.pdparams
+wget https://paddledet.bj.bcebos.com/models/ppyolov2_r101vd_dcn_365e_coco.pdparams
+```
+
+(2)第二步，在miemiedetection根目录下输入这些命令将paddle模型转pytorch模型：
+
+```
+python tools/convert_weights.py -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo_r50vd_dcn_2x_coco.pdparams -oc ppyolo_r50vd_2x.pth -nc 80
+python tools/convert_weights.py -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd_coco.pdparams -oc ppyolo_r18vd.pth -nc 80
+python tools/convert_weights.py -f exps/ppyolo/ppyolov2_r50vd_365e.py -c ppyolov2_r50vd_dcn_365e_coco.pdparams -oc ppyolov2_r50vd_365e.pth -nc 80
+python tools/convert_weights.py -f exps/ppyolo/ppyolov2_r101vd_365e.py -c ppyolov2_r101vd_dcn_365e_coco.pdparams -oc ppyolov2_r101vd_365e.pth -nc 80
+```
+
+(3)第三步，在miemiedetection根目录下输入这些命令将pytorch模型转ncnn模型：
+
+```
+python tools/demo.py ncnn -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pth --ncnn_output_path ppyolo_r18vd --conf 0.15
+python tools/demo.py ncnn -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo_r50vd_2x.pth --ncnn_output_path ppyolo_r50vd_2x --conf 0.15
+python tools/demo.py ncnn -f exps/ppyolo/ppyolov2_r50vd_365e.py -c ppyolov2_r50vd_365e.pth --ncnn_output_path ppyolov2_r50vd_365e --conf 0.15
+python tools/demo.py ncnn -f exps/ppyolo/ppyolov2_r101vd_365e.py -c ppyolov2_r101vd_365e.pth --ncnn_output_path ppyolov2_r101vd_365e --conf 0.15
+```
+
+-c代表读取的权重，--ncnn_output_path表示的是保存为NCNN所用的*.param和.bin文件的文件名，--conf 0.15表示的是在PPYOLODecodeMatrixNMS层中将score_threshold和post_threshold设置为0.15，你可以在导出的*.param中修改score_threshold和post_threshold，分别是PPYOLODecodeMatrixNMS层的5=xxx 7=xxx属性。
+
+然后，下载[ncnn_ppyolov2](https://github.com/miemie2013/ncnn_ppyolov2) 这个仓库（它自带了glslang和实现了ppyolov2推理），按照官方[how-to-build](https://github.com/Tencent/ncnn/wiki/how-to-build) 文档进行编译ncnn。
+编译完成后，
+将上文得到的ppyolov2_r50vd_365e.param、ppyolov2_r50vd_365e.bin、...这些文件复制到ncnn_ppyolov2的build/examples/目录下，最后在ncnn_ppyolov2根目录下运行以下命令进行ppyolov2的预测：
+
+```
+cd build/examples
+./test2_06_ppyolo_ncnn ../../my_tests/000000013659.jpg ppyolo_r18vd.param ppyolo_r18vd.bin 416
+./test2_06_ppyolo_ncnn ../../my_tests/000000013659.jpg ppyolo_r50vd_2x.param ppyolo_r50vd_2x.bin 608
+./test2_06_ppyolo_ncnn ../../my_tests/000000013659.jpg ppyolov2_r50vd_365e.param ppyolov2_r50vd_365e.bin 640
+./test2_06_ppyolo_ncnn ../../my_tests/000000013659.jpg ppyolov2_r101vd_365e.param ppyolov2_r101vd_365e.bin 640
+```
+
+每条命令最后1个参数416、608、640表示的是将图片resize到416、608、640进行推理，即target_size参数。
+
+test2_06_ppyolo_ncnn的源码位于ncnn_ppyolov2仓库的examples/test2_06_ppyolo_ncnn.cpp。PPYOLOv2和PPYOLO算法目前在Linux和Windows平台均已成功预测。
 
 
 ## TensorRT

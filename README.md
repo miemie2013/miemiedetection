@@ -23,6 +23,7 @@ torch版本建议1.10.1+cu102或者更高；torchvision版本建议0.11.2+cu102�
 - [FCOS](docs/README_FCOS.md)
 
 ## Updates!!
+* 【2022/08/03】 PPYOLOv2、PPYOLO算法支持导出到NCNN！详情请参考[PPYOLO](docs/README_PPYOLO.md) 文档的“NCNN”小节。
 * 【2022/06/22】 PPYOLOE算法支持导出到NCNN！详情请参考[PPYOLOE](docs/README_PPYOLO.md) 文档的“NCNN”小节。
 * 【2022/05/15】 加入了PPYOLOE算法！！！
 
