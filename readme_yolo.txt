@@ -156,6 +156,17 @@ cd build/examples
 ./test2_06_ppyoloe_ncnn ../../my_tests/000000000019.jpg ppyoloe_crn_l_voc2012_epoch_6.param ppyoloe_crn_l_voc2012_epoch_6.bin
 
 
+./test2_06_ppyoloe_ncnn ../../my_tests/000000013659.jpg ppyoloe_crn_s_300e_coco.param ppyoloe_crn_s_300e_coco.bin
+
+./test2_06_ppyoloe_ncnn ../../my_tests/000000013659.jpg ppyoloe_crn_m_300e_coco.param ppyoloe_crn_m_300e_coco.bin
+
+./test2_06_ppyoloe_ncnn ../../my_tests/000000013659.jpg ppyoloe_crn_l_300e_coco.param ppyoloe_crn_l_300e_coco.bin
+
+./test2_06_ppyoloe_ncnn ../../my_tests/000000013659.jpg ppyoloe_crn_x_300e_coco.param ppyoloe_crn_x_300e_coco.bin
+
+./test2_06_ppyoloe_ncnn ../../my_tests/000000013659.jpg ppyoloe_crn_l_voc2012_epoch_6.param ppyoloe_crn_l_voc2012_epoch_6.bin
+
+
 
 ----------------------- 训练 -----------------------
 python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 4
