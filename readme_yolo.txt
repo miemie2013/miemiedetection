@@ -98,6 +98,16 @@ python tools/demo.py ncnn -f exps/ppyolo/ppyolov2_r50vd_365e.py -c ppyolov2_r50v
 
 python tools/demo.py ncnn -f exps/ppyolo/ppyolov2_r101vd_365e.py -c ppyolov2_r101vd_365e.pth --ncnn_output_path ppyolov2_r101vd_365e --conf 0.15
 
+(导出半精度的ncnn模型)
+* 【2022/08/07】 支持导出半精度的NCNN模型！详情请参考[PPYOLO](docs/README_PPYOLO.md#NCNN) 文档的“NCNN”小节。
+python tools/demo.py ncnn -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pth --ncnn_output_path ppyolo_r18vd_fp16 --conf 0.15 --fp16
+
+python tools/demo.py ncnn -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo_r50vd_2x.pth --ncnn_output_path ppyolo_r50vd_2x_fp16 --conf 0.15 --fp16
+
+python tools/demo.py ncnn -f exps/ppyolo/ppyolov2_r50vd_365e.py -c ppyolov2_r50vd_365e.pth --ncnn_output_path ppyolov2_r50vd_365e_fp16 --conf 0.15 --fp16
+
+python tools/demo.py ncnn -f exps/ppyolo/ppyolov2_r101vd_365e.py -c ppyolov2_r101vd_365e.pth --ncnn_output_path ppyolov2_r101vd_365e_fp16 --conf 0.15 --fp16
+
 
 cd build/examples
 ./test2_06_ppyolo_ncnn ../../my_tests/000000000019.jpg ppyolo_r18vd.param ppyolo_r18vd.bin 416
@@ -109,6 +119,15 @@ cd build/examples
 ./test2_06_ppyolo_ncnn ../../my_tests/000000013659.jpg ppyolov2_r50vd_365e.param ppyolov2_r50vd_365e.bin 640
 
 ./test2_06_ppyolo_ncnn ../../my_tests/000000013659.jpg ppyolov2_r101vd_365e.param ppyolov2_r101vd_365e.bin 640
+
+
+./test2_06_ppyolo_ncnn ../../my_tests/000000013659.jpg ppyolo_r18vd_fp16.param ppyolo_r18vd_fp16.bin 416
+
+./test2_06_ppyolo_ncnn ../../my_tests/000000013659.jpg ppyolo_r50vd_2x_fp16.param ppyolo_r50vd_2x_fp16.bin 608
+
+./test2_06_ppyolo_ncnn ../../my_tests/000000013659.jpg ppyolov2_r50vd_365e_fp16.param ppyolov2_r50vd_365e_fp16.bin 640
+
+./test2_06_ppyolo_ncnn ../../my_tests/000000013659.jpg ppyolov2_r101vd_365e_fp16.param ppyolov2_r101vd_365e_fp16.bin 640
 
 
 (和mmdet比较结果)

@@ -880,6 +880,8 @@ def main(exp, args):
     elif args.demo == "video" or args.demo == "webcam":
         imageflow_demo(predictor, vis_folder, current_time, args)
     elif args.demo == "ncnn":
+        if args.fp16:
+            ncnn_utils.set_convert_to_fp16(True)
         if archi_name == 'YOLOX':
             raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
         elif archi_name == 'PPYOLO':
