@@ -701,7 +701,27 @@ PPYOLOE使用的是multiclass_nms，也包含在head里面，所以评估时的�
 ## NCNN
 
 ### PPYOLOE
-PPYOLOE算法可用以下命令导出NCNN所用的*.param和*.bin文件：
+
+(1)第一步，在miemiedetection根目录下输入这些命令下载paddle模型：
+
+```
+wget https://paddledet.bj.bcebos.com/models/ppyoloe_crn_s_300e_coco.pdparams
+wget https://paddledet.bj.bcebos.com/models/ppyoloe_crn_m_300e_coco.pdparams
+wget https://paddledet.bj.bcebos.com/models/ppyoloe_crn_l_300e_coco.pdparams
+wget https://paddledet.bj.bcebos.com/models/ppyoloe_crn_x_300e_coco.pdparams
+```
+
+(2)第二步，在miemiedetection根目录下输入这些命令将paddle模型转pytorch模型：
+
+```
+python tools/convert_weights.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -c ppyoloe_crn_s_300e_coco.pdparams -oc ppyoloe_crn_s_300e_coco.pth -nc 80
+python tools/convert_weights.py -f exps/ppyoloe/ppyoloe_crn_m_300e_coco.py -c ppyoloe_crn_m_300e_coco.pdparams -oc ppyoloe_crn_m_300e_coco.pth -nc 80
+python tools/convert_weights.py -f exps/ppyoloe/ppyoloe_crn_l_300e_coco.py -c ppyoloe_crn_l_300e_coco.pdparams -oc ppyoloe_crn_l_300e_coco.pth -nc 80
+python tools/convert_weights.py -f exps/ppyoloe/ppyoloe_crn_x_300e_coco.py -c ppyoloe_crn_x_300e_coco.pdparams -oc ppyoloe_crn_x_300e_coco.pth -nc 80
+```
+
+(3)第三步，在miemiedetection根目录下输入这些命令将pytorch模型转ncnn模型：
+
 ```
 python tools/demo.py ncnn -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -c ppyoloe_crn_s_300e_coco.pth --ncnn_output_path ppyoloe_crn_s_300e_coco
 python tools/demo.py ncnn -f exps/ppyoloe/ppyoloe_crn_m_300e_coco.py -c ppyoloe_crn_m_300e_coco.pth --ncnn_output_path ppyoloe_crn_m_300e_coco
@@ -713,9 +733,9 @@ python tools/demo.py ncnn -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -c PPYOLOE_ou
 -c代表读取的权重，--ncnn_output_path表示的是保存为NCNN所用的*.param和*.bin文件的文件名。
 运行完这些命令后可在miemiedetection根目录下看到ppyoloe_crn_s_300e_coco.param、ppyoloe_crn_s_300e_coco.bin、...这些文件。
 
-然后，下载[ncnn](https://github.com/miemie2013/ncnn) 这个仓库（它自带了glslang和实现了ppyoloe推理），按照官方[how-to-build](https://github.com/Tencent/ncnn/wiki/how-to-build) 文档进行编译ncnn。
+然后，下载[ncnn_ppyolov2](https://github.com/miemie2013/ncnn_ppyolov2) 这个仓库（它自带了glslang和实现了ppyoloe推理），按照官方[how-to-build](https://github.com/Tencent/ncnn/wiki/how-to-build) 文档进行编译ncnn。
 编译完成后，
-将上文得到的ppyoloe_crn_s_300e_coco.param、ppyoloe_crn_s_300e_coco.bin、...这些文件复制到ncnn的build/examples/目录下，最后在ncnn根目录下运行以下命令进行ppyoloe的预测：
+将上文得到的ppyoloe_crn_s_300e_coco.param、ppyoloe_crn_s_300e_coco.bin、...这些文件复制到ncnn_ppyolov2的build/examples/目录下，最后在ncnn_ppyolov2根目录下运行以下命令进行ppyoloe的预测：
 ```
 cd build/examples
 ./test2_06_ppyoloe_ncnn ../../my_tests/000000000019.jpg ppyoloe_crn_s_300e_coco.param ppyoloe_crn_s_300e_coco.bin
