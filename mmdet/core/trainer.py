@@ -842,7 +842,9 @@ class Trainer:
                 self.file_name,
                 ckpt_name,
             )
-            if self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
+            if self.archi_name == 'YOLOX':
+                pass
+            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
                 if self.use_model_ema:
                     self.model.load_state_dict(cur_weight)
                     del cur_weight

@@ -233,6 +233,8 @@ log*.txt
 *.param
 *.bin
 
+wget-log
+
 !train_ppyolo_in_voc2012/*
 
 # Visual Studio

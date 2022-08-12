@@ -5,6 +5,11 @@ nvidia-smi
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 
+
+wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_m.pth
+
+
+
 ----------------------- 预测 -----------------------
 python tools/demo.py image -f exps/yolox/yolox_s.py -c yolox_s.pth --path assets/dog.jpg --conf 0.25 --nms 0.45 --tsize 640 --save_result --device gpu
 
