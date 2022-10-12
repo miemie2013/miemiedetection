@@ -297,6 +297,18 @@ tail -n 20 ppyoloe_s.log
 
 - - - - - - - - - - - - - - - - - - - - - -
 
+训练 ppyoloe_xs
+
+python tools/train.py -f exps/ppyoloe/ppyoloe_crn_xs_voc2012.py -d 1 -b 4 -eb 2 -c ppyoloe_crn_s_300e_coco.pth
+
+
+
+
+实测ppyoloe_xs的AP(0.50:0.95)可以到达0.xx+、AP(0.50)可以到达0.xx+、AP(small)可以到达0.xx+。
+
+
+- - - - - - - - - - - - - - - - - - - - - -
+
 复现paddle版ppyoloe_l迁移学习（冻结了骨干网络）:（可以加--fp16， -eb表示验证时的批大小）
 python tools/train.py -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -d 1 -b 8 -eb 2 -c ppyoloe_crn_l_300e_coco.pth --fp16
 
