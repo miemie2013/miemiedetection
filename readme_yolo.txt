@@ -210,14 +210,14 @@ python tools/eval.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py -d 1 -b 4 -c PPYOLO_
 
 
 2机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
-CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=0
 python tools/train.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py --dist-url tcp://192.168.0.107:12312 --num_machines 2 --machine_rank 0 -b 8 -eb 4 -c ppyolo_r50vd_2x.pth
 
 python tools/eval.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py -d 1 -b 8 -c PPYOLO_outputs/ppyolo_r50vd_voc2012/16.pth --conf 0.01 --tsize 608
 
 
 1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
-CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=0,1
 nohup python tools/train.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py -d 2 -b 8 -eb 2 -c ppyolo_r50vd_2x.pth     > ppyolo.log 2>&1 &
 
 tail -n 20 ppyolo.log
@@ -235,14 +235,14 @@ python tools/train.py -f exps/ppyolo/ppyolo_r18vd_voc2012.py -d 1 -b 8 -eb 4 -c 
 after_epoch(self):里会调用
             all_reduce_norm(self.model)
 多卡训练时会报错，所以设置配置文件里的self.eval_interval = 99999999
-CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=0
 python tools/train.py -f exps/ppyolo/ppyolo_r18vd_voc2012.py --dist-url tcp://192.168.0.107:12312 --num_machines 2 --machine_rank 0 -b 8 -eb 4 -c ppyolo_r18vd.pth
 
 
 
 
 1机2卡训练：
-CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=0,1
 python tools/train.py -f exps/ppyolo/ppyolo_r18vd_voc2012.py -d 2 -b 8 -eb 4 -c ppyolo_r18vd.pth
 
 
@@ -254,12 +254,12 @@ python tools/train.py -f exps/ppyolo/ppyolov2_r50vd_voc2012.py -d 1 -b 8 -eb 2 -
 
 
 2机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
-CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=0
 python tools/train.py -f exps/ppyolo/ppyolov2_r50vd_voc2012.py --dist-url tcp://192.168.0.107:12312 --num_machines 2 --machine_rank 0 -b 8 -eb 2 -c ppyolov2_r50vd_365e.pth
 
 
 1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
-CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=0,1
 nohup python tools/train.py -f exps/ppyolo/ppyolov2_r50vd_voc2012.py -d 2 -b 8 -eb 2 -c ppyolov2_r50vd_365e.pth     > ppyolov2.log 2>&1 &
 
 tail -n 20 ppyolov2.log
@@ -280,12 +280,12 @@ python tools/demo.py image -f exps/ppyoloe/ppyoloe_crn_s_voc2012.py -c PPYOLOE_o
 
 
 2机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
-CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=0
 python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_voc2012.py --dist-url tcp://192.168.0.106:12312 --num_machines 2 --machine_rank 0 -b 4 -eb 2 -c ppyoloe_crn_s_300e_coco.pth --fp16
 
 
 1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
-CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=0,1
 nohup python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_voc2012.py -d 2 -b 4 -eb 2 -c ppyoloe_crn_s_300e_coco.pth --fp16     > ppyoloe_s.log 2>&1 &
 
 tail -n 20 ppyoloe_s.log
@@ -318,7 +318,7 @@ python tools/demo.py image -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -c PPYOLOE_o
 
 
 1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
-CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=0,1
 nohup python tools/train.py -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -d 2 -b 8 -eb 2 -c ppyoloe_crn_l_300e_coco.pth --fp16     > ppyoloe_l.log 2>&1 &
 
 tail -n 20 ppyoloe_l.log
