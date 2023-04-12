@@ -247,7 +247,7 @@ def data_clean(coco, img_ids, catid2clsid, image_dir, type, xy_plus_1=False):
                 bboxes.append(inst)   # 这张图片的这个物体标注保留
                 anno_id.append(inst['id'])
             else:
-                logger.warn(
+                logger.warning(
                     'Found an invalid bbox in annotations: im_id: {}, '
                     'area: {} x1: {}, y1: {}, x2: {}, y2: {}.'.format(
                         img_id, float(inst['area']), x1, y1, x2, y2))

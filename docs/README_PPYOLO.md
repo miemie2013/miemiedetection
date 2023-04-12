@@ -268,49 +268,49 @@ python tools/demo.py image -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pth --
 
 (1)ppyolo_r50vd_2x
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 8 -b 192 -eb 16 -c ResNet50_vd_ssld_pretrained.pth
 ```
 
 (2)ppyolo_r18vd
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 4 -b 128 -eb 16 -c ResNet18_vd_pretrained.pth
 ```
 
 (3)ppyolov2_r50vd_365e
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 python tools/train.py -f exps/ppyolo/ppyolov2_r50vd_365e.py -d 8 -b 96 -eb 16 -c ResNet50_vd_ssld_pretrained.pth
 ```
 
 (4)ppyolov2_r101vd_365e
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 python tools/train.py -f exps/ppyolo/ppyolov2_r101vd_365e.py -d 8 -b 96 -eb 16 -c ResNet101_vd_ssld_pretrained.pth
 ```
 
 (5)ppyoloe_crn_s_300e_coco
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 8 -b 256 -eb 16 -c CSPResNetb_s_pretrained.pth --fp16
 ```
 
 (6)ppyoloe_crn_m_300e_coco
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 python tools/train.py -f exps/ppyoloe/ppyoloe_crn_m_300e_coco.py -d 8 -b 224 -eb 16 -c CSPResNetb_m_pretrained.pth --fp16
 ```
 
 (7)ppyoloe_crn_l_300e_coco
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 python tools/train.py -f exps/ppyoloe/ppyoloe_crn_l_300e_coco.py -d 8 -b 160 -eb 16 -c CSPResNetb_l_pretrained.pth --fp16
 ```
 
 (8)ppyoloe_crn_x_300e_coco
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 python tools/train.py -f exps/ppyoloe/ppyoloe_crn_x_300e_coco.py -d 8 -b 128 -eb 16 -c CSPResNetb_x_pretrained.pth --fp16
 ```
 
@@ -358,13 +358,13 @@ python tools/train.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py -d 1 -b 8 -eb 4 -c 
 （2）如果是2机2卡（每台机上1张卡），
 0号机输入以下命令：
 ```
-CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=0
 python tools/train.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py --dist-url tcp://192.168.0.107:12312 --num_machines 2 --machine_rank 0 -b 8 -eb 4 -c ppyolo_r50vd_2x.pth
 ```
 
 1号机输入以下命令：
 ```
-CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=0
 python tools/train.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py --dist-url tcp://192.168.0.107:12312 --num_machines 2 --machine_rank 1 -b 8 -eb 4 -c ppyolo_r50vd_2x.pth
 ```
 
@@ -373,7 +373,7 @@ python tools/train.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py --dist-url tcp://19
 
 （3）如果是1机2卡，输入命令开始训练：
 ```
-CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=0,1
 nohup python tools/train.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py -d 2 -b 8 -eb 2 -c ppyolo_r50vd_2x.pth     > ppyolo.log 2>&1 &
 ```
 
@@ -423,7 +423,7 @@ python tools/train.py -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -d 1 -b 8 -eb 2 -
 
 （2）如果是1机2卡，输入命令开始训练（冻结了骨干网络）：
 ```
-CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=0,1
 nohup python tools/train.py -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -d 2 -b 8 -eb 2 -c ppyoloe_crn_l_300e_coco.pth --fp16     > ppyoloe_l.log 2>&1 &
 ```
 

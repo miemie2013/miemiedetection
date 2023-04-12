@@ -623,6 +623,16 @@ python tools_trt/export_trt.py -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pt
 
 
 
+----------------------- 复现COCO上的精度 -----------------------
+
+(5)ppyoloe_crn_s_300e_coco
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 8 -b 256 -eb 16 -c CSPResNetb_s_pretrained.pth --fp16
+
+只有双卡的时候：
+export CUDA_VISIBLE_DEVICES=0,1
+python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 2 -b 64 -eb 16 -c CSPResNetb_s_pretrained.pth --fp16
+
 
 
 
