@@ -78,6 +78,50 @@ def bbox_iou(box1, box2, giou=False, diou=False, ciou=False, eps=1e-9):
         return iou
 
 
+def bbox2distance(points, bbox, max_dis=None, eps=0.1):
+    """Decode bounding box based on distances.
+    Args:
+        points (Tensor): Shape (n, 2), [x, y].
+        bbox (Tensor): Shape (n, 4), "xyxy" format
+        max_dis (float): Upper bound of the distance.
+        eps (float): a small value to ensure target < max_dis, instead <=
+    Returns:
+        Tensor: Decoded distances.
+    """
+    left = points[:, 0] - bbox[:, 0]
+    top = points[:, 1] - bbox[:, 1]
+    right = bbox[:, 2] - points[:, 0]
+    bottom = bbox[:, 3] - points[:, 1]
+    if max_dis is not None:
+        left = torch.clamp(left, min=0, max=max_dis - eps)
+        top = torch.clamp(top, min=0, max=max_dis - eps)
+        right = torch.clamp(right, min=0, max=max_dis - eps)
+        bottom = torch.clamp(bottom, min=0, max=max_dis - eps)
+    return torch.stack([left, top, right, bottom], -1)
+
+
+def distance2bbox(points, distance, max_shape=None):
+    """Decode distance prediction to bounding box.
+        Args:
+            points (Tensor): Shape (n, 2), [x, y].
+            distance (Tensor): Distance from the given point to 4
+                boundaries (left, top, right, bottom).
+            max_shape (tuple): Shape of the image.
+        Returns:
+            Tensor: Decoded bboxes.
+        """
+    x1 = points[:, 0] - distance[:, 0]
+    y1 = points[:, 1] - distance[:, 1]
+    x2 = points[:, 0] + distance[:, 2]
+    y2 = points[:, 1] + distance[:, 3]
+    if max_shape is not None:
+        x1 = torch.clamp(x1, min=0, max=max_shape[1])
+        y1 = torch.clamp(y1, min=0, max=max_shape[0])
+        x2 = torch.clamp(x2, min=0, max=max_shape[1])
+        y2 = torch.clamp(y2, min=0, max=max_shape[0])
+    return torch.stack([x1, y1, x2, y2], -1)
+
+
 def bbox_center(boxes):
     """Get bbox centers from boxes.
     Args:
@@ -114,4 +158,25 @@ def batch_distance2bbox(points, distance, max_shapes=None):
     return out_bbox
 
 
+def iou_similarity(box1, box2, eps=1e-10):
+    """Calculate iou of box1 and box2
+
+    Args:
+        box1 (Tensor): box with the shape [M1, 4]
+        box2 (Tensor): box with the shape [M2, 4]
+
+    Return:
+        iou (Tensor): iou between box1 and box2 with the shape [M1, M2]
+    """
+    box1 = box1.unsqueeze(1)  # [M1, 4] -> [M1, 1, 4]
+    box2 = box2.unsqueeze(0)  # [M2, 4] -> [1, M2, 4]
+    px1y1, px2y2 = box1[:, :, 0:2], box1[:, :, 2:4]
+    gx1y1, gx2y2 = box2[:, :, 0:2], box2[:, :, 2:4]
+    x1y1 = torch.max(px1y1, gx1y1)
+    x2y2 = torch.min(px2y2, gx2y2)
+    overlap = torch.clamp((x2y2 - x1y1), min=0).prod(-1)
+    area1 = torch.clamp((px2y2 - px1y1), min=0).prod(-1)
+    area2 = torch.clamp((gx2y2 - gx1y1), min=0).prod(-1)
+    union = area1 + area2 - overlap + eps
+    return overlap / union
 
