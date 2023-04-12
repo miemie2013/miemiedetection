@@ -14,7 +14,8 @@ class Exp(PPYOLOE_Method_Exp):
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
         # learning_rate
-        self.basic_lr_per_img = 0.04 / (8. * 32.0)
+        self.basic_lr_per_img = 0.04 / (8. * 32.0)   # PaddleDetection-release-2.4 的学习率，实测训练COCO时loss_cls会增大到几千上万。无法收敛
+        # self.basic_lr_per_img = 0.01 / (8. * 8.0)   # PaddleDetection-release-2.6 的学习率，本质还是一样
 
         self.depth_mult = 0.33
         self.width_mult = 0.50

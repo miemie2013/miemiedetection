@@ -15,6 +15,8 @@ from .losses.losses import IOUloss
 from .losses.iou_losses import MyIOUloss, IouLoss, IouAwareLoss
 from .losses.fcos_loss import FCOSLoss
 from .losses.solov2_loss import SOLOv2Loss
+from .losses.gfocal_loss import DistributionFocalLoss, QualityFocalLoss
+from .losses.varifocal_loss import VarifocalLoss
 
 
 from .heads.yolov3_head import YOLOv3Head
@@ -23,7 +25,7 @@ from .heads.yolox_head import YOLOXHead
 from .heads.fcos_head import FCOSHead
 from .heads.ppyoloe_head import PPYOLOEHead
 from .heads.gfl_head import GFLHead
-from .heads.pico_head import PicoHeadV2
+from .heads.pico_head import PicoHeadV2, PicoFeat
 
 
 from .necks.yolo_pafpn import YOLOPAFPN

@@ -165,7 +165,7 @@ def main(exp, args, num_gpu):
         # logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
         # logger.info("Model Structure:\n{}".format(str(model)))
         evaluator = exp.get_evaluator(args.batch_size, is_distributed, args.test)
-    elif archi_name == 'PPYOLOE':
+    elif archi_name in ['PPYOLOE', 'PicoDet']:
         # PPYOLOE使用的是multiclass_nms，修改multiclass_nms的配置。
         if args.conf is not None:
             if exp.nms_cfg['nms_type'] == 'matrix_nms':
@@ -251,7 +251,7 @@ def main(exp, args, num_gpu):
         *_, summary = evaluator.evaluate_ppyolo(
             model, is_distributed, args.fp16, trt_file, exp.test_size
         )
-    elif archi_name == 'PPYOLOE':
+    elif archi_name in ['PPYOLOE', 'PicoDet']:
         *_, summary = evaluator.evaluate_ppyoloe(
             model, is_distributed, args.fp16, trt_file, exp.test_size
         )

@@ -302,6 +302,75 @@ def main(exp, args):
         if args.only_backbone:
             delattr(model, "neck")
             delattr(model, "yolo_head")
+    elif model_class_name == 'PicoDet':
+        temp_x = torch.randn((2, 3, 416, 416))
+        temp_scale_factor = torch.ones((2, 2))
+        if args.device == "gpu":
+            temp_x = temp_x.cuda()
+            temp_scale_factor = temp_scale_factor.cuda()
+        temp_out = model(temp_x, temp_scale_factor)
+        with open(args.ckpt, 'rb') as f:
+            state_dict = pickle.load(f) if six.PY2 else pickle.load(f, encoding='latin1')
+        # state_dict = fluid.io.load_program_state(args.ckpt)
+        backbone_dic = {}
+        fpn_dic = {}
+        head_dic = {}
+        others = {}
+        for key, value in state_dict.items():
+            if 'tracked' in key:
+                continue
+            if 'backbone' in key:
+                backbone_dic[key] = value
+            elif 'neck' in key:
+                fpn_dic[key] = value
+            elif 'head' in key:
+                head_dic[key] = value
+            else:
+                others[key] = value
+        backbone_dic2 = {}
+        fpn_dic2 = {}
+        head_dic2 = {}
+        others2 = {}
+        for key, value in model_std.items():
+            if 'tracked' in key:
+                continue
+            if 'backbone' in key:
+                backbone_dic2[key] = value
+            elif 'neck' in key:
+                fpn_dic2[key] = value
+            elif 'head' in key:
+                head_dic2[key] = value
+            else:
+                others2[key] = value
+        backbone = model.backbone
+        fpn = model.neck
+        head = model.head
+        for key in state_dict.keys():
+            name2 = key
+            w = state_dict[key]
+            if 'StructuredToParameterName@@' in key:
+                continue
+            else:
+                if '._mean' in key:
+                    name2 = name2.replace('._mean', '.running_mean')
+                if '._variance' in key:
+                    name2 = name2.replace('._variance', '.running_var')
+                for ii in range(10):
+                    for jj in range(10):
+                        if 'cls_conv_dw{}.{}'.format(ii, jj) in key:
+                            name2 = name2.replace('cls_conv_dw{}.{}'.format(ii, jj), 'cls_conv_dw{}_{}'.format(ii, jj))
+                        if 'cls_conv_pw{}.{}'.format(ii, jj) in key:
+                            name2 = name2.replace('cls_conv_pw{}.{}'.format(ii, jj), 'cls_conv_pw{}_{}'.format(ii, jj))
+                        if 'reg_conv_dw{}.{}'.format(ii, jj) in key:
+                            name2 = name2.replace('reg_conv_dw{}.{}'.format(ii, jj), 'reg_conv_dw{}_{}'.format(ii, jj))
+                        if 'reg_conv_pw{}.{}'.format(ii, jj) in key:
+                            name2 = name2.replace('reg_conv_pw{}.{}'.format(ii, jj), 'reg_conv_pw{}_{}'.format(ii, jj))
+                if args.only_backbone:
+                    name2 = 'backbone.' + name2
+                copy(name2, w, model_std)
+        if args.only_backbone:
+            delattr(model, "neck")
+            delattr(model, "head")
     elif model_class_name == 'SOLO':
         temp_x = torch.randn((1, 3, 640, 640))
         temp_im_shape = torch.ones((1, 2)) * 640

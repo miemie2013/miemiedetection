@@ -17,6 +17,7 @@ from __future__ import division
 from __future__ import print_function
 
 import math
+import copy
 import numpy as np
 import torch
 import torch.nn as nn
@@ -28,6 +29,8 @@ from ..bbox_utils import bbox_center, batch_distance2bbox, bbox2distance
 from mmdet.models.custom_layers import ConvNormLayer
 from .gfl_head import Integral, GFLHead
 from mmdet.models.necks.csp_pan import DPModule
+from mmdet.models.matrix_nms import matrix_nms
+from mmdet.utils import my_multiclass_nms, get_world_size
 
 eps = 1e-9
 
@@ -89,7 +92,7 @@ class PicoFeat(nn.Module):
             reg_subnet_convs = []
             for i in range(self.num_convs):
                 in_c = feat_in if i == 0 else feat_out
-                name = 'cls_conv_dw{}.{}'.format(stage_idx, i)
+                name = 'cls_conv_dw{}_{}'.format(stage_idx, i)
                 cls_conv_dw = ConvNormLayer(
                         ch_in=in_c,
                         ch_out=feat_out,
@@ -102,7 +105,7 @@ class PicoFeat(nn.Module):
                 self.add_module(name, cls_conv_dw)
                 cls_subnet_convs.append(cls_conv_dw)
 
-                name = 'cls_conv_pw{}.{}'.format(stage_idx, i)
+                name = 'cls_conv_pw{}_{}'.format(stage_idx, i)
                 cls_conv_pw = ConvNormLayer(
                         ch_in=in_c,
                         ch_out=feat_out,
@@ -115,7 +118,7 @@ class PicoFeat(nn.Module):
                 cls_subnet_convs.append(cls_conv_pw)
 
                 if not self.share_cls_reg:
-                    name = 'reg_conv_dw{}.{}'.format(stage_idx, i)
+                    name = 'reg_conv_dw{}_{}'.format(stage_idx, i)
                     reg_conv_dw = ConvNormLayer(
                             ch_in=in_c,
                             ch_out=feat_out,
@@ -128,7 +131,7 @@ class PicoFeat(nn.Module):
                     self.add_module(name, reg_conv_dw)
                     reg_subnet_convs.append(reg_conv_dw)
 
-                    name = 'reg_conv_pw{}.{}'.format(stage_idx, i)
+                    name = 'reg_conv_pw{}_{}'.format(stage_idx, i)
                     reg_conv_pw = ConvNormLayer(
                             ch_in=in_c,
                             ch_out=feat_out,
@@ -210,7 +213,8 @@ class PicoHeadV2(GFLHead):
                  cell_offset=0,
                  act='hard_swish',
                  grid_cell_scale=5.0,
-                 eval_size=None):
+                 eval_size=None,
+                 nms_cfg=None):
         super(PicoHeadV2, self).__init__(
             conv_feat=conv_feat,
             dgqp_module=dgqp_module,
@@ -247,6 +251,7 @@ class PicoHeadV2(GFLHead):
         self.use_align_head = use_align_head
         self.cls_out_channels = self.num_classes
         self.eval_size = eval_size
+        self.nms_cfg = nms_cfg
 
         bias_init_value = -math.log((1 - self.prior_prob) / self.prior_prob)
         # Clear the super class initialization
@@ -322,8 +327,8 @@ class PicoHeadV2(GFLHead):
             else:
                 cls_score = F.sigmoid(cls_logit)
 
-            cls_score_out = cls_score.transpose([0, 2, 3, 1])
-            bbox_pred = reg_pred.transpose([0, 2, 3, 1])
+            cls_score_out = cls_score.permute([0, 2, 3, 1])
+            bbox_pred = reg_pred.permute([0, 2, 3, 1])
             b, cell_h, cell_w, _ = paddle.shape(cls_score_out)
             y, x = self.get_single_level_center_point(
                 [cell_h, cell_w], stride, cell_offset=self.cell_offset)
@@ -334,8 +339,8 @@ class PicoHeadV2(GFLHead):
             bbox_pred = bbox_pred.reshape([b, cell_h * cell_w, 4])
             bbox_pred = batch_distance2bbox(
                 center_points, bbox_pred, max_shapes=None)
-            cls_score_list.append(cls_score.flatten(2).transpose([0, 2, 1]))
-            reg_list.append(reg_pred.flatten(2).transpose([0, 2, 1]))
+            cls_score_list.append(cls_score.flatten(2).permute([0, 2, 1]))
+            reg_list.append(reg_pred.flatten(2).permute([0, 2, 1]))
             box_list.append(bbox_pred / stride)
 
         cls_score_list = paddle.concat(cls_score_list, axis=1)
@@ -348,6 +353,8 @@ class PicoHeadV2(GFLHead):
             anchor_points, stride_tensor = self.anchor_points, self.stride_tensor
         else:
             anchor_points, stride_tensor = self._generate_anchors(fpn_feats)
+        anchor_points = anchor_points.to(fpn_feats[0].device)
+        stride_tensor = stride_tensor.to(fpn_feats[0].device)
         cls_score_list, box_list = [], []
         for i, (fpn_feat, stride) in enumerate(zip(fpn_feats, self.fpn_stride)):
             _, _, h, w = fpn_feat.shape
@@ -366,26 +373,25 @@ class PicoHeadV2(GFLHead):
             if not export_post_process:
                 # Now only supports batch size = 1 in deploy
                 cls_score_list.append(
-                    cls_score.reshape([1, self.cls_out_channels, -1]).transpose(
+                    cls_score.reshape([1, self.cls_out_channels, -1]).permute(
                         [0, 2, 1]))
                 box_list.append(
-                    reg_pred.reshape([1, (self.reg_max + 1) * 4, -1]).transpose(
+                    reg_pred.reshape([1, (self.reg_max + 1) * 4, -1]).permute(
                         [0, 2, 1]))
             else:
                 l = h * w
-                cls_score_out = cls_score.reshape(
-                    [-1, self.cls_out_channels, l])
-                bbox_pred = reg_pred.transpose([0, 2, 3, 1])
+                cls_score_out = cls_score.reshape([-1, self.cls_out_channels, l])
+                bbox_pred = reg_pred.permute([0, 2, 3, 1])
                 bbox_pred = self.distribution_project(bbox_pred)
                 bbox_pred = bbox_pred.reshape([-1, l, 4])
                 cls_score_list.append(cls_score_out)
                 box_list.append(bbox_pred)
 
         if export_post_process:
-            cls_score_list = paddle.concat(cls_score_list, axis=-1)
-            box_list = paddle.concat(box_list, axis=1)
+            cls_score_list = torch.cat(cls_score_list, -1)  # [N, 80, A]
+            box_list = torch.cat(box_list, 1)               # [N,  A, 4]
             box_list = batch_distance2bbox(anchor_points, box_list)
-            box_list *= stride_tensor
+            box_list *= stride_tensor        # [N,  A, 4]
 
         return cls_score_list, box_list
 
@@ -506,31 +512,40 @@ class PicoHeadV2(GFLHead):
             else:
                 h = math.ceil(self.eval_size[0] / stride)
                 w = math.ceil(self.eval_size[1] / stride)
-            shift_x = paddle.arange(end=w) + self.cell_offset
-            shift_y = paddle.arange(end=h) + self.cell_offset
-            shift_y, shift_x = paddle.meshgrid(shift_y, shift_x)
-            anchor_point = paddle.cast(
-                paddle.stack(
-                    [shift_x, shift_y], axis=-1), dtype='float32')
+            shift_x = torch.arange(end=w) + self.cell_offset
+            shift_y = torch.arange(end=h) + self.cell_offset
+            shift_y, shift_x = torch.meshgrid(shift_y, shift_x)
+            anchor_point = torch.stack([shift_x, shift_y], dim=-1).float()
             anchor_points.append(anchor_point.reshape([-1, 2]))
-            stride_tensor.append(
-                paddle.full(
-                    [h * w, 1], stride, dtype='float32'))
-        anchor_points = paddle.concat(anchor_points)
-        stride_tensor = paddle.concat(stride_tensor)
+            stride_tensor.append(torch.full([h * w, 1], stride, dtype=torch.float32))
+        anchor_points = torch.cat(anchor_points)
+        stride_tensor = torch.cat(stride_tensor)
         return anchor_points, stride_tensor
 
     def post_process(self, head_outs, scale_factor, export_nms=True):
         pred_scores, pred_bboxes = head_outs
+        # pred_scores [N, 80, A]
+        # pred_bboxes [N,  A, 4]
         if not export_nms:
             return pred_bboxes, pred_scores
         else:
             # rescale: [h_scale, w_scale] -> [w_scale, h_scale, w_scale, h_scale]
-            scale_y, scale_x = paddle.split(scale_factor, 2, axis=-1)
-            scale_factor = paddle.concat(
-                [scale_x, scale_y, scale_x, scale_y],
-                axis=-1).reshape([-1, 1, 4])
+            # torch的split和paddle有点不同，torch的第二个参数表示的是每一份的大小，paddle的第二个参数表示的是分成几份。
+            scale_y, scale_x = torch.split(scale_factor, 1, dim=-1)
+            scale_factor = torch.cat([scale_x, scale_y, scale_x, scale_y], dim=-1).reshape([-1, 1, 4])
             # scale bbox to origin image size.
-            pred_bboxes /= scale_factor
-            bbox_pred, bbox_num, _ = self.nms(pred_bboxes, pred_scores)
-            return bbox_pred, bbox_num
+            pred_bboxes /= scale_factor   # [N, A, 4]     pred_scores.shape = [N, 80, A]
+
+            # nms
+            preds = []
+            nms_cfg = copy.deepcopy(self.nms_cfg)
+            nms_type = nms_cfg.pop('nms_type')
+            batch_size = pred_bboxes.shape[0]
+            yolo_scores = pred_scores.permute((0, 2, 1))  #  [N, A, 80]
+            if nms_type == 'matrix_nms':
+                for i in range(batch_size):
+                    pred = matrix_nms(pred_bboxes[i, :, :], yolo_scores[i, :, :], **nms_cfg)
+                    preds.append(pred)
+            elif nms_type == 'multiclass_nms':
+                preds = my_multiclass_nms(pred_bboxes, yolo_scores, **nms_cfg)
+            return preds

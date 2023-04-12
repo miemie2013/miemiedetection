@@ -277,9 +277,7 @@ class PPYOLOEHead(nn.Module):
             shift_y, shift_x = torch.meshgrid(shift_y, shift_x)
             anchor_point = torch.stack([shift_x, shift_y], -1).to(torch.float32)
             anchor_points.append(anchor_point.reshape([-1, 2]))
-            stride_tensor.append(
-                torch.full(
-                    [h * w, 1], stride, dtype=torch.float32))
+            stride_tensor.append(torch.full([h * w, 1], stride, dtype=torch.float32))
         anchor_points = torch.cat(anchor_points)
         stride_tensor = torch.cat(stride_tensor)
         return anchor_points, stride_tensor

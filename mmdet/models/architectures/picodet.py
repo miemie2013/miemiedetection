@@ -11,11 +11,11 @@ import torch
 
 
 class PicoDet(torch.nn.Module):
-    def __init__(self, backbone, neck, yolo_head):
+    def __init__(self, backbone, neck, head):
         super(PicoDet, self).__init__()
         self.backbone = backbone
         self.neck = neck
-        self.yolo_head = yolo_head
+        self.head = head
 
     def forward(self, x, scale_factor=None, targets=None):
         '''
@@ -23,23 +23,23 @@ class PicoDet(torch.nn.Module):
         '''
         body_feats = self.backbone(x)
         fpn_feats = self.neck(body_feats)
-        out = self.yolo_head(fpn_feats, targets)
+        out = self.head(fpn_feats, export_post_process=True)
         if self.training:
             return out
         else:
-            out = self.yolo_head.post_process(out, scale_factor)
+            out = self.head.post_process(out, scale_factor)
             return out
 
     def export_ncnn(self, ncnn_data, bottom_names):
         body_feats_names = self.backbone.export_ncnn(ncnn_data, bottom_names)
         fpn_feats_names = self.neck.export_ncnn(ncnn_data, body_feats_names)
-        outputs = self.yolo_head.export_ncnn(ncnn_data, fpn_feats_names)
+        outputs = self.head.export_ncnn(ncnn_data, fpn_feats_names)
         return outputs
 
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
         self.backbone.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
         self.neck.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.yolo_head.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
+        self.head.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
 
 

@@ -12,9 +12,10 @@ import torch.nn as nn
 
 from mmdet.data import *
 from mmdet.exp.datasets.coco_base import COCOBaseExp
+from mmdet.models.backbones.lcnet import make_divisible
 
 
-class PICODETTrainCollater():
+class PicoDetTrainCollater():
     def __init__(self, context, batch_transforms, n_layers):
         self.context = context
         self.batch_transforms = batch_transforms
@@ -67,11 +68,11 @@ class PICODETTrainCollater():
         return images, gt_class, gt_bbox, pad_gt_mask, im_ids
 
 
-class PICODET_Method_Exp(COCOBaseExp):
+class PicoDet_Method_Exp(COCOBaseExp):
     def __init__(self):
         super().__init__()
         # ---------------- architecture name(算法名) ---------------- #
-        self.archi_name = 'PICODET'
+        self.archi_name = 'PicoDet'
 
         # --------------  training config --------------------- #
         self.max_epoch = 300
@@ -97,44 +98,47 @@ class PICODET_Method_Exp(COCOBaseExp):
         self.test_size = [self.eval_height, self.eval_width]
 
         # ---------------- model config ---------------- #
-        self.output_dir = "PICODET_outputs"
-        self.depth_mult = 0.33
-        self.width_mult = 0.50
-        self.backbone_type = 'CSPResNet'
+        self.output_dir = "PicoDet_outputs"
+        self.scale = 1.5
+        self.backbone_type = 'LCNet'
         self.backbone = dict(
-            layers=[3, 6, 6, 3],
-            channels=[64, 128, 256, 512, 1024],
-            return_idx=[1, 2, 3],
-            use_large_stem=True,
-            depth_mult=self.depth_mult,
-            width_mult=self.width_mult,
+            scale=self.scale,
+            feature_maps=[3, 4, 5],
         )
-        self.fpn_type = 'CustomCSPPAN'
+        self.fpn_type = 'LCPAN'
         self.fpn = dict(
-            in_channels=[int(256 * self.width_mult), int(512 * self.width_mult), int(1024 * self.width_mult)],
-            out_channels=[768, 384, 192],
-            stage_num=1,
-            block_num=3,
-            act='swish',
-            spp=True,
-            depth_mult=self.depth_mult,
-            width_mult=self.width_mult,
+            in_channels=[make_divisible(128 * self.scale), make_divisible(256 * self.scale), make_divisible(512 * self.scale)],
+            out_channels=128,
+            use_depthwise=True,
+            num_features=4,
         )
-        self.head_type = 'PICODETHead'
+        self.head_type = 'PicoHeadV2'
         self.head = dict(
-            in_channels=[int(768 * self.width_mult), int(384 * self.width_mult), int(192 * self.width_mult)],
-            fpn_strides=[32, 16, 8],
+            fpn_stride=[8, 16, 32, 64],
+            feat_in_chan=128,
+            prior_prob=0.01,
+            reg_max=7,
+            cell_offset=0.5,
             grid_cell_scale=5.0,
-            grid_cell_offset=0.5,
             static_assigner_epoch=100,
-            use_varifocal_loss=True,
+            use_align_head=True,
             num_classes=self.num_classes,
-            loss_weight={'class': 1.0, 'iou': 2.5, 'dfl': 0.5, },
             eval_size=self.test_size,
+        )
+        self.conv_feat_type = 'PicoFeat'
+        self.conv_feat = dict(
+            feat_in=128,
+            feat_out=128,
+            num_convs=4,
+            num_fpn_stride=4,
+            norm_type='bn',
+            share_cls_reg=True,
+            use_se=True,
         )
         self.static_assigner_type = 'ATSSAssigner'
         self.static_assigner = dict(
             topk=9,
+            force_gt_matching=False,
             num_classes=self.num_classes,
         )
         self.assigner_type = 'TaskAlignedAssigner'
@@ -142,6 +146,20 @@ class PICODET_Method_Exp(COCOBaseExp):
             topk=13,
             alpha=1.0,
             beta=6.0,
+        )
+        self.loss_class_type = 'VarifocalLoss'
+        self.loss_class = dict(
+            use_sigmoid=False,
+            iou_weighted=True,
+            loss_weight=1.0,
+        )
+        self.loss_dfl_type = 'DistributionFocalLoss'
+        self.loss_dfl = dict(
+            loss_weight=0.5,
+        )
+        self.loss_bbox_type = 'GIoULoss'
+        self.loss_bbox = dict(
+            loss_weight=2.5,
         )
         self.nms_cfg = dict(
             nms_type='multiclass_nms',
@@ -220,28 +238,37 @@ class PICODET_Method_Exp(COCOBaseExp):
         self.eval_data_num_workers = 2
 
     def get_model(self):
-        from mmdet.models import CSPResNet, ATSSAssigner, TaskAlignedAssigner, PICODETHead, PICODET
-        from mmdet.models.necks.custom_pan import CustomCSPPAN
+        from mmdet.models import LCNet, ATSSAssigner, TaskAlignedAssigner, PicoHeadV2, PicoDet, PicoFeat
+        from mmdet.models.necks.lc_pan import LCPAN
+        from mmdet.models.losses.iou_losses import GIoULoss
+        from mmdet.models.losses.varifocal_loss import VarifocalLoss
+        from mmdet.models.losses.gfocal_loss import DistributionFocalLoss
         if getattr(self, "model", None) is None:
             Backbone = None
-            if self.backbone_type == 'CSPResNet':
-                Backbone = CSPResNet
+            if self.backbone_type == 'LCNet':
+                Backbone = LCNet
             backbone = Backbone(**self.backbone)
             Fpn = None
-            if self.fpn_type == 'CustomCSPPAN':
-                Fpn = CustomCSPPAN
+            if self.fpn_type == 'LCPAN':
+                Fpn = LCPAN
             fpn = Fpn(**self.fpn)
+            conv_feat = PicoFeat(**self.conv_feat)
             static_assigner = ATSSAssigner(**self.static_assigner)
             assigner = TaskAlignedAssigner(**self.assigner)
-            head = PICODETHead(static_assigner=static_assigner, assigner=assigner, nms_cfg=self.nms_cfg, **self.head)
-            self.model = PICODET(backbone, fpn, head)
+            loss_class = VarifocalLoss(**self.loss_class)
+            loss_dfl = DistributionFocalLoss(**self.loss_dfl)
+            loss_bbox = GIoULoss(**self.loss_bbox)
+            head = PicoHeadV2(conv_feat=conv_feat, static_assigner=static_assigner,
+                              assigner=assigner, loss_class=loss_class, loss_dfl=loss_dfl,
+                              loss_bbox=loss_bbox, nms_cfg=self.nms_cfg, **self.head)
+            self.model = PicoDet(backbone, fpn, head)
         return self.model
 
     def get_data_loader(
         self, batch_size, is_distributed, num_gpus, cache_img=False
     ):
         from mmdet.data import (
-            PICODET_COCOTrainDataset,
+            PicoDet_COCOTrainDataset,
             InfiniteSampler,
             worker_init_reset_seed,
         )
@@ -257,7 +284,7 @@ class PICODET_Method_Exp(COCOBaseExp):
             sample_transforms = get_sample_transforms(self)
             batch_transforms = get_batch_transforms(self)
 
-            train_dataset = PICODET_COCOTrainDataset(
+            train_dataset = PicoDet_COCOTrainDataset(
                 data_dir=self.data_dir,
                 json_file=self.train_ann,
                 ann_folder=self.ann_folder,
@@ -290,7 +317,7 @@ class PICODET_Method_Exp(COCOBaseExp):
         # Check https://github.com/pytorch/pytorch/issues/63311 for more details.
         dataloader_kwargs["worker_init_fn"] = worker_init_reset_seed
 
-        # collater = PICODETTrainCollater(self.context, batch_transforms, self.n_layers)
+        # collater = PicoDetTrainCollater(self.context, batch_transforms, self.n_layers)
         # dataloader_kwargs["collate_fn"] = collater
         train_loader = torch.utils.data.DataLoader(self.dataset, **dataloader_kwargs)
 
@@ -331,7 +358,7 @@ class PICODET_Method_Exp(COCOBaseExp):
         return scheduler
 
     def get_eval_loader(self, batch_size, is_distributed, testdev=False):
-        from mmdet.data import PICODET_COCOEvalDataset
+        from mmdet.data import PPYOLOE_COCOEvalDataset
 
         # 预测时的数据预处理
         decodeImage = DecodeImage(**self.decodeImage)
@@ -339,7 +366,7 @@ class PICODET_Method_Exp(COCOBaseExp):
         normalizeImage = NormalizeImage(**self.normalizeImage)
         permute = Permute(**self.permute)
         transforms = [decodeImage, resizeImage, normalizeImage, permute]
-        val_dataset = PICODET_COCOEvalDataset(
+        val_dataset = PPYOLOE_COCOEvalDataset(
             data_dir=self.data_dir,
             json_file=self.val_ann if not testdev else "image_info_test-dev2017.json",
             ann_folder=self.ann_folder,

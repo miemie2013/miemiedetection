@@ -666,7 +666,7 @@ def main(exp, args):
                 exp.nms_cfg['score_threshold'] = args.conf
         if args.tsize is not None:
             exp.test_size = (args.tsize, args.tsize)
-    elif archi_name == 'PPYOLOE':
+    elif archi_name in ['PPYOLOE', 'PicoDet']:
         # PPYOLOE使用的是multiclass_nms，修改multiclass_nms的配置。
         if args.conf is not None:
             if exp.nms_cfg['nms_type'] == 'matrix_nms':
@@ -773,7 +773,7 @@ def main(exp, args):
             model, exp, trt_file,
             args.device, args.fp16, args.legacy,
         )
-    elif archi_name == 'PPYOLOE':
+    elif archi_name in ['PPYOLOE', 'PicoDet']:
         # 加载模型权重
         if not args.trt:
             if args.ckpt is None:
