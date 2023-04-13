@@ -89,10 +89,10 @@ def distribution_focal_loss(pred, label):
     Returns:
         Tensor: Loss tensor with shape (N,).
     """
-    dis_left = label.cast('int64')
+    dis_left = label.to(torch.int64)
     dis_right = dis_left + 1
-    weight_left = dis_right.cast('float32') - label
-    weight_right = label - dis_left.cast('float32')
+    weight_left = dis_right.to(torch.float32) - label
+    weight_right = label - dis_left.to(torch.float32)
     loss = F.cross_entropy(pred, dis_left, reduction='none') * weight_left \
         + F.cross_entropy(pred, dis_right, reduction='none') * weight_right
     return loss

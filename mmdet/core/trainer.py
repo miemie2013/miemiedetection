@@ -603,7 +603,7 @@ class Trainer:
         if self.args.occupy:
             occupy_mem(self.local_rank)
 
-        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
+        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'SOLO', 'FCOS']:
             # 多卡训练时，使用同步bn。
             # torch.nn.SyncBatchNorm.convert_sync_batchnorm()的使用一定要在创建优化器之后，创建DDP之前。
             if self.is_distributed:
@@ -733,6 +733,8 @@ class Trainer:
                 log_msg += (", {}".format(eta_str))
             elif self.archi_name == 'PPYOLOE':
                 log_msg += (", {}".format(eta_str))
+            elif self.archi_name == 'PicoDet':
+                log_msg += (", {}".format(eta_str))
             elif self.archi_name == 'SOLO':
                 log_msg += (", {}".format(eta_str))
             elif self.archi_name == 'FCOS':
@@ -751,6 +753,8 @@ class Trainer:
         elif self.archi_name == 'PPYOLO':
             pass
         elif self.archi_name == 'PPYOLOE':
+            pass
+        elif self.archi_name == 'PicoDet':
             pass
         elif self.archi_name == 'SOLO':
             pass
@@ -797,7 +801,7 @@ class Trainer:
         if self.use_model_ema:
             if self.archi_name == 'YOLOX':
                 evalmodel = self.ema_model.ema
-            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
+            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'SOLO', 'FCOS']:
                 cur_weight = copy.deepcopy(self.model.state_dict())
                 if self.is_distributed:
                     self.model.module.load_state_dict(self.ema_model.apply())
@@ -818,7 +822,7 @@ class Trainer:
         )
         self.model.train()
         if self.use_model_ema:
-            if self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
+            if self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'SOLO', 'FCOS']:
                 self.model.load_state_dict(cur_weight)
                 del cur_weight
             elif self.archi_name in ['YOLOX']:
@@ -840,7 +844,7 @@ class Trainer:
                 save_model = self.ema_model.ema if self.use_model_ema else self.model
                 if self.is_distributed and not self.use_model_ema:
                     save_model = save_model.module
-            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
+            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'SOLO', 'FCOS']:
                 if self.use_model_ema:
                     cur_weight = copy.deepcopy(self.model.state_dict())
                     if self.is_distributed:
@@ -867,7 +871,7 @@ class Trainer:
             )
             if self.archi_name == 'YOLOX':
                 pass
-            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
+            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'SOLO', 'FCOS']:
                 if self.use_model_ema:
                     self.model.load_state_dict(cur_weight)
                     del cur_weight

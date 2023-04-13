@@ -38,12 +38,14 @@ class ATSSAssigner(nn.Module):
                  topk=9,
                  num_classes=80,
                  force_gt_matching=False,
-                 eps=1e-9):
+                 eps=1e-9,
+                 sm_use=False):
         super(ATSSAssigner, self).__init__()
         self.topk = topk
         self.num_classes = num_classes
         self.force_gt_matching = force_gt_matching
         self.eps = eps
+        self.sm_use = sm_use
 
     def _gather_topk_pyramid(self, gt2anchor_distances, num_anchors_list,
                              pad_gt_mask):
@@ -160,7 +162,10 @@ class ATSSAssigner(nn.Module):
             is_in_topk, torch.zeros_like(is_in_topk))
 
         # 6. check the positive sample's center in gt, [B, n, L]
-        is_in_gts = check_points_inside_bboxes(anchor_centers, gt_bboxes)
+        if self.sm_use:
+            is_in_gts = check_points_inside_bboxes(anchor_centers, gt_bboxes, sm_use=True)
+        else:
+            is_in_gts = check_points_inside_bboxes(anchor_centers, gt_bboxes)
 
         # select positive sample, [B, n, L]
         mask_positive = is_in_topk * is_in_gts * pad_gt_mask
@@ -171,7 +176,10 @@ class ATSSAssigner(nn.Module):
         if mask_positive_sum.max() > 1:
             mask_multiple_gts = (mask_positive_sum.unsqueeze(1) > 1).repeat(
                 [1, num_max_boxes, 1])
-            is_max_iou = compute_max_iou_anchor(ious)
+            if self.sm_use:
+                is_max_iou = compute_max_iou_anchor(ious * mask_positive)
+            else:
+                is_max_iou = compute_max_iou_anchor(ious)
             # when use fp16
             mask_positive = torch.where(mask_multiple_gts, is_max_iou, mask_positive.to(is_max_iou.dtype))
             # mask_positive = torch.where(mask_multiple_gts, is_max_iou, mask_positive)
@@ -209,7 +217,7 @@ class ATSSAssigner(nn.Module):
             gt_bboxes.reshape([-1, 4]), index=assigned_gt_index.flatten().to(torch.int64))
         assigned_bboxes = assigned_bboxes.reshape([batch_size, num_anchors, 4])
 
-        assigned_labels = assigned_labels.to(torch.int32)
+        assigned_labels = assigned_labels.to(torch.int64)
         assigned_scores = F.one_hot(assigned_labels, self.num_classes + 1)
         assigned_scores = assigned_scores.to(torch.float32)
         ind = list(range(self.num_classes + 1))
@@ -230,4 +238,4 @@ class ATSSAssigner(nn.Module):
             assigned_scores *= gather_scores.unsqueeze(-1)
         # if torch.isnan(assigned_scores).any():
         #     print()
-        return assigned_labels, assigned_bboxes, assigned_scores
+        return assigned_labels, assigned_bboxes, assigned_scores, mask_positive

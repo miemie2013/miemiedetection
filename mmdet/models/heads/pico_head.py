@@ -20,6 +20,7 @@ import math
 import copy
 import numpy as np
 import torch
+from torch import distributed as dist
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -31,6 +32,7 @@ from .gfl_head import Integral, GFLHead
 from mmdet.models.necks.csp_pan import DPModule
 from mmdet.models.matrix_nms import matrix_nms
 from mmdet.utils import my_multiclass_nms, get_world_size
+from ..ops import gather_1d
 
 eps = 1e-9
 
@@ -448,32 +450,29 @@ class PicoHeadV2(GFLHead):
         flatten_assigned_scores = assigned_scores.reshape(
             [-1, self.num_classes])
 
-        pos_inds = paddle.nonzero(
-            paddle.logical_and((flatten_labels >= 0),
+        pos_inds = torch.nonzero(
+            torch.logical_and((flatten_labels >= 0),
                                (flatten_labels < self.num_classes)),
             as_tuple=False).squeeze(1)
 
         num_total_pos = len(pos_inds)
 
         if num_total_pos > 0:
-            pos_bbox_targets = paddle.gather(
-                flatten_bbox_targets, pos_inds, axis=0)
-            pos_decode_bbox_pred = paddle.gather(
-                flatten_bboxes, pos_inds, axis=0)
-            pos_reg = paddle.gather(flatten_regs, pos_inds, axis=0)
-            pos_strides = paddle.gather(flatten_strides, pos_inds, axis=0)
-            pos_centers = paddle.gather(
-                flatten_centers, pos_inds, axis=0) / pos_strides
+            pos_bbox_targets = gather_1d(flatten_bbox_targets, pos_inds)
+            pos_decode_bbox_pred = gather_1d(flatten_bboxes, pos_inds)
+            pos_reg = gather_1d(flatten_regs, pos_inds)
+            pos_strides = gather_1d(flatten_strides, pos_inds)
+            pos_centers = gather_1d(flatten_centers, pos_inds) / pos_strides
 
             weight_targets = flatten_assigned_scores.detach()
-            weight_targets = paddle.gather(
-                weight_targets.max(axis=1, keepdim=True), pos_inds, axis=0)
+            weight_targets, _ = weight_targets.max(axis=1, keepdim=True)
+            weight_targets = gather_1d(weight_targets, pos_inds)
 
             pred_corners = pos_reg.reshape([-1, self.reg_max + 1])
             target_corners = bbox2distance(pos_centers, pos_bbox_targets,
                                            self.reg_max).reshape([-1])
             # regression loss
-            loss_bbox = paddle.sum(
+            loss_bbox = torch.sum(
                 self.loss_bbox(pos_decode_bbox_pred,
                                pos_bbox_targets) * weight_targets)
 
@@ -484,21 +483,23 @@ class PicoHeadV2(GFLHead):
                 weight=weight_targets.expand([-1, 4]).reshape([-1]),
                 avg_factor=4.0)
         else:
-            loss_bbox = paddle.zeros([1])
-            loss_dfl = paddle.zeros([1])
+            loss_bbox = torch.zeros([1])
+            loss_dfl = torch.zeros([1])
 
         avg_factor = flatten_assigned_scores.sum()
-        if paddle.distributed.get_world_size() > 1:
-            paddle.distributed.all_reduce(avg_factor)
-            avg_factor = paddle.clip(
-                avg_factor / paddle.distributed.get_world_size(), min=1)
+        world_size = get_world_size()
+        if world_size > 1:
+            dist.all_reduce(avg_factor, op=dist.ReduceOp.SUM)
+            avg_factor = avg_factor / world_size
+        avg_factor = F.relu(avg_factor - 1.) + 1.  # y = max(x, 1)
         loss_vfl = self.loss_vfl(
             flatten_cls_preds, flatten_assigned_scores, avg_factor=avg_factor)
 
         loss_bbox = loss_bbox / avg_factor
         loss_dfl = loss_dfl / avg_factor
 
-        loss_states = dict(
+        total_loss = loss_vfl + loss_bbox + loss_dfl
+        loss_states = dict(total_loss=total_loss,
             loss_vfl=loss_vfl, loss_bbox=loss_bbox, loss_dfl=loss_dfl)
 
         return loss_states

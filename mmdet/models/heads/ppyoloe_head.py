@@ -487,7 +487,7 @@ class PPYOLOEHead(nn.Module):
 
         # label assignment
         if gt_meta['epoch_id'] < self.static_assigner_epoch:
-            assigned_labels, assigned_bboxes, assigned_scores = \
+            assigned_labels, assigned_bboxes, assigned_scores, _ = \
                 self.static_assigner(
                     anchors,
                     num_anchors_list,
@@ -507,7 +507,7 @@ class PPYOLOEHead(nn.Module):
             # assigned_scores = torch.Tensor(dic['assigned_scores']).to(torch.float32)
             # print()
         else:
-            assigned_labels, assigned_bboxes, assigned_scores = \
+            assigned_labels, assigned_bboxes, assigned_scores, _ = \
                 self.assigner(
                 pred_scores.detach(),
                 pred_bboxes.detach() * stride_tensor,

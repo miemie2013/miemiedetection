@@ -51,15 +51,15 @@ def varifocal_loss(pred,
         pred_new = F.sigmoid(pred)
     else:
         pred_new = pred
-    target = target.cast(pred.dtype)
+    target = target.to(pred.dtype)
     if iou_weighted:
-        focal_weight = target * (target > 0.0).cast('float32') + \
+        focal_weight = target * (target > 0.0).to(torch.float32) + \
             alpha * (pred_new - target).abs().pow(gamma) * \
-            (target <= 0.0).cast('float32')
+            (target <= 0.0).to(torch.float32)
     else:
-        focal_weight = (target > 0.0).cast('float32') + \
+        focal_weight = (target > 0.0).to(torch.float32) + \
             alpha * (pred_new - target).abs().pow(gamma) * \
-            (target <= 0.0).cast('float32')
+            (target <= 0.0).to(torch.float32)
 
     if use_sigmoid:
         loss = F.binary_cross_entropy_with_logits(

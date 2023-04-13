@@ -109,7 +109,8 @@ def gather_topk_anchors(metrics, topk, largest=True, topk_mask=None, eps=1e-9):
 def check_points_inside_bboxes(points,
                                bboxes,
                                center_radius_tensor=None,
-                               eps=1e-9):
+                               eps=1e-9,
+                               sm_use=False):
     r"""
     Args:
         points (Tensor, float32): shape[L, 2], "xy" format, L: num_anchors
@@ -142,8 +143,11 @@ def check_points_inside_bboxes(points,
         delta_ltrb_c = torch.cat([l, t, r, b], -1)
         delta_ltrb_c_min = delta_ltrb_c.min(-1)
         is_in_center = (delta_ltrb_c_min > eps)
-        return (torch.logical_and(is_in_bboxes, is_in_center),
-                torch.logical_or(is_in_bboxes, is_in_center))
+        if sm_use:
+            return is_in_bboxes.to(bboxes.dtype), is_in_center.to(bboxes.dtype)
+        else:
+            return (torch.logical_and(is_in_bboxes, is_in_center),
+                    torch.logical_or(is_in_bboxes, is_in_center))
 
     return is_in_bboxes.to(bboxes.dtype)
 
