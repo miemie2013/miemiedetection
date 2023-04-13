@@ -226,4 +226,8 @@ def generate_anchors_for_grid_cell(feats,
     anchor_points.requires_grad_(False)
     stride_tensor = torch.cat(stride_tensor)
     stride_tensor.requires_grad_(False)
+    dvs = feats[0].device
+    anchors = anchors.to(dvs)
+    anchor_points = anchor_points.to(dvs)
+    stride_tensor = stride_tensor.to(dvs)
     return anchors, anchor_points, num_anchors_list, stride_tensor

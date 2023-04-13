@@ -25,6 +25,7 @@ class PicoDet(torch.nn.Module):
         fpn_feats = self.neck(body_feats)
         out = self.head(fpn_feats, export_post_process=True)
         if self.training:
+            out = self.head.get_loss(out, targets)
             return out
         else:
             out = self.head.post_process(out, scale_factor)

@@ -314,7 +314,7 @@ class PicoHeadV2(GFLHead):
     def forward_train(self, fpn_feats):
         cls_score_list, reg_list, box_list = [], [], []
         for i, (fpn_feat, stride) in enumerate(zip(fpn_feats, self.fpn_stride)):
-            b, _, h, w = get_static_shape(fpn_feat)
+            b, _, h, w = fpn_feat.shape
             # task decomposition
             conv_cls_feat, se_feat = self.conv_feat(fpn_feat, i)
             cls_logit = self.head_cls_list[i](se_feat)
@@ -329,23 +329,24 @@ class PicoHeadV2(GFLHead):
 
             cls_score_out = cls_score.permute([0, 2, 3, 1])
             bbox_pred = reg_pred.permute([0, 2, 3, 1])
-            b, cell_h, cell_w, _ = paddle.shape(cls_score_out)
+            b, cell_h, cell_w, _ = cls_score_out.shape
             y, x = self.get_single_level_center_point(
                 [cell_h, cell_w], stride, cell_offset=self.cell_offset)
-            center_points = paddle.stack([x, y], axis=-1)
+            center_points = torch.stack([x, y], dim=-1)
             cls_score_out = cls_score_out.reshape(
                 [b, -1, self.cls_out_channels])
             bbox_pred = self.distribution_project(bbox_pred) * stride
             bbox_pred = bbox_pred.reshape([b, cell_h * cell_w, 4])
+            center_points = center_points.to(bbox_pred.device)
             bbox_pred = batch_distance2bbox(
                 center_points, bbox_pred, max_shapes=None)
             cls_score_list.append(cls_score.flatten(2).permute([0, 2, 1]))
             reg_list.append(reg_pred.flatten(2).permute([0, 2, 1]))
             box_list.append(bbox_pred / stride)
 
-        cls_score_list = paddle.concat(cls_score_list, axis=1)
-        box_list = paddle.concat(box_list, axis=1)
-        reg_list = paddle.concat(reg_list, axis=1)
+        cls_score_list = torch.cat(cls_score_list, 1)
+        box_list = torch.cat(box_list, 1)
+        reg_list = torch.cat(reg_list, 1)
         return cls_score_list, reg_list, box_list, fpn_feats
 
     def forward_eval(self, fpn_feats, export_post_process=True):
@@ -397,11 +398,11 @@ class PicoHeadV2(GFLHead):
 
     def get_loss(self, head_outs, gt_meta):
         pred_scores, pred_regs, pred_bboxes, fpn_feats = head_outs
-        gt_labels = gt_meta['gt_class']
-        gt_bboxes = gt_meta['gt_bbox']
+        gt_labels = gt_meta['gt_class']   # [N, 200, 1]
+        gt_bboxes = gt_meta['gt_bbox']    # [N, 200, 4]
         gt_scores = gt_meta['gt_score'] if 'gt_score' in gt_meta else None
-        num_imgs = gt_meta['im_id'].shape[0]
-        pad_gt_mask = gt_meta['pad_gt_mask']
+        num_imgs = gt_meta['gt_class'].shape[0]
+        pad_gt_mask = gt_meta['pad_gt_mask']  # [N, 200, 1]
 
         anchors, _, num_anchors_list, stride_tensor_list = generate_anchors_for_grid_cell(
             fpn_feats, self.fpn_stride, self.grid_cell_scale, self.cell_offset)

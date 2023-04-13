@@ -49,6 +49,7 @@ class Exp(PicoDet_Method_Exp):
         self.fpn['in_channels'] = [make_divisible(128 * self.scale), make_divisible(256 * self.scale), make_divisible(512 * self.scale)]
         self.fpn['out_channels'] = 96
         self.head['feat_in_chan'] = 96
+        self.head['num_classes'] = self.num_classes
         self.conv_feat['feat_in'] = 96
         self.conv_feat['feat_out'] = 96
         self.conv_feat['num_convs'] = 2

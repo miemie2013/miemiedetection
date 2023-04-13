@@ -191,9 +191,16 @@ class ATSSAssigner(nn.Module):
             end=batch_size, dtype=gt_labels.dtype).unsqueeze(-1)
         batch_ind = batch_ind.to(assigned_gt_index.device)
         assigned_gt_index = assigned_gt_index + batch_ind * num_max_boxes
-        assigned_labels = gather_1d(
-            gt_labels.flatten(), index=assigned_gt_index.flatten().to(torch.int64))
-        assigned_labels = assigned_labels.reshape([batch_size, num_anchors])
+        # print('aaaaaaaaaaaaaaaaaaaa')
+        # print(gt_labels.shape)
+        # print(gt_labels.dtype)
+        # print(assigned_gt_index.shape)
+        # print(assigned_gt_index.dtype)
+
+        # gt_labels.shape = [N, 200, 1]
+        # assigned_gt_index.shape = [N, 2577]
+        assigned_labels = gather_1d(gt_labels.flatten(), index=assigned_gt_index.flatten().to(torch.int64))
+        assigned_labels = assigned_labels.reshape([batch_size, num_anchors])  # assigned_labels.shape = [N, num_anchors]
         assigned_labels = torch.where(
             mask_positive_sum > 0, assigned_labels,
             torch.full_like(assigned_labels, bg_index))
@@ -202,6 +209,7 @@ class ATSSAssigner(nn.Module):
             gt_bboxes.reshape([-1, 4]), index=assigned_gt_index.flatten().to(torch.int64))
         assigned_bboxes = assigned_bboxes.reshape([batch_size, num_anchors, 4])
 
+        assigned_labels = assigned_labels.to(torch.int32)
         assigned_scores = F.one_hot(assigned_labels, self.num_classes + 1)
         assigned_scores = assigned_scores.to(torch.float32)
         ind = list(range(self.num_classes + 1))

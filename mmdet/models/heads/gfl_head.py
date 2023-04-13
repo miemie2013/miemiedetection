@@ -408,9 +408,9 @@ class GFLHead(nn.Module):
             y and x of the center points
         """
         h, w = featmap_size
-        x_range = (paddle.arange(w, dtype='float32') + cell_offset) * stride
-        y_range = (paddle.arange(h, dtype='float32') + cell_offset) * stride
-        y, x = paddle.meshgrid(y_range, x_range)
+        x_range = (torch.arange(w) + cell_offset) * stride
+        y_range = (torch.arange(h) + cell_offset) * stride
+        y, x = torch.meshgrid(y_range, x_range)
         y = y.flatten()
         x = x.flatten()
         return y, x
