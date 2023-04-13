@@ -491,7 +491,7 @@ class PicoHeadV2(GFLHead):
         if world_size > 1:
             dist.all_reduce(avg_factor, op=dist.ReduceOp.SUM)
             avg_factor = avg_factor / world_size
-        avg_factor = F.relu(avg_factor - 1.) + 1.  # y = max(x, 1)
+        avg_factor = torch.clamp(avg_factor, min=1.)  # y = max(x, 1)
         loss_vfl = self.loss_vfl(
             flatten_cls_preds, flatten_assigned_scores, avg_factor=avg_factor)
 

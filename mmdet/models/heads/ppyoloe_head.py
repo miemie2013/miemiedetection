@@ -535,7 +535,7 @@ class PPYOLOEHead(nn.Module):
         if world_size > 1:
             dist.all_reduce(assigned_scores_sum, op=dist.ReduceOp.SUM)
             assigned_scores_sum = assigned_scores_sum / world_size
-        assigned_scores_sum = F.relu(assigned_scores_sum - 1.) + 1.  # y = max(x, 1)
+        assigned_scores_sum = torch.clamp(assigned_scores_sum, min=1.)  # y = max(x, 1)
         loss_cls /= assigned_scores_sum
 
         loss_l1, loss_iou, loss_dfl = \

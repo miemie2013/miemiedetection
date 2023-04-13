@@ -122,8 +122,19 @@ python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 1 -b 16 -eb 8 -c PPYOLO_
 ----------------------- 评估 -----------------------
 python tools/eval.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 1 -b 4 -c picodet_s_416_coco_lcnet.pth --conf 0.025 --tsize 416
 
-Average forward time: 13.99 ms, Average NMS time: 0.01 ms, Average inference time: 14.00 ms
+Average forward time: 8.53 ms, Average NMS time: 0.00 ms, Average inference time: 8.54 ms
  Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.320
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.469
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.339
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.111
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.341
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.517
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.277
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.432
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.462
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.185
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.519
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.706
 
 
 
