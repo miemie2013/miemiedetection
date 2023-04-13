@@ -60,6 +60,7 @@ def gather_nd(tensor, index):
         index_1 = index_[:, 1]  # [D*E, ]
         index_ = index_0 * B + index_1  # [D*E, ]
 
+        index_ = index_.to(torch.int64)
         out = gather_1d(tensor_, index_)  # [D*E, C]
         out = out.reshape((D, E, C))   # [D, E, C]
     else:

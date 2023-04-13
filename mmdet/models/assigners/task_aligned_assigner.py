@@ -162,6 +162,7 @@ class TaskAlignedAssigner(nn.Module):
 
         # assigned target
         assigned_gt_index = assigned_gt_index + batch_ind * num_max_boxes
+        assigned_gt_index = assigned_gt_index.to(torch.int64)
         assigned_labels = gather_1d(gt_labels.flatten(), assigned_gt_index.flatten())
         assigned_labels = assigned_labels.reshape([batch_size, num_anchors])
         assigned_labels = torch.where(
