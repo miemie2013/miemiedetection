@@ -809,7 +809,10 @@ class PPYOLOE_COCOTrainDataset(torch.utils.data.Dataset):
                 self.random_shapes.append(shape)
 
         # 输出特征图数量
-        self.n_layers = len(cfg.head['fpn_strides'])
+        fpn_strides = cfg.head.get('fpn_strides', None)
+        if fpn_strides is None:
+            fpn_strides = cfg.head.get('fpn_stride', None)
+        self.n_layers = len(fpn_strides)
         self._epoch = 0
 
 

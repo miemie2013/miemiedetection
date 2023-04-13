@@ -87,18 +87,17 @@ nohup xxx     > ppyolo.log 2>&1 &
 
 
 - - - - - - - - - - - - - - - - - - - - - -
+迁移学习（不冻结骨干网络）:（可以加--fp16， -eb表示验证时的批大小）
+python tools/train.py -f exps/picodet/picodet_s_416_voc2012.py -d 1 -b 4 -eb 2 -c picodet_s_416_coco_lcnet.pth --fp16
 
-复现paddle版ppyoloe_s迁移学习（不冻结骨干网络）:（可以加--fp16， -eb表示验证时的批大小）
-python tools/train.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 1 -b 4 -eb 2 -c ppyoloe_crn_s_300e_coco.pth --fp16
+python tools/eval.py -f exps/picodet/picodet_s_416_voc2012.py -d 1 -b 4 -c PPYOLOE_outputs/ppyoloe_crn_s_voc2012/16.pth --conf 0.01 --tsize 640
 
-python tools/eval.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 1 -b 4 -c PPYOLOE_outputs/ppyoloe_crn_s_voc2012/16.pth --conf 0.01 --tsize 640
-
-python tools/demo.py image -f exps/picodet/picodet_s_416_coco_lcnet.py -c PPYOLOE_outputs/ppyoloe_crn_s_voc2012/16.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
+python tools/demo.py image -f exps/picodet/picodet_s_416_voc2012.py -c PPYOLOE_outputs/ppyoloe_crn_s_voc2012/16.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
 
 1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 2 -b 4 -eb 2 -c ppyoloe_crn_s_300e_coco.pth --fp16     > ppyoloe_s.log 2>&1 &
+nohup python tools/train.py -f exps/picodet/picodet_s_416_voc2012.py -d 2 -b 4 -eb 2 -c picodet_s_416_coco_lcnet.pth --fp16     > ppyoloe_s.log 2>&1 &
 
 tail -n 20 ppyoloe_s.log
 
@@ -121,21 +120,10 @@ python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 1 -b 16 -eb 8 -c PPYOLO_
 
 
 ----------------------- 评估 -----------------------
-python tools/eval.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 1 -b 4 -c picodet_s_416_coco_lcnet.pth --conf 0.01 --tsize 416
+python tools/eval.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 1 -b 4 -c picodet_s_416_coco_lcnet.pth --conf 0.025 --tsize 416
 
 Average forward time: 13.99 ms, Average NMS time: 0.01 ms, Average inference time: 14.00 ms
  Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.320
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.469
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.339
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.111
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.341
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.517
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.277
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.432
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.462
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.185
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.519
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.706
 
 
 

@@ -79,7 +79,7 @@ class PicoDet_Method_Exp(COCOBaseExp):
 
         self.ema = True
         self.ema_decay = 0.9998
-        self.weight_decay = 5e-4
+        self.weight_decay = 0.00004
         self.momentum = 0.9
         self.print_interval = 20
         self.eval_interval = 10
@@ -87,14 +87,14 @@ class PicoDet_Method_Exp(COCOBaseExp):
 
         # learning_rate
         self.scheduler = "warm_cosinedecay"
-        self.warmup_epochs = 5
-        self.cosinedecay_epochs = 360
-        self.basic_lr_per_img = 0.04 / (8. * 32.0)
-        self.start_factor = 0.0
+        self.warmup_epochs = 1
+        self.cosinedecay_epochs = 300
+        self.basic_lr_per_img = 0.32 / (4. * 64.0)
+        self.start_factor = 0.1
 
         # -----------------  testing config ------------------ #
-        self.eval_height = 640
-        self.eval_width = 640
+        self.eval_height = 416
+        self.eval_width = 416
         self.test_size = [self.eval_height, self.eval_width]
 
         # ---------------- model config ---------------- #
@@ -163,7 +163,7 @@ class PicoDet_Method_Exp(COCOBaseExp):
         )
         self.nms_cfg = dict(
             nms_type='multiclass_nms',
-            score_threshold=0.01,
+            score_threshold=0.025,
             nms_threshold=0.6,
             nms_top_k=1000,
             keep_top_k=100,
@@ -178,21 +178,17 @@ class PicoDet_Method_Exp(COCOBaseExp):
             with_cutmix=False,
             with_mosaic=False,
         )
-        # ColorDistort
-        self.colorDistort = dict()
-        # RandomExpand
-        self.randomExpand = dict(
-            fill_value=[123.675, 116.28, 103.53],
-        )
         # RandomCrop
         self.randomCrop = dict()
         # RandomFlipImage
         self.randomFlipImage = dict(
             is_normalized=False,
         )
+        # ColorDistort
+        self.colorDistort = dict()
         # RandomShape
         self.randomShape = dict(
-            sizes=[320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640, 672, 704, 736, 768],
+            sizes=[352, 384, 416, 448, 480],
             random_inter=True,
             resize_box=True,
         )
@@ -214,17 +210,16 @@ class PicoDet_Method_Exp(COCOBaseExp):
         )
         # ResizeImage
         self.resizeImage = dict(
-            target_size=640,
+            target_size=416,
             interp=2,
         )
 
         # 预处理顺序。增加一些数据增强时这里也要加上，否则train.py中相当于没加！
         self.sample_transforms_seq = []
         self.sample_transforms_seq.append('decodeImage')
-        self.sample_transforms_seq.append('colorDistort')
-        self.sample_transforms_seq.append('randomExpand')
         self.sample_transforms_seq.append('randomCrop')
         self.sample_transforms_seq.append('randomFlipImage')
+        self.sample_transforms_seq.append('colorDistort')
         self.sample_transforms_seq.append('randomShape')
         self.sample_transforms_seq.append('normalizeImage')
         self.sample_transforms_seq.append('permute')
@@ -268,7 +263,7 @@ class PicoDet_Method_Exp(COCOBaseExp):
         self, batch_size, is_distributed, num_gpus, cache_img=False
     ):
         from mmdet.data import (
-            PicoDet_COCOTrainDataset,
+            PPYOLOE_COCOTrainDataset,
             InfiniteSampler,
             worker_init_reset_seed,
         )
@@ -284,7 +279,7 @@ class PicoDet_Method_Exp(COCOBaseExp):
             sample_transforms = get_sample_transforms(self)
             batch_transforms = get_batch_transforms(self)
 
-            train_dataset = PicoDet_COCOTrainDataset(
+            train_dataset = PPYOLOE_COCOTrainDataset(
                 data_dir=self.data_dir,
                 json_file=self.train_ann,
                 ann_folder=self.ann_folder,
@@ -329,16 +324,33 @@ class PicoDet_Method_Exp(COCOBaseExp):
     def preprocess(self, inputs, targets, tsize):
         return 1
 
-    def get_optimizer(self, batch_size, param_groups, momentum, weight_decay):
+    def get_optimizer(self, batch_size):
         if "optimizer" not in self.__dict__:
             if self.warmup_epochs > 0:
                 lr = self.basic_lr_per_img * batch_size * self.start_factor
             else:
                 lr = self.basic_lr_per_img * batch_size
 
+            pg0, pg1, pg2 = [], [], []  # optimizer parameter groups
+
+            for k, v in self.model.named_modules():
+                if hasattr(v, "bias") and isinstance(v.bias, nn.Parameter):
+                    if v.bias.requires_grad:
+                        pg2.append(v.bias)  # biases
+                if isinstance(v, nn.BatchNorm2d) or "bn" in k:
+                    if v.weight.requires_grad:
+                        pg0.append(v.weight)  # no decay
+                elif hasattr(v, "weight") and isinstance(v.weight, nn.Parameter):
+                    if v.weight.requires_grad:
+                        pg1.append(v.weight)  # apply decay
+
             optimizer = torch.optim.SGD(
-                param_groups, lr=lr, momentum=momentum, weight_decay=weight_decay
+                pg0, lr=lr, momentum=self.momentum, nesterov=True
             )
+            optimizer.add_param_group(
+                {"params": pg1, "weight_decay": self.weight_decay}
+            )  # add pg1 with weight_decay
+            optimizer.add_param_group({"params": pg2})
             self.optimizer = optimizer
 
         return self.optimizer

@@ -73,7 +73,7 @@ class Trainer:
             self.input_size = exp.input_size
         elif self.archi_name == 'PPYOLO':
             pass
-        elif self.archi_name == 'PPYOLOE':
+        elif self.archi_name in ['PPYOLOE', 'PicoDet']:
             pass
         elif self.archi_name == 'SOLO':
             pass
@@ -279,7 +279,7 @@ class Trainer:
                 #     print_diff(dic, 'loss_iou_aware', outputs['loss_iou_aware'])
                 #     print_diff(dic, 'loss_obj', outputs['loss_obj'])
                 #     print_diff(dic, 'loss_cls', outputs['loss_cls'])
-        elif self.archi_name == 'PPYOLOE':
+        elif self.archi_name in ['PPYOLOE', 'PicoDet']:
             inps, gt_class, gt_bbox, pad_gt_mask, im_ids = self.prefetcher.next()
             inps = inps.to(self.data_type)
             gt_class = gt_class.to(self.data_type)
@@ -388,6 +388,9 @@ class Trainer:
         if self.archi_name == 'YOLOX':
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = lr
+        elif self.archi_name == 'PicoDet':
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = lr
         elif self.archi_name == 'PPYOLO':
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
@@ -423,7 +426,7 @@ class Trainer:
         # model related init
         torch.cuda.set_device(self.local_rank)
 
-        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
+        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'SOLO', 'FCOS']:
             torch.backends.cudnn.benchmark = True  # Improves training speed.
             torch.backends.cuda.matmul.allow_tf32 = False  # Allow PyTorch to internally use tf32 for matmul
             torch.backends.cudnn.allow_tf32 = False  # Allow PyTorch to internally use tf32 for convolutions
@@ -496,6 +499,24 @@ class Trainer:
 
             # solver related init
             self.optimizer = self.exp.get_optimizer(self.args.batch_size, param_groups, momentum=momentum, weight_decay=base_wd)
+
+            # value of epoch will be set in `resume_train`
+            model = self.resume_train(model)
+
+
+            self.train_loader = self.exp.get_data_loader(
+                batch_size=self.args.batch_size,
+                is_distributed=self.is_distributed,
+                num_gpus=self.world_size,
+                cache_img=self.args.cache,
+            )
+            self.n_layers = self.exp.n_layers
+
+            logger.info("init prefetcher, this might take one minute or less...")
+            self.prefetcher = PPYOLOEDataPrefetcher(self.train_loader, self.n_layers)
+        elif self.archi_name == 'PicoDet':
+            # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
+            self.optimizer = self.exp.get_optimizer(self.args.batch_size)
 
             # value of epoch will be set in `resume_train`
             model = self.resume_train(model)
@@ -596,7 +617,7 @@ class Trainer:
             if self.archi_name == 'YOLOX':
                 self.ema_model = ModelEMA(model, self.exp.ema_decay)
                 self.ema_model.updates = self.max_iter * self.start_epoch
-            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'SOLO', 'FCOS']:
+            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'SOLO', 'FCOS']:
                 ema_decay = getattr(self.exp, 'ema_decay', 0.9998)
                 cycle_epoch = getattr(self.exp, 'cycle_epoch', -1)
                 ema_decay_type = getattr(self.exp, 'ema_decay_type', 'threshold')
@@ -656,6 +677,8 @@ class Trainer:
         elif self.archi_name == 'PPYOLO':
             pass
         elif self.archi_name == 'PPYOLOE':
+            pass
+        elif self.archi_name == 'PicoDet':
             pass
         elif self.archi_name == 'SOLO':
             pass
