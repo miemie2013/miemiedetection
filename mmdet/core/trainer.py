@@ -611,7 +611,10 @@ class Trainer:
                 logger.info('Using SyncBatchNorm()')
 
         if self.is_distributed:
-            model = DDP(model, device_ids=[self.local_rank], broadcast_buffers=False)
+            find_unused_parameters = False
+            if self.archi_name in ['PicoDet']:
+                find_unused_parameters = True
+            model = DDP(model, device_ids=[self.local_rank], broadcast_buffers=False, find_unused_parameters=find_unused_parameters)
 
         if self.use_model_ema:
             if self.archi_name == 'YOLOX':
