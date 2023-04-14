@@ -50,7 +50,7 @@ def quality_focal_loss(pred, target, beta=2.0, use_sigmoid=True):
         func = F.binary_cross_entropy
 
     # negatives are supervised by 0 quality score
-    pred_sigmoid = F.sigmoid(pred) if use_sigmoid else pred
+    pred_sigmoid = torch.sigmoid(pred) if use_sigmoid else pred
     scale_factor = pred_sigmoid
     zerolabel = paddle.zeros(pred.shape, dtype='float32')
     loss = func(pred, zerolabel, reduction='none') * scale_factor.pow(beta)

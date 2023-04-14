@@ -78,7 +78,7 @@ class SOLOv2Loss(object):
             target = target.to(torch.float32)
             target = torch.reshape(target, shape=[-1, input.shape[-2], input.shape[-1]])
             weights = (torch.sum(target, axis=[1, 2]) > 0).to(torch.float32)
-            input = F.sigmoid(input)
+            input = torch.sigmoid(input)
             dice_loss = self._dice_loss(input, target)
             dice_out = dice_loss * weights
             total_weights += torch.sum(weights)

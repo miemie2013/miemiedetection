@@ -1,0 +1,1165 @@
+2023-04-13 19:34:43.475 | INFO     | mmdet.core.trainer:before_train:423 - args: Namespace(experiment_name='picodet_s_416_voc2012', name=None, dist_backend='nccl', dist_url=None, batch_size=8, eval_batch_size=2, devices=2, exp_file='exps/picodet/picodet_s_416_voc2012.py', resume=False, ckpt='picodet_s_416_coco_lcnet.pth', num_machines=1, machine_rank=0, fp16=False, cache=False, occupy=False, opts=[], save_npz=1)
+2023-04-13 19:34:43.484 | INFO     | mmdet.core.trainer:before_train:424 - exp value:
+╒═══════════════════════╤════════════════════════════════════════════════════════════════════════════════╕
+│ keys                  │ values                                                                         │
+╞═══════════════════════╪════════════════════════════════════════════════════════════════════════════════╡
+│ seed                  │ None                                                                           │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ output_dir            │ 'PicoDet_outputs'                                                              │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ print_interval        │ 20                                                                             │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ eval_interval         │ 2                                                                              │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ num_classes           │ 20                                                                             │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ data_dir              │ '../VOCdevkit/VOC2012'                                                         │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ cls_names             │ 'class_names/voc_classes.txt'                                                  │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ ann_folder            │ 'annotations2'                                                                 │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ train_ann             │ 'voc2012_train.json'                                                           │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ val_ann               │ 'voc2012_val.json'                                                             │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ train_image_folder    │ 'JPEGImages'                                                                   │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ val_image_folder      │ 'JPEGImages'                                                                   │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ archi_name            │ 'PicoDet'                                                                      │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ max_epoch             │ 16                                                                             │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ ema                   │ True                                                                           │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ ema_decay             │ 0.9998                                                                         │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ weight_decay          │ 4e-05                                                                          │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ momentum              │ 0.9                                                                            │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ exp_name              │ 'picodet_s_416_voc2012'                                                        │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ scheduler             │ 'warm_cosinedecay'                                                             │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ warmup_epochs         │ 1                                                                              │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ cosinedecay_epochs    │ 20                                                                             │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ basic_lr_per_img      │ 0.00125                                                                        │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ start_factor          │ 0.1                                                                            │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ eval_height           │ 416                                                                            │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ eval_width            │ 416                                                                            │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ test_size             │ [416, 416]                                                                     │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ scale                 │ 0.75                                                                           │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ backbone_type         │ 'LCNet'                                                                        │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ backbone              │ {'feature_maps': [3, 4, 5], 'scale': 0.75}                                     │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ fpn_type              │ 'LCPAN'                                                                        │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ fpn                   │ {'in_channels': [96, 192, 384],                                                │
+│                       │  'num_features': 4,                                                            │
+│                       │  'out_channels': 96,                                                           │
+│                       │  'use_depthwise': True}                                                        │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ head_type             │ 'PicoHeadV2'                                                                   │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ head                  │ {'cell_offset': 0.5,                                                           │
+│                       │  'eval_size': [416, 416],                                                      │
+│                       │  'feat_in_chan': 96,                                                           │
+│                       │  'fpn_stride': [8, 16, 32, 64],                                                │
+│                       │  'grid_cell_scale': 5.0,                                                       │
+│                       │  'num_classes': 20,                                                            │
+│                       │  'prior_prob': 0.01,                                                           │
+│                       │  'reg_max': 7,                                                                 │
+│                       │  'static_assigner_epoch': 4,                                                   │
+│                       │  'use_align_head': True}                                                       │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ conv_feat_type        │ 'PicoFeat'                                                                     │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ conv_feat             │ {'feat_in': 96,                                                                │
+│                       │  'feat_out': 96,                                                               │
+│                       │  'norm_type': 'bn',                                                            │
+│                       │  'num_convs': 2,                                                               │
+│                       │  'num_fpn_stride': 4,                                                          │
+│                       │  'share_cls_reg': True,                                                        │
+│                       │  'use_se': True}                                                               │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ static_assigner_type  │ 'ATSSAssigner'                                                                 │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ static_assigner       │ {'force_gt_matching': False, 'num_classes': 20, 'topk': 9}                     │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ assigner_type         │ 'TaskAlignedAssigner'                                                          │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ assigner              │ {'alpha': 1.0, 'beta': 6.0, 'topk': 13}                                        │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ loss_class_type       │ 'VarifocalLoss'                                                                │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ loss_class            │ {'iou_weighted': True, 'loss_weight': 1.0, 'use_sigmoid': False}               │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ loss_dfl_type         │ 'DistributionFocalLoss'                                                        │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ loss_dfl              │ {'loss_weight': 0.5}                                                           │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ loss_bbox_type        │ 'GIoULoss'                                                                     │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ loss_bbox             │ {'loss_weight': 2.5}                                                           │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ nms_cfg               │ {'keep_top_k': 100,                                                            │
+│                       │  'nms_threshold': 0.6,                                                         │
+│                       │  'nms_top_k': 1000,                                                            │
+│                       │  'nms_type': 'multiclass_nms',                                                 │
+│                       │  'score_threshold': 0.025}                                                     │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ context               │ {'fields': ['image', 'gt_bbox', 'gt_class', 'gt_score']}                       │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ decodeImage           │ {'to_rgb': True,                                                               │
+│                       │  'with_cutmix': False,                                                         │
+│                       │  'with_mixup': False,                                                          │
+│                       │  'with_mosaic': False}                                                         │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ randomCrop            │ {}                                                                             │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ randomFlipImage       │ {'is_normalized': False}                                                       │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ colorDistort          │ {}                                                                             │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ randomShape           │ {'random_inter': True, 'resize_box': True, 'sizes': [352, 384, 416, 448, 480]} │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ normalizeImage        │ {'is_channel_first': False,                                                    │
+│                       │  'is_scale': True,                                                             │
+│                       │  'mean': [0.485, 0.456, 0.406],                                                │
+│                       │  'std': [0.229, 0.224, 0.225]}                                                 │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ permute               │ {'channel_first': True, 'to_bgr': False}                                       │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ padGT                 │ {'num_max_boxes': 200}                                                         │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ resizeImage           │ {'interp': 2, 'target_size': 416}                                              │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ sample_transforms_seq │ ['decodeImage',                                                                │
+│                       │  'randomCrop',                                                                 │
+│                       │  'randomFlipImage',                                                            │
+│                       │  'colorDistort',                                                               │
+│                       │  'randomShape',                                                                │
+│                       │  'normalizeImage',                                                             │
+│                       │  'permute',                                                                    │
+│                       │  'padGT']                                                                      │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ batch_transforms_seq  │ []                                                                             │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ data_num_workers      │ 2                                                                              │
+├───────────────────────┼────────────────────────────────────────────────────────────────────────────────┤
+│ eval_data_num_workers │ 1                                                                              │
+╘═══════════════════════╧════════════════════════════════════════════════════════════════════════════════╛
+2023-04-13 19:34:43.715 | INFO     | mmdet.core.trainer:before_train:435 - Model Summary: Params: -0.00M, Gflops: -0.00
+2023-04-13 19:34:43.739 | INFO     | mmdet.core.trainer:resume_train:795 - loading checkpoint for fine tuning
+2023-04-13 19:34:43.824 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of head.head_cls_list.0.weight in checkpoint is torch.Size([80, 96, 1, 1]), while shape of head.head_cls_list.0.weight in model is torch.Size([20, 96, 1, 1]).
+2023-04-13 19:34:43.827 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of head.head_cls_list.0.bias in checkpoint is torch.Size([80]), while shape of head.head_cls_list.0.bias in model is torch.Size([20]).
+2023-04-13 19:34:43.827 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of head.head_cls_list.1.weight in checkpoint is torch.Size([80, 96, 1, 1]), while shape of head.head_cls_list.1.weight in model is torch.Size([20, 96, 1, 1]).
+2023-04-13 19:34:43.828 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of head.head_cls_list.1.bias in checkpoint is torch.Size([80]), while shape of head.head_cls_list.1.bias in model is torch.Size([20]).
+2023-04-13 19:34:43.828 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of head.head_cls_list.2.weight in checkpoint is torch.Size([80, 96, 1, 1]), while shape of head.head_cls_list.2.weight in model is torch.Size([20, 96, 1, 1]).
+2023-04-13 19:34:43.828 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of head.head_cls_list.2.bias in checkpoint is torch.Size([80]), while shape of head.head_cls_list.2.bias in model is torch.Size([20]).
+2023-04-13 19:34:43.829 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of head.head_cls_list.3.weight in checkpoint is torch.Size([80, 96, 1, 1]), while shape of head.head_cls_list.3.weight in model is torch.Size([20, 96, 1, 1]).
+2023-04-13 19:34:43.829 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of head.head_cls_list.3.bias in checkpoint is torch.Size([80]), while shape of head.head_cls_list.3.bias in model is torch.Size([20]).
+2023-04-13 19:34:43.829 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of head.head_cls0.weight in checkpoint is torch.Size([80, 96, 1, 1]), while shape of head.head_cls0.weight in model is torch.Size([20, 96, 1, 1]).
+2023-04-13 19:34:43.830 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of head.head_cls0.bias in checkpoint is torch.Size([80]), while shape of head.head_cls0.bias in model is torch.Size([20]).
+2023-04-13 19:34:43.830 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of head.head_cls1.weight in checkpoint is torch.Size([80, 96, 1, 1]), while shape of head.head_cls1.weight in model is torch.Size([20, 96, 1, 1]).
+2023-04-13 19:34:43.830 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of head.head_cls1.bias in checkpoint is torch.Size([80]), while shape of head.head_cls1.bias in model is torch.Size([20]).
+2023-04-13 19:34:43.830 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of head.head_cls2.weight in checkpoint is torch.Size([80, 96, 1, 1]), while shape of head.head_cls2.weight in model is torch.Size([20, 96, 1, 1]).
+2023-04-13 19:34:43.831 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of head.head_cls2.bias in checkpoint is torch.Size([80]), while shape of head.head_cls2.bias in model is torch.Size([20]).
+2023-04-13 19:34:43.831 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of head.head_cls3.weight in checkpoint is torch.Size([80, 96, 1, 1]), while shape of head.head_cls3.weight in model is torch.Size([20, 96, 1, 1]).
+2023-04-13 19:34:43.831 | WARNING  | mmdet.utils.checkpoint:load_ckpt:24 - Shape of head.head_cls3.bias in checkpoint is torch.Size([80]), while shape of head.head_cls3.bias in model is torch.Size([20]).
+2023-04-13 19:34:44.070 | INFO     | mmdet.data.datasets.coco:__init__:777 - loading annotations into memory...
+2023-04-13 19:34:44.249 | INFO     | mmdet.data.datasets.coco:__init__:777 - Done (t=0.18s)
+2023-04-13 19:34:44.250 | INFO     | pycocotools.coco:__init__:86 - creating index...
+2023-04-13 19:34:44.264 | INFO     | pycocotools.coco:__init__:86 - index created!
+2023-04-13 19:34:44.558 | INFO     | mmdet.data.datasets.coco:data_clean:297 - 5717 samples in train set.
+2023-04-13 19:34:44.867 | INFO     | mmdet.core.trainer:before_train:533 - init prefetcher, this might take one minute or less...
+2023-04-13 19:34:50.324 | INFO     | mmdet.core.trainer:before_train:611 - Using SyncBatchNorm()
+2023-04-13 19:34:50.587 | INFO     | mmdet.data.datasets.coco:__init__:459 - loading annotations into memory...
+2023-04-13 19:34:50.680 | INFO     | mmdet.data.datasets.coco:__init__:459 - Done (t=0.09s)
+2023-04-13 19:34:50.681 | INFO     | pycocotools.coco:__init__:86 - creating index...
+2023-04-13 19:34:50.695 | INFO     | pycocotools.coco:__init__:86 - index created!
+2023-04-13 19:34:51.057 | INFO     | mmdet.data.datasets.coco:data_clean:297 - 5823 samples in val set.
+2023-04-13 19:34:51.066 | INFO     | mmdet.core.trainer:before_train:646 - Training start...
+2023-04-13 19:34:51.073 | INFO     | mmdet.core.trainer:before_train:657 - Total params: 1,163,216
+2023-04-13 19:34:51.073 | INFO     | mmdet.core.trainer:before_train:658 - Trainable params: 1,163,216
+2023-04-13 19:34:51.073 | INFO     | mmdet.core.trainer:before_train:659 - Non-trainable params: 0
+2023-04-13 19:34:51.075 | INFO     | mmdet.core.trainer:before_epoch:667 - ---> start train epoch1
+2023-04-13 19:34:59.445 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 20/714, mem: 1791Mb, iter_time: 0.418s, data_time: 0.003s, total_loss: 2.3, loss_vfl: 1.9, loss_bbox: 0.2, loss_dfl: 0.2, lr: 0.001252, ETA: 1:19:22
+2023-04-13 19:35:03.877 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 40/714, mem: 1791Mb, iter_time: 0.221s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.001504, ETA: 1:00:33
+2023-04-13 19:35:07.687 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 60/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.8, loss_bbox: 0.0, loss_dfl: 0.1, lr: 0.001756, ETA: 0:52:16
+2023-04-13 19:35:11.320 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 80/714, mem: 1791Mb, iter_time: 0.181s, data_time: 0.002s, total_loss: 2.6, loss_vfl: 1.5, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.002008, ETA: 0:47:40
+2023-04-13 19:35:15.430 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 100/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.002s, total_loss: 2.7, loss_vfl: 1.5, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.002261, ETA: 0:45:47
+2023-04-13 19:35:19.268 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 120/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.4, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.002513, ETA: 0:44:05
+2023-04-13 19:35:23.337 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 140/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.002765, ETA: 0:43:10
+2023-04-13 19:35:27.175 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 160/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.3, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.003017, ETA: 0:42:11
+2023-04-13 19:35:31.117 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 180/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 2.6, loss_vfl: 1.4, loss_bbox: 0.6, loss_dfl: 0.6, lr: 0.003269, ETA: 0:41:31
+2023-04-13 19:35:35.130 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 200/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 2.3, loss_vfl: 1.5, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.003521, ETA: 0:41:02
+2023-04-13 19:35:39.237 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 220/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 2.5, loss_vfl: 1.5, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.003773, ETA: 0:40:42
+2023-04-13 19:35:43.290 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 240/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.003s, total_loss: 2.7, loss_vfl: 1.6, loss_bbox: 0.5, loss_dfl: 0.6, lr: 0.004025, ETA: 0:40:23
+2023-04-13 19:35:47.218 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 260/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.3, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.004277, ETA: 0:40:01
+2023-04-13 19:35:51.212 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 280/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.004529, ETA: 0:39:43
+2023-04-13 19:35:55.233 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 300/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.4, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.004782, ETA: 0:39:29
+2023-04-13 19:35:59.170 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 320/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.1, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.005034, ETA: 0:39:13
+2023-04-13 19:36:03.131 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 340/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 0.9, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.2, lr: 0.005286, ETA: 0:38:59
+2023-04-13 19:36:06.976 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 360/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 2.7, loss_vfl: 1.6, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.005538, ETA: 0:38:43
+2023-04-13 19:36:10.814 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 380/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.001s, total_loss: 2.4, loss_vfl: 1.4, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.005790, ETA: 0:38:27
+2023-04-13 19:36:14.717 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 400/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.0, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.006042, ETA: 0:38:15
+2023-04-13 19:36:18.715 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 420/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 3.9, loss_vfl: 2.2, loss_bbox: 1.0, loss_dfl: 0.8, lr: 0.006294, ETA: 0:38:06
+2023-04-13 19:36:22.483 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 440/714, mem: 1791Mb, iter_time: 0.188s, data_time: 0.001s, total_loss: 2.2, loss_vfl: 1.2, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.006546, ETA: 0:37:52
+2023-04-13 19:36:26.788 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 460/714, mem: 1791Mb, iter_time: 0.214s, data_time: 0.002s, total_loss: 2.5, loss_vfl: 1.4, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.006798, ETA: 0:37:51
+2023-04-13 19:36:30.789 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 480/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 2.8, loss_vfl: 1.7, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.007050, ETA: 0:37:44
+2023-04-13 19:36:34.817 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 500/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.7, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.007303, ETA: 0:37:37
+2023-04-13 19:36:38.734 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 520/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.001s, total_loss: 2.2, loss_vfl: 1.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.007555, ETA: 0:37:28
+2023-04-13 19:36:42.610 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 540/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.007807, ETA: 0:37:18
+2023-04-13 19:36:46.452 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 560/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 3.9, loss_vfl: 1.8, loss_bbox: 1.2, loss_dfl: 0.9, lr: 0.008059, ETA: 0:37:09
+2023-04-13 19:36:50.446 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 580/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 2.7, loss_vfl: 1.5, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.008311, ETA: 0:37:02
+2023-04-13 19:36:54.293 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 600/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 2.7, loss_vfl: 1.4, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.008563, ETA: 0:36:53
+2023-04-13 19:36:58.032 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 620/714, mem: 1791Mb, iter_time: 0.186s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.1, loss_bbox: 0.5, loss_dfl: 0.3, lr: 0.008815, ETA: 0:36:43
+2023-04-13 19:37:01.891 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 640/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 3.0, loss_vfl: 1.6, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.009067, ETA: 0:36:35
+2023-04-13 19:37:05.755 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 660/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.009319, ETA: 0:36:27
+2023-04-13 19:37:09.471 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 680/714, mem: 1791Mb, iter_time: 0.185s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.3, lr: 0.009571, ETA: 0:36:17
+2023-04-13 19:37:13.352 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 1/16, iter: 700/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 3.9, loss_vfl: 2.1, loss_bbox: 1.0, loss_dfl: 0.8, lr: 0.009824, ETA: 0:36:10
+2023-04-13 19:37:16.413 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 19:37:16.574 | INFO     | mmdet.core.trainer:before_epoch:667 - ---> start train epoch2
+2023-04-13 19:37:20.444 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 20/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 2.1, loss_vfl: 1.2, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.010000, ETA: 0:36:01
+2023-04-13 19:37:24.095 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 40/714, mem: 1791Mb, iter_time: 0.182s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.1, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.010000, ETA: 0:35:51
+2023-04-13 19:37:27.828 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 60/714, mem: 1791Mb, iter_time: 0.186s, data_time: 0.002s, total_loss: 2.9, loss_vfl: 1.6, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.010000, ETA: 0:35:43
+2023-04-13 19:37:31.805 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 80/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 2.5, loss_vfl: 1.7, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.009999, ETA: 0:35:38
+2023-04-13 19:37:35.729 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 100/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.5, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.009999, ETA: 0:35:32
+2023-04-13 19:37:39.707 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 120/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.003s, total_loss: 2.3, loss_vfl: 1.2, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.009998, ETA: 0:35:28
+2023-04-13 19:37:43.826 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 140/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.009997, ETA: 0:35:25
+2023-04-13 19:37:47.953 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 160/714, mem: 1791Mb, iter_time: 0.206s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 0.9, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.009997, ETA: 0:35:22
+2023-04-13 19:37:51.894 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 180/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.3, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.009996, ETA: 0:35:16
+2023-04-13 19:37:56.056 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 200/714, mem: 1791Mb, iter_time: 0.207s, data_time: 0.002s, total_loss: 2.5, loss_vfl: 1.5, loss_bbox: 0.6, loss_dfl: 0.4, lr: 0.009995, ETA: 0:35:14
+2023-04-13 19:38:00.026 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 220/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 3.4, loss_vfl: 1.9, loss_bbox: 0.9, loss_dfl: 0.7, lr: 0.009994, ETA: 0:35:09
+2023-04-13 19:38:04.057 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 240/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 2.8, loss_vfl: 1.6, loss_bbox: 0.6, loss_dfl: 0.6, lr: 0.009992, ETA: 0:35:05
+2023-04-13 19:38:07.940 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 260/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 2.6, loss_vfl: 1.7, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.009991, ETA: 0:34:59
+2023-04-13 19:38:12.169 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 280/714, mem: 1791Mb, iter_time: 0.210s, data_time: 0.002s, total_loss: 2.4, loss_vfl: 1.3, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.009989, ETA: 0:34:57
+2023-04-13 19:38:16.269 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 300/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 1.0, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.009988, ETA: 0:34:54
+2023-04-13 19:38:20.225 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 320/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 2.6, loss_vfl: 1.5, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.009986, ETA: 0:34:49
+2023-04-13 19:38:24.323 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 340/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 2.3, loss_vfl: 1.4, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.009985, ETA: 0:34:45
+2023-04-13 19:38:28.436 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 360/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.6, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.009983, ETA: 0:34:42
+2023-04-13 19:38:32.492 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 380/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.003s, total_loss: 2.0, loss_vfl: 1.1, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.009981, ETA: 0:34:38
+2023-04-13 19:38:36.551 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 400/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 2.3, loss_vfl: 1.2, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.009979, ETA: 0:34:34
+2023-04-13 19:38:40.468 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 420/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.1, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.009976, ETA: 0:34:29
+2023-04-13 19:38:44.351 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 440/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.001s, total_loss: 2.6, loss_vfl: 1.5, loss_bbox: 0.7, loss_dfl: 0.5, lr: 0.009974, ETA: 0:34:24
+2023-04-13 19:38:48.250 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 460/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 2.6, loss_vfl: 1.5, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.009972, ETA: 0:34:19
+2023-04-13 19:38:51.998 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 480/714, mem: 1791Mb, iter_time: 0.187s, data_time: 0.002s, total_loss: 3.1, loss_vfl: 1.8, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.009969, ETA: 0:34:12
+2023-04-13 19:38:56.096 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 500/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 2.3, loss_vfl: 1.1, loss_bbox: 0.7, loss_dfl: 0.5, lr: 0.009967, ETA: 0:34:09
+2023-04-13 19:38:59.922 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 520/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 2.8, loss_vfl: 1.8, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.009964, ETA: 0:34:03
+2023-04-13 19:39:03.940 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 540/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 3.1, loss_vfl: 1.8, loss_bbox: 0.8, loss_dfl: 0.6, lr: 0.009961, ETA: 0:33:59
+2023-04-13 19:39:07.770 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 560/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.009958, ETA: 0:33:53
+2023-04-13 19:39:11.623 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 580/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.3, lr: 0.009955, ETA: 0:33:48
+2023-04-13 19:39:15.484 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 600/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 2.9, loss_vfl: 1.8, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.009952, ETA: 0:33:43
+2023-04-13 19:39:19.348 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 620/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 2.6, loss_vfl: 1.7, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.009949, ETA: 0:33:37
+2023-04-13 19:39:23.296 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 640/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 3.5, loss_vfl: 1.9, loss_bbox: 0.9, loss_dfl: 0.7, lr: 0.009945, ETA: 0:33:33
+2023-04-13 19:39:27.211 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 660/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.009942, ETA: 0:33:28
+2023-04-13 19:39:30.935 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 680/714, mem: 1791Mb, iter_time: 0.185s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.1, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.009938, ETA: 0:33:22
+2023-04-13 19:39:34.830 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 2/16, iter: 700/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.003s, total_loss: 2.9, loss_vfl: 1.7, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.009934, ETA: 0:33:17
+2023-04-13 19:39:37.650 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 19:41:01.179 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:684 - Evaluate in main process...
+2023-04-13 19:41:08.912 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:717 - Loading and preparing results...
+2023-04-13 19:41:13.067 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:717 - DONE (t=4.15s)
+2023-04-13 19:41:13.068 | INFO     | pycocotools.coco:loadRes:366 - creating index...
+2023-04-13 19:41:13.325 | INFO     | pycocotools.coco:loadRes:366 - index created!
+2023-04-13 19:41:13.334 | WARNING  | mmdet.evaluators.coco_evaluator:evaluate_prediction:723 - Use standard COCOeval.
+2023-04-13 19:41:13.335 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - Running per image evaluation...
+2023-04-13 19:41:13.335 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - Evaluate annotation type *bbox*
+2023-04-13 19:41:34.261 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - DONE (t=20.93s).
+2023-04-13 19:41:34.261 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:727 - Accumulating evaluation results...
+2023-04-13 19:41:43.133 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:727 - DONE (t=8.87s).
+2023-04-13 19:41:44.045 | INFO     | mmdet.core.trainer:evaluate_and_save_model:838 -
+Average forward time: 19.72 ms, Average NMS time: 0.01 ms, Average inference time: 19.73 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.342
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.524
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.363
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.049
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.154
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.436
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.348
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.512
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.541
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.121
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.335
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.638
+per class AP:
+| class       | AP     | class       | AP     | class   | AP     |
+|:------------|:-------|:------------|:-------|:--------|:-------|
+| aeroplane   | 49.732 | bicycle     | 30.556 | bird    | 30.207 |
+| boat        | 22.665 | bottle      | 22.364 | bus     | 56.329 |
+| car         | 42.113 | cat         | 49.518 | chair   | 20.190 |
+| cow         | 20.476 | diningtable | 28.130 | dog     | 36.735 |
+| horse       | 38.728 | motorbike   | 39.211 | person  | 43.084 |
+| pottedplant | 15.671 | sheep       | 32.331 | sofa    | 25.809 |
+| train       | 44.085 | tvmonitor   | 36.116 |         |        |
+per class AR:
+| class       | AR     | class       | AR     | class   | AR     |
+|:------------|:-------|:------------|:-------|:--------|:-------|
+| aeroplane   | 63.409 | bicycle     | 51.158 | bird    | 51.463 |
+| boat        | 45.601 | bottle      | 43.902 | bus     | 66.406 |
+| car         | 57.673 | cat         | 68.204 | chair   | 50.794 |
+| cow         | 42.305 | diningtable | 48.396 | dog     | 56.649 |
+| horse       | 51.716 | motorbike   | 52.846 | person  | 59.765 |
+| pottedplant | 42.030 | sheep       | 60.660 | sofa    | 51.938 |
+| train       | 61.064 | tvmonitor   | 56.667 |         |        |
+
+2023-04-13 19:41:44.128 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 19:41:44.235 | INFO     | mmdet.core.trainer:before_epoch:667 - ---> start train epoch3
+2023-04-13 19:41:48.056 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 20/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.001s, total_loss: 2.2, loss_vfl: 1.4, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.009928, ETA: 0:33:08
+2023-04-13 19:41:51.617 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 40/714, mem: 1791Mb, iter_time: 0.177s, data_time: 0.002s, total_loss: 2.1, loss_vfl: 1.4, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.009924, ETA: 0:33:01
+2023-04-13 19:41:55.219 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 60/714, mem: 1791Mb, iter_time: 0.179s, data_time: 0.002s, total_loss: 4.7, loss_vfl: 2.5, loss_bbox: 1.3, loss_dfl: 0.9, lr: 0.009920, ETA: 0:32:55
+2023-04-13 19:41:58.990 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 80/714, mem: 1791Mb, iter_time: 0.188s, data_time: 0.002s, total_loss: 3.0, loss_vfl: 1.7, loss_bbox: 0.8, loss_dfl: 0.5, lr: 0.009916, ETA: 0:32:49
+2023-04-13 19:42:02.810 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 100/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.009911, ETA: 0:32:44
+2023-04-13 19:42:06.812 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 120/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 3.4, loss_vfl: 1.8, loss_bbox: 0.9, loss_dfl: 0.7, lr: 0.009907, ETA: 0:32:40
+2023-04-13 19:42:10.804 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 140/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 3.0, loss_vfl: 1.4, loss_bbox: 0.9, loss_dfl: 0.7, lr: 0.009903, ETA: 0:32:36
+2023-04-13 19:42:14.943 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 160/714, mem: 1791Mb, iter_time: 0.206s, data_time: 0.002s, total_loss: 3.2, loss_vfl: 1.9, loss_bbox: 0.6, loss_dfl: 0.6, lr: 0.009898, ETA: 0:32:33
+2023-04-13 19:42:19.033 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 180/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.7, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.009893, ETA: 0:32:30
+2023-04-13 19:42:23.144 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 200/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.002s, total_loss: 2.7, loss_vfl: 1.5, loss_bbox: 0.7, loss_dfl: 0.5, lr: 0.009888, ETA: 0:32:27
+2023-04-13 19:42:27.124 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 220/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 1.0, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.009883, ETA: 0:32:22
+2023-04-13 19:42:31.262 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 240/714, mem: 1791Mb, iter_time: 0.206s, data_time: 0.002s, total_loss: 2.9, loss_vfl: 1.5, loss_bbox: 0.7, loss_dfl: 0.7, lr: 0.009878, ETA: 0:32:19
+2023-04-13 19:42:35.132 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 260/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.2, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.009873, ETA: 0:32:15
+2023-04-13 19:42:39.269 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 280/714, mem: 1791Mb, iter_time: 0.206s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.5, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.009868, ETA: 0:32:11
+2023-04-13 19:42:43.373 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 300/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 2.3, loss_vfl: 1.2, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.009863, ETA: 0:32:08
+2023-04-13 19:42:47.372 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 320/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 0.9, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.009857, ETA: 0:32:04
+2023-04-13 19:42:51.441 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 340/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 2.1, loss_vfl: 1.3, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.009852, ETA: 0:32:00
+2023-04-13 19:42:55.703 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 360/714, mem: 1791Mb, iter_time: 0.212s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.009846, ETA: 0:31:58
+2023-04-13 19:42:59.799 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 380/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 2.4, loss_vfl: 1.4, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.009840, ETA: 0:31:54
+2023-04-13 19:43:03.847 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 400/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 2.4, loss_vfl: 1.5, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.009835, ETA: 0:31:51
+2023-04-13 19:43:07.809 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 420/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 3.1, loss_vfl: 1.8, loss_bbox: 0.7, loss_dfl: 0.5, lr: 0.009829, ETA: 0:31:46
+2023-04-13 19:43:11.833 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 440/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.003s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.3, lr: 0.009823, ETA: 0:31:43
+2023-04-13 19:43:15.956 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 460/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.004s, total_loss: 1.7, loss_vfl: 1.1, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.009816, ETA: 0:31:39
+2023-04-13 19:43:19.809 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 480/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.003s, total_loss: 0.9, loss_vfl: 0.5, loss_bbox: 0.2, loss_dfl: 0.2, lr: 0.009810, ETA: 0:31:34
+2023-04-13 19:43:23.722 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 500/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 3.0, loss_vfl: 1.9, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.009804, ETA: 0:31:30
+2023-04-13 19:43:27.838 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 520/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.002s, total_loss: 2.3, loss_vfl: 1.3, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.009797, ETA: 0:31:27
+2023-04-13 19:43:31.862 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 540/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 2.5, loss_vfl: 1.4, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.009791, ETA: 0:31:23
+2023-04-13 19:43:35.793 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 560/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 2.9, loss_vfl: 1.5, loss_bbox: 0.8, loss_dfl: 0.6, lr: 0.009784, ETA: 0:31:18
+2023-04-13 19:43:39.686 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 580/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 2.4, loss_vfl: 1.4, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.009777, ETA: 0:31:14
+2023-04-13 19:43:43.755 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 600/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 2.4, loss_vfl: 1.3, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.009770, ETA: 0:31:10
+2023-04-13 19:43:47.572 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 620/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.002s, total_loss: 2.9, loss_vfl: 1.7, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.009763, ETA: 0:31:05
+2023-04-13 19:43:51.380 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 640/714, mem: 1791Mb, iter_time: 0.189s, data_time: 0.002s, total_loss: 2.6, loss_vfl: 1.4, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.009756, ETA: 0:31:01
+2023-04-13 19:43:55.324 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 660/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.009749, ETA: 0:30:56
+2023-04-13 19:43:59.498 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 680/714, mem: 1791Mb, iter_time: 0.208s, data_time: 0.002s, total_loss: 3.0, loss_vfl: 1.7, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.009742, ETA: 0:30:53
+2023-04-13 19:44:03.589 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 3/16, iter: 700/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.5, loss_bbox: 0.2, loss_dfl: 0.2, lr: 0.009734, ETA: 0:30:50
+2023-04-13 19:44:06.519 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 19:44:06.688 | INFO     | mmdet.core.trainer:before_epoch:667 - ---> start train epoch4
+2023-04-13 19:44:10.749 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 20/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 3.1, loss_vfl: 1.7, loss_bbox: 0.8, loss_dfl: 0.6, lr: 0.009722, ETA: 0:30:43
+2023-04-13 19:44:14.743 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 40/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 2.4, loss_vfl: 1.4, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.009714, ETA: 0:30:39
+2023-04-13 19:44:18.829 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 60/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.009706, ETA: 0:30:35
+2023-04-13 19:44:22.921 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 80/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.2, lr: 0.009698, ETA: 0:30:32
+2023-04-13 19:44:26.997 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 100/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 0.5, loss_vfl: 0.3, loss_bbox: 0.1, loss_dfl: 0.1, lr: 0.009690, ETA: 0:30:28
+2023-04-13 19:44:31.151 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 120/714, mem: 1791Mb, iter_time: 0.206s, data_time: 0.002s, total_loss: 2.1, loss_vfl: 1.2, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.009682, ETA: 0:30:25
+2023-04-13 19:44:35.183 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 140/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.009674, ETA: 0:30:21
+2023-04-13 19:44:39.261 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 160/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 2.5, loss_vfl: 1.2, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.009666, ETA: 0:30:17
+2023-04-13 19:44:43.454 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 180/714, mem: 1791Mb, iter_time: 0.209s, data_time: 0.002s, total_loss: 2.9, loss_vfl: 1.5, loss_bbox: 0.8, loss_dfl: 0.6, lr: 0.009657, ETA: 0:30:14
+2023-04-13 19:44:47.449 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 200/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.009649, ETA: 0:30:10
+2023-04-13 19:44:51.534 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 220/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 2.6, loss_vfl: 1.3, loss_bbox: 0.8, loss_dfl: 0.5, lr: 0.009640, ETA: 0:30:06
+2023-04-13 19:44:55.689 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 240/714, mem: 1791Mb, iter_time: 0.207s, data_time: 0.003s, total_loss: 1.1, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.2, lr: 0.009632, ETA: 0:30:03
+2023-04-13 19:44:59.753 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 260/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 2.9, loss_vfl: 1.6, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.009623, ETA: 0:29:59
+2023-04-13 19:45:03.752 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 280/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 2.6, loss_vfl: 1.6, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.009614, ETA: 0:29:55
+2023-04-13 19:45:07.875 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 300/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.002s, total_loss: 2.5, loss_vfl: 1.5, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.009605, ETA: 0:29:51
+2023-04-13 19:45:11.742 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 320/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.2, lr: 0.009596, ETA: 0:29:47
+2023-04-13 19:45:15.640 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 340/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.3, lr: 0.009587, ETA: 0:29:42
+2023-04-13 19:45:19.752 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 360/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.002s, total_loss: 2.7, loss_vfl: 1.5, loss_bbox: 0.6, loss_dfl: 0.6, lr: 0.009577, ETA: 0:29:39
+2023-04-13 19:45:23.592 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 380/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 1.0, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.009568, ETA: 0:29:34
+2023-04-13 19:45:27.602 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 400/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 2.8, loss_vfl: 1.7, loss_bbox: 0.7, loss_dfl: 0.5, lr: 0.009559, ETA: 0:29:30
+2023-04-13 19:45:31.461 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 420/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.009549, ETA: 0:29:26
+2023-04-13 19:45:35.359 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 440/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.0, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.009539, ETA: 0:29:21
+2023-04-13 19:45:39.507 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 460/714, mem: 1791Mb, iter_time: 0.206s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.009530, ETA: 0:29:18
+2023-04-13 19:45:43.488 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 480/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.003s, total_loss: 3.4, loss_vfl: 2.0, loss_bbox: 0.9, loss_dfl: 0.6, lr: 0.009520, ETA: 0:29:14
+2023-04-13 19:45:47.331 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 500/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 3.2, loss_vfl: 1.9, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.009510, ETA: 0:29:09
+2023-04-13 19:45:51.262 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 520/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.009500, ETA: 0:29:05
+2023-04-13 19:45:55.338 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 540/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.009490, ETA: 0:29:01
+2023-04-13 19:45:59.255 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 560/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 2.9, loss_vfl: 1.6, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.009479, ETA: 0:28:57
+2023-04-13 19:46:03.218 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 580/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.3, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.009469, ETA: 0:28:53
+2023-04-13 19:46:07.475 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 600/714, mem: 1791Mb, iter_time: 0.212s, data_time: 0.002s, total_loss: 3.0, loss_vfl: 1.8, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.009459, ETA: 0:28:50
+2023-04-13 19:46:11.607 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 620/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.002s, total_loss: 2.6, loss_vfl: 1.4, loss_bbox: 0.7, loss_dfl: 0.5, lr: 0.009448, ETA: 0:28:46
+2023-04-13 19:46:15.549 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 640/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.009438, ETA: 0:28:42
+2023-04-13 19:46:19.681 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 660/714, mem: 1791Mb, iter_time: 0.206s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 1.0, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.009427, ETA: 0:28:38
+2023-04-13 19:46:23.905 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 680/714, mem: 1791Mb, iter_time: 0.210s, data_time: 0.002s, total_loss: 2.6, loss_vfl: 1.3, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.009416, ETA: 0:28:35
+2023-04-13 19:46:28.082 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 4/16, iter: 700/714, mem: 1791Mb, iter_time: 0.208s, data_time: 0.002s, total_loss: 2.4, loss_vfl: 1.3, loss_bbox: 0.6, loss_dfl: 0.6, lr: 0.009405, ETA: 0:28:31
+2023-04-13 19:46:31.154 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 19:48:13.884 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:684 - Evaluate in main process...
+2023-04-13 19:48:23.152 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:717 - Loading and preparing results...
+2023-04-13 19:48:27.842 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:717 - DONE (t=4.69s)
+2023-04-13 19:48:27.843 | INFO     | pycocotools.coco:loadRes:366 - creating index...
+2023-04-13 19:48:28.310 | INFO     | pycocotools.coco:loadRes:366 - index created!
+2023-04-13 19:48:28.324 | WARNING  | mmdet.evaluators.coco_evaluator:evaluate_prediction:723 - Use standard COCOeval.
+2023-04-13 19:48:28.325 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - Running per image evaluation...
+2023-04-13 19:48:28.372 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - Evaluate annotation type *bbox*
+2023-04-13 19:48:59.484 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - DONE (t=31.16s).
+2023-04-13 19:48:59.485 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:727 - Accumulating evaluation results...
+2023-04-13 19:49:11.707 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:727 - DONE (t=12.22s).
+2023-04-13 19:49:12.832 | INFO     | mmdet.core.trainer:evaluate_and_save_model:838 -
+Average forward time: 24.57 ms, Average NMS time: 0.02 ms, Average inference time: 24.59 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.379
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.564
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.403
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.053
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.179
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.481
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.368
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.536
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.564
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.128
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.366
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.661
+per class AP:
+| class       | AP     | class       | AP     | class   | AP     |
+|:------------|:-------|:------------|:-------|:--------|:-------|
+| aeroplane   | 52.819 | bicycle     | 43.055 | bird    | 30.913 |
+| boat        | 24.335 | bottle      | 24.754 | bus     | 60.395 |
+| car         | 43.124 | cat         | 52.491 | chair   | 22.916 |
+| cow         | 22.767 | diningtable | 29.004 | dog     | 40.926 |
+| horse       | 42.181 | motorbike   | 43.374 | person  | 44.573 |
+| pottedplant | 18.049 | sheep       | 37.442 | sofa    | 33.512 |
+| train       | 52.530 | tvmonitor   | 38.908 |         |        |
+per class AR:
+| class       | AR     | class       | AR     | class   | AR     |
+|:------------|:-------|:------------|:-------|:--------|:-------|
+| aeroplane   | 65.599 | bicycle     | 59.316 | bird    | 52.369 |
+| boat        | 48.717 | bottle      | 44.816 | bus     | 68.406 |
+| car         | 57.280 | cat         | 66.553 | chair   | 50.787 |
+| cow         | 48.588 | diningtable | 51.043 | dog     | 60.427 |
+| horse       | 57.399 | motorbike   | 56.277 | person  | 59.977 |
+| pottedplant | 41.753 | sheep       | 59.876 | sofa    | 56.072 |
+| train       | 65.988 | tvmonitor   | 57.174 |         |        |
+
+2023-04-13 19:49:12.928 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 19:49:13.089 | INFO     | mmdet.core.trainer:before_epoch:667 - ---> start train epoch5
+2023-04-13 19:49:16.923 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 20/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.1, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.009386, ETA: 0:28:25
+2023-04-13 19:49:20.726 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 40/714, mem: 1791Mb, iter_time: 0.189s, data_time: 0.002s, total_loss: 2.8, loss_vfl: 1.4, loss_bbox: 0.8, loss_dfl: 0.6, lr: 0.009375, ETA: 0:28:20
+2023-04-13 19:49:24.462 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 60/714, mem: 1791Mb, iter_time: 0.186s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.009364, ETA: 0:28:15
+2023-04-13 19:49:28.304 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 80/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 2.4, loss_vfl: 1.2, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.009353, ETA: 0:28:11
+2023-04-13 19:49:32.267 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 100/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.009341, ETA: 0:28:07
+2023-04-13 19:49:36.374 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 120/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 3.2, loss_vfl: 1.5, loss_bbox: 0.9, loss_dfl: 0.8, lr: 0.009330, ETA: 0:28:03
+2023-04-13 19:49:40.365 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 140/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.009318, ETA: 0:27:59
+2023-04-13 19:49:44.220 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 160/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.009306, ETA: 0:27:54
+2023-04-13 19:49:48.224 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 180/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.009294, ETA: 0:27:50
+2023-04-13 19:49:52.191 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 200/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 1.0, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.009282, ETA: 0:27:46
+2023-04-13 19:49:55.921 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 220/714, mem: 1791Mb, iter_time: 0.186s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.2, lr: 0.009270, ETA: 0:27:42
+2023-04-13 19:49:59.789 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 240/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.009258, ETA: 0:27:37
+2023-04-13 19:50:03.921 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 260/714, mem: 1791Mb, iter_time: 0.206s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.7, loss_bbox: 0.4, loss_dfl: 0.3, lr: 0.009246, ETA: 0:27:34
+2023-04-13 19:50:07.663 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 280/714, mem: 1791Mb, iter_time: 0.186s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.7, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.009234, ETA: 0:27:29
+2023-04-13 19:50:11.681 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 300/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.7, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.009222, ETA: 0:27:25
+2023-04-13 19:50:15.632 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 320/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.001s, total_loss: 2.1, loss_vfl: 1.1, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.009209, ETA: 0:27:21
+2023-04-13 19:50:19.457 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 340/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.009197, ETA: 0:27:17
+2023-04-13 19:50:23.626 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 360/714, mem: 1791Mb, iter_time: 0.207s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 1.1, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.009184, ETA: 0:27:13
+2023-04-13 19:50:27.665 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 380/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.009171, ETA: 0:27:09
+2023-04-13 19:50:31.729 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 400/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 1.1, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.009158, ETA: 0:27:05
+2023-04-13 19:50:35.798 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 420/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.1, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.009145, ETA: 0:27:01
+2023-04-13 19:50:39.953 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 440/714, mem: 1791Mb, iter_time: 0.207s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.2, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.009132, ETA: 0:26:58
+2023-04-13 19:50:43.935 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 460/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.7, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.009119, ETA: 0:26:54
+2023-04-13 19:50:47.961 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 480/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.2, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.009106, ETA: 0:26:50
+2023-04-13 19:50:51.843 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 500/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.009093, ETA: 0:26:46
+2023-04-13 19:50:55.727 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 520/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.1, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.009080, ETA: 0:26:41
+2023-04-13 19:50:59.710 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 540/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.009066, ETA: 0:26:37
+2023-04-13 19:51:03.732 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 560/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.1, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.009053, ETA: 0:26:33
+2023-04-13 19:51:07.648 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 580/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.001s, total_loss: 1.8, loss_vfl: 0.9, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.009039, ETA: 0:26:29
+2023-04-13 19:51:11.810 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 600/714, mem: 1791Mb, iter_time: 0.207s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.009025, ETA: 0:26:26
+2023-04-13 19:51:15.673 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 620/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.009012, ETA: 0:26:21
+2023-04-13 19:51:19.667 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 640/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.0, loss_bbox: 0.3, loss_dfl: 0.5, lr: 0.008998, ETA: 0:26:17
+2023-04-13 19:51:23.677 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 660/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 0.9, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.008984, ETA: 0:26:13
+2023-04-13 19:51:27.652 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 680/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.2, lr: 0.008970, ETA: 0:26:09
+2023-04-13 19:51:31.454 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 5/16, iter: 700/714, mem: 1791Mb, iter_time: 0.189s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.008956, ETA: 0:26:05
+2023-04-13 19:51:34.338 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 19:51:34.455 | INFO     | mmdet.core.trainer:before_epoch:667 - ---> start train epoch6
+2023-04-13 19:51:38.475 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 20/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.008931, ETA: 0:25:58
+2023-04-13 19:51:42.338 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 40/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 2.3, loss_vfl: 1.1, loss_bbox: 0.7, loss_dfl: 0.5, lr: 0.008917, ETA: 0:25:54
+2023-04-13 19:51:46.178 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 60/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 1.0, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.008903, ETA: 0:25:50
+2023-04-13 19:51:50.032 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 80/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.001s, total_loss: 2.8, loss_vfl: 1.4, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.008888, ETA: 0:25:45
+2023-04-13 19:51:53.887 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 100/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 2.1, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.008874, ETA: 0:25:41
+2023-04-13 19:51:57.798 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 120/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.008859, ETA: 0:25:37
+2023-04-13 19:52:01.575 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 140/714, mem: 1791Mb, iter_time: 0.188s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.7, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.008844, ETA: 0:25:32
+2023-04-13 19:52:05.435 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 160/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.008829, ETA: 0:25:28
+2023-04-13 19:52:09.320 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 180/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 0.9, loss_vfl: 0.5, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.008814, ETA: 0:25:24
+2023-04-13 19:52:13.070 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 200/714, mem: 1791Mb, iter_time: 0.187s, data_time: 0.003s, total_loss: 2.2, loss_vfl: 1.2, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.008799, ETA: 0:25:20
+2023-04-13 19:52:17.227 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 220/714, mem: 1791Mb, iter_time: 0.207s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.008784, ETA: 0:25:16
+2023-04-13 19:52:21.139 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 240/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.8, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.008769, ETA: 0:25:12
+2023-04-13 19:52:25.067 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 260/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.1, loss_bbox: 0.6, loss_dfl: 0.6, lr: 0.008754, ETA: 0:25:08
+2023-04-13 19:52:28.938 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 280/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 3.5, loss_vfl: 2.1, loss_bbox: 0.7, loss_dfl: 0.7, lr: 0.008738, ETA: 0:25:03
+2023-04-13 19:52:32.944 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 300/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.003s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.2, lr: 0.008723, ETA: 0:24:59
+2023-04-13 19:52:36.664 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 320/714, mem: 1791Mb, iter_time: 0.185s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.008708, ETA: 0:24:55
+2023-04-13 19:52:40.418 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 340/714, mem: 1791Mb, iter_time: 0.187s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.008692, ETA: 0:24:51
+2023-04-13 19:52:44.211 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 360/714, mem: 1791Mb, iter_time: 0.189s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.008676, ETA: 0:24:46
+2023-04-13 19:52:48.158 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 380/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.008661, ETA: 0:24:42
+2023-04-13 19:52:52.192 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 400/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.008645, ETA: 0:24:38
+2023-04-13 19:52:55.970 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 420/714, mem: 1791Mb, iter_time: 0.188s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.008629, ETA: 0:24:34
+2023-04-13 19:53:00.106 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 440/714, mem: 1791Mb, iter_time: 0.206s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.008613, ETA: 0:24:30
+2023-04-13 19:53:04.309 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 460/714, mem: 1791Mb, iter_time: 0.209s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.7, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.008597, ETA: 0:24:27
+2023-04-13 19:53:08.276 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 480/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.008581, ETA: 0:24:23
+2023-04-13 19:53:12.261 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 500/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 2.6, loss_vfl: 1.3, loss_bbox: 0.6, loss_dfl: 0.7, lr: 0.008564, ETA: 0:24:19
+2023-04-13 19:53:16.296 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 520/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.3, lr: 0.008548, ETA: 0:24:15
+2023-04-13 19:53:20.338 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 540/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.008532, ETA: 0:24:11
+2023-04-13 19:53:24.371 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 560/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.008515, ETA: 0:24:07
+2023-04-13 19:53:28.237 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 580/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.008499, ETA: 0:24:03
+2023-04-13 19:53:32.200 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 600/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.008482, ETA: 0:23:59
+2023-04-13 19:53:36.131 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 620/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.008466, ETA: 0:23:55
+2023-04-13 19:53:40.115 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 640/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.7, loss_bbox: 0.4, loss_dfl: 0.3, lr: 0.008449, ETA: 0:23:51
+2023-04-13 19:53:44.151 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 660/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.2, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.008432, ETA: 0:23:47
+2023-04-13 19:53:48.413 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 680/714, mem: 1791Mb, iter_time: 0.212s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.0, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.008415, ETA: 0:23:43
+2023-04-13 19:53:52.617 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 6/16, iter: 700/714, mem: 1791Mb, iter_time: 0.209s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.008398, ETA: 0:23:40
+2023-04-13 19:53:55.690 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 19:55:33.362 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:684 - Evaluate in main process...
+2023-04-13 19:55:42.395 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:717 - Loading and preparing results...
+2023-04-13 19:55:46.525 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:717 - DONE (t=4.13s)
+2023-04-13 19:55:46.526 | INFO     | pycocotools.coco:loadRes:366 - creating index...
+2023-04-13 19:55:46.909 | INFO     | pycocotools.coco:loadRes:366 - index created!
+2023-04-13 19:55:46.920 | WARNING  | mmdet.evaluators.coco_evaluator:evaluate_prediction:723 - Use standard COCOeval.
+2023-04-13 19:55:46.920 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - Running per image evaluation...
+2023-04-13 19:55:46.921 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - Evaluate annotation type *bbox*
+2023-04-13 19:56:16.909 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - DONE (t=29.99s).
+2023-04-13 19:56:16.910 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:727 - Accumulating evaluation results...
+2023-04-13 19:56:27.925 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:727 - DONE (t=11.01s).
+2023-04-13 19:56:29.108 | INFO     | mmdet.core.trainer:evaluate_and_save_model:838 -
+Average forward time: 24.14 ms, Average NMS time: 0.02 ms, Average inference time: 24.15 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.416
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.604
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.444
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.054
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.202
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.526
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.398
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.578
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.607
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.154
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.410
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.710
+per class AP:
+| class       | AP     | class       | AP     | class   | AP     |
+|:------------|:-------|:------------|:-------|:--------|:-------|
+| aeroplane   | 55.724 | bicycle     | 43.737 | bird    | 36.126 |
+| boat        | 27.657 | bottle      | 26.885 | bus     | 62.199 |
+| car         | 45.856 | cat         | 58.752 | chair   | 25.048 |
+| cow         | 31.862 | diningtable | 32.116 | dog     | 47.817 |
+| horse       | 43.810 | motorbike   | 45.306 | person  | 47.502 |
+| pottedplant | 21.259 | sheep       | 42.167 | sofa    | 39.800 |
+| train       | 55.734 | tvmonitor   | 43.018 |         |        |
+per class AR:
+| class       | AR     | class       | AR     | class   | AR     |
+|:------------|:-------|:------------|:-------|:--------|:-------|
+| aeroplane   | 66.694 | bicycle     | 61.579 | bird    | 54.610 |
+| boat        | 50.957 | bottle      | 47.340 | bus     | 70.375 |
+| car         | 58.738 | cat         | 72.427 | chair   | 55.742 |
+| cow         | 60.692 | diningtable | 53.396 | dog     | 67.296 |
+| horse       | 62.225 | motorbike   | 61.649 | person  | 62.151 |
+| pottedplant | 46.587 | sheep       | 61.093 | sofa    | 65.917 |
+| train       | 71.003 | tvmonitor   | 63.744 |         |        |
+
+2023-04-13 19:56:29.275 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 19:56:29.498 | INFO     | mmdet.core.trainer:before_epoch:667 - ---> start train epoch7
+2023-04-13 19:56:33.387 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 20/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.2, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.008369, ETA: 0:23:33
+2023-04-13 19:56:37.372 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 40/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.008352, ETA: 0:23:29
+2023-04-13 19:56:41.461 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 60/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.5, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.008335, ETA: 0:23:25
+2023-04-13 19:56:45.443 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 80/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 0.8, loss_vfl: 0.5, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.008318, ETA: 0:23:21
+2023-04-13 19:56:49.403 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 100/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.008300, ETA: 0:23:17
+2023-04-13 19:56:53.454 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 120/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 2.3, loss_vfl: 1.1, loss_bbox: 0.6, loss_dfl: 0.6, lr: 0.008283, ETA: 0:23:13
+2023-04-13 19:56:57.251 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 140/714, mem: 1791Mb, iter_time: 0.189s, data_time: 0.001s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.008265, ETA: 0:23:09
+2023-04-13 19:57:00.938 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 160/714, mem: 1791Mb, iter_time: 0.183s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.8, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.008248, ETA: 0:23:05
+2023-04-13 19:57:04.633 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 180/714, mem: 1791Mb, iter_time: 0.184s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.1, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.008230, ETA: 0:23:00
+2023-04-13 19:57:08.523 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 200/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 0.8, loss_vfl: 0.5, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.008212, ETA: 0:22:56
+2023-04-13 19:57:12.311 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 220/714, mem: 1791Mb, iter_time: 0.188s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 0.9, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.008195, ETA: 0:22:52
+2023-04-13 19:57:16.119 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 240/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.001s, total_loss: 1.9, loss_vfl: 1.2, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.008177, ETA: 0:22:48
+2023-04-13 19:57:19.873 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 260/714, mem: 1791Mb, iter_time: 0.187s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.2, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.008159, ETA: 0:22:43
+2023-04-13 19:57:23.745 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 280/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 0.9, loss_vfl: 0.6, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.008141, ETA: 0:22:39
+2023-04-13 19:57:27.627 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 300/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.008123, ETA: 0:22:35
+2023-04-13 19:57:31.393 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 320/714, mem: 1791Mb, iter_time: 0.187s, data_time: 0.001s, total_loss: 1.6, loss_vfl: 0.8, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.008105, ETA: 0:22:31
+2023-04-13 19:57:35.270 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 340/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 0.8, loss_vfl: 0.4, loss_bbox: 0.2, loss_dfl: 0.2, lr: 0.008087, ETA: 0:22:27
+2023-04-13 19:57:38.958 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 360/714, mem: 1791Mb, iter_time: 0.184s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.7, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.008068, ETA: 0:22:22
+2023-04-13 19:57:42.776 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 380/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.008050, ETA: 0:22:18
+2023-04-13 19:57:46.634 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 400/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 2.3, loss_vfl: 1.5, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.008032, ETA: 0:22:14
+2023-04-13 19:57:50.543 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 420/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.3, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.008013, ETA: 0:22:10
+2023-04-13 19:57:54.418 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 440/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.8, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.007995, ETA: 0:22:06
+2023-04-13 19:57:58.212 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 460/714, mem: 1791Mb, iter_time: 0.189s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.1, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.007976, ETA: 0:22:02
+2023-04-13 19:58:01.543 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 480/714, mem: 1791Mb, iter_time: 0.166s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.007957, ETA: 0:21:57
+2023-04-13 19:58:05.209 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 500/714, mem: 1791Mb, iter_time: 0.183s, data_time: 0.001s, total_loss: 1.9, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.007939, ETA: 0:21:52
+2023-04-13 19:58:08.748 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 520/714, mem: 1791Mb, iter_time: 0.176s, data_time: 0.002s, total_loss: 2.3, loss_vfl: 1.2, loss_bbox: 0.5, loss_dfl: 0.6, lr: 0.007920, ETA: 0:21:48
+2023-04-13 19:58:12.257 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 540/714, mem: 1791Mb, iter_time: 0.175s, data_time: 0.002s, total_loss: 0.7, loss_vfl: 0.4, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.007901, ETA: 0:21:43
+2023-04-13 19:58:15.839 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 560/714, mem: 1791Mb, iter_time: 0.178s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.007882, ETA: 0:21:39
+2023-04-13 19:58:19.363 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 580/714, mem: 1791Mb, iter_time: 0.175s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.007863, ETA: 0:21:34
+2023-04-13 19:58:22.601 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 600/714, mem: 1791Mb, iter_time: 0.161s, data_time: 0.001s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.007844, ETA: 0:21:29
+2023-04-13 19:58:26.095 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 620/714, mem: 1791Mb, iter_time: 0.174s, data_time: 0.001s, total_loss: 2.7, loss_vfl: 1.4, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.007825, ETA: 0:21:25
+2023-04-13 19:58:29.415 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 640/714, mem: 1791Mb, iter_time: 0.165s, data_time: 0.001s, total_loss: 1.2, loss_vfl: 0.7, loss_bbox: 0.1, loss_dfl: 0.3, lr: 0.007806, ETA: 0:21:20
+2023-04-13 19:58:32.680 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 660/714, mem: 1791Mb, iter_time: 0.162s, data_time: 0.001s, total_loss: 1.2, loss_vfl: 0.6, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.007787, ETA: 0:21:15
+2023-04-13 19:58:36.417 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 680/714, mem: 1791Mb, iter_time: 0.186s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.007768, ETA: 0:21:11
+2023-04-13 19:58:40.013 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 7/16, iter: 700/714, mem: 1791Mb, iter_time: 0.179s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.007748, ETA: 0:21:06
+2023-04-13 19:58:42.946 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 19:58:43.076 | INFO     | mmdet.core.trainer:before_epoch:667 - ---> start train epoch8
+2023-04-13 19:58:46.954 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 20/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.3, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.007715, ETA: 0:21:00
+2023-04-13 19:58:50.730 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 40/714, mem: 1791Mb, iter_time: 0.188s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.007696, ETA: 0:20:55
+2023-04-13 19:58:54.534 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 60/714, mem: 1791Mb, iter_time: 0.189s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.1, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.007676, ETA: 0:20:51
+2023-04-13 19:58:58.193 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 80/714, mem: 1791Mb, iter_time: 0.182s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.6, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.007657, ETA: 0:20:47
+2023-04-13 19:59:01.819 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 100/714, mem: 1791Mb, iter_time: 0.180s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.1, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.007637, ETA: 0:20:43
+2023-04-13 19:59:05.478 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 120/714, mem: 1791Mb, iter_time: 0.182s, data_time: 0.002s, total_loss: 0.7, loss_vfl: 0.5, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.007617, ETA: 0:20:38
+2023-04-13 19:59:09.474 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 140/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.001s, total_loss: 2.4, loss_vfl: 1.2, loss_bbox: 0.6, loss_dfl: 0.6, lr: 0.007598, ETA: 0:20:35
+2023-04-13 19:59:13.389 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 160/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.001s, total_loss: 2.3, loss_vfl: 1.1, loss_bbox: 0.6, loss_dfl: 0.6, lr: 0.007578, ETA: 0:20:31
+2023-04-13 19:59:17.086 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 180/714, mem: 1791Mb, iter_time: 0.184s, data_time: 0.001s, total_loss: 1.9, loss_vfl: 0.8, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.007558, ETA: 0:20:26
+2023-04-13 19:59:20.638 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 200/714, mem: 1791Mb, iter_time: 0.177s, data_time: 0.001s, total_loss: 1.9, loss_vfl: 1.1, loss_bbox: 0.3, loss_dfl: 0.5, lr: 0.007538, ETA: 0:20:22
+2023-04-13 19:59:24.497 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 220/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.001s, total_loss: 1.4, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.007518, ETA: 0:20:18
+2023-04-13 19:59:28.479 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 240/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.001s, total_loss: 1.4, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.007498, ETA: 0:20:14
+2023-04-13 19:59:32.419 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 260/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.001s, total_loss: 1.7, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.5, lr: 0.007478, ETA: 0:20:10
+2023-04-13 19:59:36.402 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 280/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.001s, total_loss: 1.7, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.007458, ETA: 0:20:06
+2023-04-13 19:59:40.246 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 300/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.007438, ETA: 0:20:02
+2023-04-13 19:59:44.044 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 320/714, mem: 1791Mb, iter_time: 0.189s, data_time: 0.001s, total_loss: 1.8, loss_vfl: 0.9, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.007417, ETA: 0:19:58
+2023-04-13 19:59:48.014 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 340/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.001s, total_loss: 1.9, loss_vfl: 0.9, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.007397, ETA: 0:19:54
+2023-04-13 19:59:51.881 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 360/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.001s, total_loss: 1.2, loss_vfl: 0.6, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.007377, ETA: 0:19:50
+2023-04-13 19:59:56.033 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 380/714, mem: 1791Mb, iter_time: 0.207s, data_time: 0.001s, total_loss: 1.8, loss_vfl: 1.1, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.007356, ETA: 0:19:47
+2023-04-13 19:59:59.905 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 400/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 3.2, loss_vfl: 1.7, loss_bbox: 0.8, loss_dfl: 0.7, lr: 0.007336, ETA: 0:19:43
+2023-04-13 20:00:03.552 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 420/714, mem: 1791Mb, iter_time: 0.181s, data_time: 0.001s, total_loss: 1.4, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.007315, ETA: 0:19:38
+2023-04-13 20:00:07.046 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 440/714, mem: 1791Mb, iter_time: 0.174s, data_time: 0.001s, total_loss: 1.7, loss_vfl: 0.8, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.007295, ETA: 0:19:34
+2023-04-13 20:00:10.604 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 460/714, mem: 1791Mb, iter_time: 0.177s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 1.1, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.007274, ETA: 0:19:30
+2023-04-13 20:00:14.302 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 480/714, mem: 1791Mb, iter_time: 0.184s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.007254, ETA: 0:19:25
+2023-04-13 20:00:18.092 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 500/714, mem: 1791Mb, iter_time: 0.188s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 1.1, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.007233, ETA: 0:19:21
+2023-04-13 20:00:21.976 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 520/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.0, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.007212, ETA: 0:19:17
+2023-04-13 20:00:25.756 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 540/714, mem: 1791Mb, iter_time: 0.188s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.2, lr: 0.007191, ETA: 0:19:13
+2023-04-13 20:00:29.611 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 560/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 2.9, loss_vfl: 1.4, loss_bbox: 0.8, loss_dfl: 0.7, lr: 0.007170, ETA: 0:19:09
+2023-04-13 20:00:33.463 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 580/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.2, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.007150, ETA: 0:19:05
+2023-04-13 20:00:37.518 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 600/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.007129, ETA: 0:19:01
+2023-04-13 20:00:41.483 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 620/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.007108, ETA: 0:18:57
+2023-04-13 20:00:45.308 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 640/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.002s, total_loss: 2.4, loss_vfl: 1.3, loss_bbox: 0.6, loss_dfl: 0.4, lr: 0.007087, ETA: 0:18:53
+2023-04-13 20:00:49.314 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 660/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.007066, ETA: 0:18:50
+2023-04-13 20:00:53.276 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 680/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.007044, ETA: 0:18:46
+2023-04-13 20:00:57.038 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 8/16, iter: 700/714, mem: 1791Mb, iter_time: 0.187s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.007023, ETA: 0:18:42
+2023-04-13 20:00:59.979 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 20:02:39.752 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:684 - Evaluate in main process...
+2023-04-13 20:02:48.555 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:717 - Loading and preparing results...
+2023-04-13 20:02:53.050 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:717 - DONE (t=4.49s)
+2023-04-13 20:02:53.051 | INFO     | pycocotools.coco:loadRes:366 - creating index...
+2023-04-13 20:02:53.362 | INFO     | pycocotools.coco:loadRes:366 - index created!
+2023-04-13 20:02:53.370 | WARNING  | mmdet.evaluators.coco_evaluator:evaluate_prediction:723 - Use standard COCOeval.
+2023-04-13 20:02:53.371 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - Running per image evaluation...
+2023-04-13 20:02:53.372 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - Evaluate annotation type *bbox*
+2023-04-13 20:03:21.305 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - DONE (t=27.93s).
+2023-04-13 20:03:21.306 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:727 - Accumulating evaluation results...
+2023-04-13 20:03:32.692 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:727 - DONE (t=11.39s).
+2023-04-13 20:03:33.829 | INFO     | mmdet.core.trainer:evaluate_and_save_model:838 -
+Average forward time: 24.66 ms, Average NMS time: 0.02 ms, Average inference time: 24.68 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.435
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.622
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.461
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.058
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.215
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.550
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.407
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.591
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.619
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.165
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.427
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.724
+per class AP:
+| class       | AP     | class       | AP     | class   | AP     |
+|:------------|:-------|:------------|:-------|:--------|:-------|
+| aeroplane   | 55.500 | bicycle     | 43.214 | bird    | 38.190 |
+| boat        | 28.727 | bottle      | 27.774 | bus     | 65.286 |
+| car         | 47.110 | cat         | 62.772 | chair   | 27.664 |
+| cow         | 34.897 | diningtable | 34.773 | dog     | 49.337 |
+| horse       | 46.941 | motorbike   | 48.135 | person  | 48.278 |
+| pottedplant | 22.607 | sheep       | 46.247 | sofa    | 40.838 |
+| train       | 58.498 | tvmonitor   | 43.684 |         |        |
+per class AR:
+| class       | AR     | class       | AR     | class   | AR     |
+|:------------|:-------|:------------|:-------|:--------|:-------|
+| aeroplane   | 66.467 | bicycle     | 61.789 | bird    | 55.866 |
+| boat        | 51.446 | bottle      | 48.472 | bus     | 73.625 |
+| car         | 59.676 | cat         | 77.654 | chair   | 57.260 |
+| cow         | 60.288 | diningtable | 54.572 | dog     | 68.292 |
+| horse       | 64.236 | motorbike   | 63.590 | person  | 62.294 |
+| pottedplant | 47.694 | sheep       | 62.309 | sofa    | 67.313 |
+| train       | 71.003 | tvmonitor   | 63.406 |         |        |
+
+2023-04-13 20:03:33.945 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 20:03:34.153 | INFO     | mmdet.core.trainer:before_epoch:667 - ---> start train epoch9
+2023-04-13 20:03:37.869 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 20/714, mem: 1791Mb, iter_time: 0.185s, data_time: 0.003s, total_loss: 1.8, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.006987, ETA: 0:18:35
+2023-04-13 20:03:41.705 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 40/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.8, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.006966, ETA: 0:18:31
+2023-04-13 20:03:45.670 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 60/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 2.6, loss_vfl: 1.3, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.006945, ETA: 0:18:27
+2023-04-13 20:03:49.661 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 80/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.006923, ETA: 0:18:23
+2023-04-13 20:03:53.743 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 100/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.8, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.006902, ETA: 0:18:19
+2023-04-13 20:03:57.906 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 120/714, mem: 1791Mb, iter_time: 0.207s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.006880, ETA: 0:18:15
+2023-04-13 20:04:02.174 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 140/714, mem: 1791Mb, iter_time: 0.212s, data_time: 0.002s, total_loss: 0.8, loss_vfl: 0.5, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.006859, ETA: 0:18:12
+2023-04-13 20:04:06.429 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 160/714, mem: 1791Mb, iter_time: 0.212s, data_time: 0.003s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.3, lr: 0.006837, ETA: 0:18:08
+2023-04-13 20:04:10.472 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 180/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.006816, ETA: 0:18:04
+2023-04-13 20:04:14.589 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 200/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.8, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.006794, ETA: 0:18:01
+2023-04-13 20:04:18.566 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 220/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.001s, total_loss: 1.4, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.006773, ETA: 0:17:57
+2023-04-13 20:04:22.538 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 240/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.2, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.006751, ETA: 0:17:53
+2023-04-13 20:04:26.468 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 260/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 2.1, loss_vfl: 1.2, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.006729, ETA: 0:17:49
+2023-04-13 20:04:30.505 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 280/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.0, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.006708, ETA: 0:17:45
+2023-04-13 20:04:34.556 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 300/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.006686, ETA: 0:17:41
+2023-04-13 20:04:38.708 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 320/714, mem: 1791Mb, iter_time: 0.207s, data_time: 0.002s, total_loss: 0.9, loss_vfl: 0.5, loss_bbox: 0.2, loss_dfl: 0.2, lr: 0.006664, ETA: 0:17:37
+2023-04-13 20:04:42.736 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 340/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.006642, ETA: 0:17:34
+2023-04-13 20:04:46.754 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 360/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.8, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.006620, ETA: 0:17:30
+2023-04-13 20:04:50.849 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 380/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.006598, ETA: 0:17:26
+2023-04-13 20:04:54.846 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 400/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 2.3, loss_vfl: 1.5, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.006576, ETA: 0:17:22
+2023-04-13 20:04:58.898 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 420/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.3, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.006554, ETA: 0:17:18
+2023-04-13 20:05:02.953 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 440/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.3, lr: 0.006532, ETA: 0:17:14
+2023-04-13 20:05:07.052 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 460/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.006510, ETA: 0:17:11
+2023-04-13 20:05:11.024 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 480/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.3, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.006488, ETA: 0:17:07
+2023-04-13 20:05:14.810 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 500/714, mem: 1791Mb, iter_time: 0.188s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.006466, ETA: 0:17:03
+2023-04-13 20:05:18.505 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 520/714, mem: 1791Mb, iter_time: 0.184s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.006444, ETA: 0:16:59
+2023-04-13 20:05:22.528 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 540/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.8, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.006422, ETA: 0:16:55
+2023-04-13 20:05:26.485 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 560/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.006399, ETA: 0:16:51
+2023-04-13 20:05:30.387 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 580/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.006377, ETA: 0:16:47
+2023-04-13 20:05:34.317 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 600/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 2.6, loss_vfl: 1.3, loss_bbox: 0.7, loss_dfl: 0.7, lr: 0.006355, ETA: 0:16:43
+2023-04-13 20:05:38.163 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 620/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.006333, ETA: 0:16:39
+2023-04-13 20:05:41.970 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 640/714, mem: 1791Mb, iter_time: 0.189s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.3, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.006310, ETA: 0:16:35
+2023-04-13 20:05:45.722 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 660/714, mem: 1791Mb, iter_time: 0.187s, data_time: 0.002s, total_loss: 2.1, loss_vfl: 1.0, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.006288, ETA: 0:16:31
+2023-04-13 20:05:49.588 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 680/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.8, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.006266, ETA: 0:16:27
+2023-04-13 20:05:53.431 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 9/16, iter: 700/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 0.6, loss_vfl: 0.3, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.006243, ETA: 0:16:23
+2023-04-13 20:05:56.269 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 20:05:56.456 | INFO     | mmdet.core.trainer:before_epoch:667 - ---> start train epoch10
+2023-04-13 20:06:00.160 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 20/714, mem: 1791Mb, iter_time: 0.184s, data_time: 0.003s, total_loss: 1.0, loss_vfl: 0.5, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.006205, ETA: 0:16:16
+2023-04-13 20:06:04.061 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 40/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.2, lr: 0.006182, ETA: 0:16:12
+2023-04-13 20:06:08.147 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 60/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.5, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.006160, ETA: 0:16:08
+2023-04-13 20:06:12.298 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 80/714, mem: 1791Mb, iter_time: 0.206s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.006137, ETA: 0:16:04
+2023-04-13 20:06:16.358 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 100/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.003s, total_loss: 2.1, loss_vfl: 1.2, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.006115, ETA: 0:16:00
+2023-04-13 20:06:20.430 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 120/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.8, loss_bbox: 0.4, loss_dfl: 0.3, lr: 0.006092, ETA: 0:15:57
+2023-04-13 20:06:24.409 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 140/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.006070, ETA: 0:15:53
+2023-04-13 20:06:28.334 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 160/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 2.1, loss_vfl: 1.1, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.006047, ETA: 0:15:49
+2023-04-13 20:06:32.237 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 180/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.006024, ETA: 0:15:45
+2023-04-13 20:06:36.234 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 200/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 2.1, loss_vfl: 1.1, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.006002, ETA: 0:15:41
+2023-04-13 20:06:40.262 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 220/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.3, lr: 0.005979, ETA: 0:15:37
+2023-04-13 20:06:44.167 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 240/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.005956, ETA: 0:15:33
+2023-04-13 20:06:48.256 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 260/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.7, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.005934, ETA: 0:15:29
+2023-04-13 20:06:52.176 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 280/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.001s, total_loss: 2.3, loss_vfl: 1.2, loss_bbox: 0.5, loss_dfl: 0.6, lr: 0.005911, ETA: 0:15:25
+2023-04-13 20:06:56.235 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 300/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.005888, ETA: 0:15:22
+2023-04-13 20:07:00.255 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 320/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 2.3, loss_vfl: 1.5, loss_bbox: 0.3, loss_dfl: 0.5, lr: 0.005865, ETA: 0:15:18
+2023-04-13 20:07:04.184 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 340/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.003s, total_loss: 0.9, loss_vfl: 0.6, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.005842, ETA: 0:15:14
+2023-04-13 20:07:08.088 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 360/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.005820, ETA: 0:15:10
+2023-04-13 20:07:12.057 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 380/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.005797, ETA: 0:15:06
+2023-04-13 20:07:15.846 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 400/714, mem: 1791Mb, iter_time: 0.188s, data_time: 0.002s, total_loss: 2.1, loss_vfl: 1.0, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.005774, ETA: 0:15:02
+2023-04-13 20:07:19.695 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 420/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.005751, ETA: 0:14:58
+2023-04-13 20:07:23.853 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 440/714, mem: 1791Mb, iter_time: 0.207s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.6, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.005728, ETA: 0:14:54
+2023-04-13 20:07:27.811 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 460/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 3.6, loss_vfl: 1.8, loss_bbox: 0.9, loss_dfl: 0.8, lr: 0.005705, ETA: 0:14:50
+2023-04-13 20:07:31.537 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 480/714, mem: 1791Mb, iter_time: 0.185s, data_time: 0.001s, total_loss: 2.1, loss_vfl: 1.2, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.005682, ETA: 0:14:46
+2023-04-13 20:07:35.510 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 500/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.7, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.005659, ETA: 0:14:42
+2023-04-13 20:07:39.382 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 520/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 3.1, loss_vfl: 1.6, loss_bbox: 0.8, loss_dfl: 0.7, lr: 0.005636, ETA: 0:14:38
+2023-04-13 20:07:43.269 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 540/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.0, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.005613, ETA: 0:14:34
+2023-04-13 20:07:47.081 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 560/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.005590, ETA: 0:14:30
+2023-04-13 20:07:51.082 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 580/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 0.9, loss_vfl: 0.4, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.005567, ETA: 0:14:26
+2023-04-13 20:07:55.136 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 600/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 2.4, loss_vfl: 1.3, loss_bbox: 0.5, loss_dfl: 0.6, lr: 0.005544, ETA: 0:14:23
+2023-04-13 20:07:58.900 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 620/714, mem: 1791Mb, iter_time: 0.187s, data_time: 0.003s, total_loss: 2.3, loss_vfl: 1.4, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.005521, ETA: 0:14:18
+2023-04-13 20:08:02.851 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 640/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.005498, ETA: 0:14:15
+2023-04-13 20:08:06.849 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 660/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.005475, ETA: 0:14:11
+2023-04-13 20:08:10.915 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 680/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.005452, ETA: 0:14:07
+2023-04-13 20:08:14.994 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 10/16, iter: 700/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.005429, ETA: 0:14:03
+2023-04-13 20:08:17.933 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 20:10:04.374 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:684 - Evaluate in main process...
+2023-04-13 20:10:12.526 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:717 - Loading and preparing results...
+2023-04-13 20:10:17.288 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:717 - DONE (t=4.76s)
+2023-04-13 20:10:17.289 | INFO     | pycocotools.coco:loadRes:366 - creating index...
+2023-04-13 20:10:17.683 | INFO     | pycocotools.coco:loadRes:366 - index created!
+2023-04-13 20:10:17.692 | WARNING  | mmdet.evaluators.coco_evaluator:evaluate_prediction:723 - Use standard COCOeval.
+2023-04-13 20:10:17.693 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - Running per image evaluation...
+2023-04-13 20:10:17.693 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - Evaluate annotation type *bbox*
+2023-04-13 20:10:46.595 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - DONE (t=28.90s).
+2023-04-13 20:10:46.597 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:727 - Accumulating evaluation results...
+2023-04-13 20:10:57.956 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:727 - DONE (t=11.36s).
+2023-04-13 20:10:59.652 | INFO     | mmdet.core.trainer:evaluate_and_save_model:838 -
+Average forward time: 25.11 ms, Average NMS time: 0.02 ms, Average inference time: 25.13 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.446
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.635
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.476
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.067
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.223
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.560
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.415
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.600
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.629
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.183
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.444
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.733
+per class AP:
+| class       | AP     | class       | AP     | class   | AP     |
+|:------------|:-------|:------------|:-------|:--------|:-------|
+| aeroplane   | 56.238 | bicycle     | 46.519 | bird    | 39.482 |
+| boat        | 28.275 | bottle      | 28.794 | bus     | 64.889 |
+| car         | 48.093 | cat         | 63.762 | chair   | 28.834 |
+| cow         | 35.219 | diningtable | 36.747 | dog     | 52.622 |
+| horse       | 47.659 | motorbike   | 48.696 | person  | 49.290 |
+| pottedplant | 22.163 | sheep       | 45.377 | sofa    | 43.861 |
+| train       | 60.757 | tvmonitor   | 45.476 |         |        |
+per class AR:
+| class       | AR     | class       | AR     | class   | AR     |
+|:------------|:-------|:------------|:-------|:--------|:-------|
+| aeroplane   | 67.893 | bicycle     | 63.132 | bird    | 57.615 |
+| boat        | 51.894 | bottle      | 50.246 | bus     | 74.531 |
+| car         | 60.307 | cat         | 76.327 | chair   | 58.447 |
+| cow         | 58.818 | diningtable | 57.674 | dog     | 70.931 |
+| horse       | 62.359 | motorbike   | 65.133 | person  | 63.200 |
+| pottedplant | 48.764 | sheep       | 60.598 | sofa    | 71.835 |
+| train       | 73.374 | tvmonitor   | 64.807 |         |        |
+
+2023-04-13 20:10:59.803 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 20:10:59.968 | INFO     | mmdet.core.trainer:before_epoch:667 - ---> start train epoch11
+2023-04-13 20:11:03.753 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 20/714, mem: 1791Mb, iter_time: 0.188s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.005390, ETA: 0:13:56
+2023-04-13 20:11:07.571 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 40/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 1.0, loss_bbox: 0.1, loss_dfl: 0.3, lr: 0.005367, ETA: 0:13:52
+2023-04-13 20:11:11.456 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 60/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.7, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.005344, ETA: 0:13:48
+2023-04-13 20:11:15.190 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 80/714, mem: 1791Mb, iter_time: 0.186s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.0, loss_bbox: 0.5, loss_dfl: 0.6, lr: 0.005321, ETA: 0:13:44
+2023-04-13 20:11:19.106 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 100/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.0, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.005297, ETA: 0:13:40
+2023-04-13 20:11:23.055 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 120/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.3, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.005274, ETA: 0:13:36
+2023-04-13 20:11:26.778 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 140/714, mem: 1791Mb, iter_time: 0.185s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.7, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.005251, ETA: 0:13:32
+2023-04-13 20:11:30.468 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 160/714, mem: 1791Mb, iter_time: 0.184s, data_time: 0.002s, total_loss: 2.6, loss_vfl: 1.4, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.005228, ETA: 0:13:28
+2023-04-13 20:11:34.350 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 180/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.3, lr: 0.005205, ETA: 0:13:24
+2023-04-13 20:11:38.402 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 200/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 2.4, loss_vfl: 1.3, loss_bbox: 0.5, loss_dfl: 0.6, lr: 0.005182, ETA: 0:13:20
+2023-04-13 20:11:42.576 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 220/714, mem: 1791Mb, iter_time: 0.208s, data_time: 0.003s, total_loss: 3.2, loss_vfl: 1.6, loss_bbox: 0.8, loss_dfl: 0.8, lr: 0.005159, ETA: 0:13:17
+2023-04-13 20:11:46.583 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 240/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.7, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.005135, ETA: 0:13:13
+2023-04-13 20:11:50.416 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 260/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.8, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.005112, ETA: 0:13:09
+2023-04-13 20:11:54.370 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 280/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 2.3, loss_vfl: 1.3, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.005089, ETA: 0:13:05
+2023-04-13 20:11:58.291 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 300/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.7, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.005066, ETA: 0:13:01
+2023-04-13 20:12:02.231 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 320/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 2.1, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.005043, ETA: 0:12:57
+2023-04-13 20:12:06.076 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 340/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.005020, ETA: 0:12:53
+2023-04-13 20:12:09.835 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 360/714, mem: 1791Mb, iter_time: 0.187s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.0, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.004997, ETA: 0:12:49
+2023-04-13 20:12:13.733 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 380/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.7, loss_bbox: 0.4, loss_dfl: 0.3, lr: 0.004973, ETA: 0:12:45
+2023-04-13 20:12:17.679 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 400/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 2.8, loss_vfl: 1.4, loss_bbox: 0.7, loss_dfl: 0.7, lr: 0.004950, ETA: 0:12:41
+2023-04-13 20:12:21.676 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 420/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.004927, ETA: 0:12:37
+2023-04-13 20:12:25.392 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 440/714, mem: 1791Mb, iter_time: 0.185s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.004904, ETA: 0:12:33
+2023-04-13 20:12:29.211 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 460/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.1, loss_bbox: 0.5, loss_dfl: 0.6, lr: 0.004881, ETA: 0:12:29
+2023-04-13 20:12:33.087 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 480/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.3, lr: 0.004858, ETA: 0:12:25
+2023-04-13 20:12:37.014 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 500/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.5, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.004834, ETA: 0:12:21
+2023-04-13 20:12:41.020 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 520/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 3.3, loss_vfl: 2.0, loss_bbox: 0.6, loss_dfl: 0.6, lr: 0.004811, ETA: 0:12:17
+2023-04-13 20:12:45.138 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 540/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.004788, ETA: 0:12:14
+2023-04-13 20:12:49.220 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 560/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.7, loss_bbox: 0.4, loss_dfl: 0.3, lr: 0.004765, ETA: 0:12:10
+2023-04-13 20:12:53.262 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 580/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 2.5, loss_vfl: 1.3, loss_bbox: 0.5, loss_dfl: 0.6, lr: 0.004742, ETA: 0:12:06
+2023-04-13 20:12:57.274 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 600/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.004719, ETA: 0:12:02
+2023-04-13 20:13:01.232 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 620/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.2, loss_bbox: 0.3, loss_dfl: 0.5, lr: 0.004696, ETA: 0:11:58
+2023-04-13 20:13:05.131 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 640/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.2, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.004673, ETA: 0:11:54
+2023-04-13 20:13:09.367 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 660/714, mem: 1791Mb, iter_time: 0.211s, data_time: 0.002s, total_loss: 2.1, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.6, lr: 0.004649, ETA: 0:11:50
+2023-04-13 20:13:13.481 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 680/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.004626, ETA: 0:11:47
+2023-04-13 20:13:17.530 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 11/16, iter: 700/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.1, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.004603, ETA: 0:11:43
+2023-04-13 20:13:20.441 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 20:13:20.596 | INFO     | mmdet.core.trainer:before_epoch:667 - ---> start train epoch12
+2023-04-13 20:13:24.681 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 20/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.003s, total_loss: 2.9, loss_vfl: 1.4, loss_bbox: 0.9, loss_dfl: 0.7, lr: 0.004564, ETA: 0:11:36
+2023-04-13 20:13:28.735 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 40/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.004541, ETA: 0:11:32
+2023-04-13 20:13:32.595 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 60/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.004518, ETA: 0:11:28
+2023-04-13 20:13:36.617 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 80/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.0, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.004495, ETA: 0:11:24
+2023-04-13 20:13:40.569 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 100/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.004472, ETA: 0:11:20
+2023-04-13 20:13:44.524 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 120/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.8, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.004449, ETA: 0:11:16
+2023-04-13 20:13:48.381 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 140/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.004426, ETA: 0:11:13
+2023-04-13 20:13:52.336 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 160/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 2.7, loss_vfl: 1.4, loss_bbox: 0.7, loss_dfl: 0.7, lr: 0.004403, ETA: 0:11:09
+2023-04-13 20:13:56.175 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 180/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 2.3, loss_vfl: 1.2, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.004380, ETA: 0:11:05
+2023-04-13 20:14:00.015 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 200/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.8, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.004357, ETA: 0:11:01
+2023-04-13 20:14:03.884 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 220/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.004334, ETA: 0:10:57
+2023-04-13 20:14:07.607 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 240/714, mem: 1791Mb, iter_time: 0.185s, data_time: 0.001s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.004311, ETA: 0:10:53
+2023-04-13 20:14:11.527 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 260/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 0.5, loss_vfl: 0.3, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.004288, ETA: 0:10:49
+2023-04-13 20:14:15.305 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 280/714, mem: 1791Mb, iter_time: 0.188s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.004265, ETA: 0:10:45
+2023-04-13 20:14:19.204 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 300/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.8, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.004242, ETA: 0:10:41
+2023-04-13 20:14:23.279 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 320/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 3.2, loss_vfl: 1.5, loss_bbox: 0.9, loss_dfl: 0.8, lr: 0.004219, ETA: 0:10:37
+2023-04-13 20:14:27.205 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 340/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.7, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.004196, ETA: 0:10:33
+2023-04-13 20:14:31.184 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 360/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 1.0, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.004174, ETA: 0:10:29
+2023-04-13 20:14:35.108 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 380/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.004151, ETA: 0:10:25
+2023-04-13 20:14:39.493 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 400/714, mem: 1791Mb, iter_time: 0.218s, data_time: 0.002s, total_loss: 0.9, loss_vfl: 0.4, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.004128, ETA: 0:10:21
+2023-04-13 20:14:43.529 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 420/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 0.9, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.004105, ETA: 0:10:18
+2023-04-13 20:14:47.819 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 440/714, mem: 1791Mb, iter_time: 0.213s, data_time: 0.002s, total_loss: 2.5, loss_vfl: 1.1, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.004082, ETA: 0:10:14
+2023-04-13 20:14:51.780 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 460/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.004060, ETA: 0:10:10
+2023-04-13 20:14:55.711 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 480/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.003s, total_loss: 3.1, loss_vfl: 1.8, loss_bbox: 0.6, loss_dfl: 0.6, lr: 0.004037, ETA: 0:10:06
+2023-04-13 20:14:59.827 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 500/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 0.8, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.004014, ETA: 0:10:02
+2023-04-13 20:15:03.962 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 520/714, mem: 1791Mb, iter_time: 0.206s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.003991, ETA: 0:09:58
+2023-04-13 20:15:07.948 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 540/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.003969, ETA: 0:09:54
+2023-04-13 20:15:12.056 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 560/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.7, loss_bbox: 0.1, loss_dfl: 0.3, lr: 0.003946, ETA: 0:09:50
+2023-04-13 20:15:16.160 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 580/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.003924, ETA: 0:09:47
+2023-04-13 20:15:20.326 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 600/714, mem: 1791Mb, iter_time: 0.207s, data_time: 0.002s, total_loss: 2.5, loss_vfl: 1.3, loss_bbox: 0.6, loss_dfl: 0.6, lr: 0.003901, ETA: 0:09:43
+2023-04-13 20:15:24.448 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 620/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.003878, ETA: 0:09:39
+2023-04-13 20:15:28.429 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 640/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 2.1, loss_vfl: 1.1, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.003856, ETA: 0:09:35
+2023-04-13 20:15:32.504 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 660/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.003833, ETA: 0:09:31
+2023-04-13 20:15:36.521 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 680/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 0.9, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.003811, ETA: 0:09:27
+2023-04-13 20:15:40.378 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 12/16, iter: 700/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.001s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.003788, ETA: 0:09:23
+2023-04-13 20:15:43.295 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 20:17:04.323 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:684 - Evaluate in main process...
+2023-04-13 20:17:09.823 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:717 - Loading and preparing results...
+2023-04-13 20:17:13.498 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:717 - DONE (t=3.67s)
+2023-04-13 20:17:13.498 | INFO     | pycocotools.coco:loadRes:366 - creating index...
+2023-04-13 20:17:13.731 | INFO     | pycocotools.coco:loadRes:366 - index created!
+2023-04-13 20:17:13.739 | WARNING  | mmdet.evaluators.coco_evaluator:evaluate_prediction:723 - Use standard COCOeval.
+2023-04-13 20:17:13.740 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - Running per image evaluation...
+2023-04-13 20:17:13.740 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - Evaluate annotation type *bbox*
+2023-04-13 20:17:35.530 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - DONE (t=21.79s).
+2023-04-13 20:17:35.531 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:727 - Accumulating evaluation results...
+2023-04-13 20:17:46.117 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:727 - DONE (t=10.59s).
+2023-04-13 20:17:47.384 | INFO     | mmdet.core.trainer:evaluate_and_save_model:838 -
+Average forward time: 20.07 ms, Average NMS time: 0.02 ms, Average inference time: 20.08 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.450
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.639
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.481
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.062
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.224
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.567
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.417
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.602
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.631
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.173
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.448
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.736
+per class AP:
+| class       | AP     | class       | AP     | class   | AP     |
+|:------------|:-------|:------------|:-------|:--------|:-------|
+| aeroplane   | 58.184 | bicycle     | 46.563 | bird    | 40.591 |
+| boat        | 27.566 | bottle      | 29.865 | bus     | 64.457 |
+| car         | 48.010 | cat         | 64.274 | chair   | 29.856 |
+| cow         | 36.000 | diningtable | 37.637 | dog     | 52.846 |
+| horse       | 47.171 | motorbike   | 48.930 | person  | 49.670 |
+| pottedplant | 24.231 | sheep       | 46.669 | sofa    | 43.414 |
+| train       | 59.723 | tvmonitor   | 45.297 |         |        |
+per class AR:
+| class       | AR     | class       | AR     | class   | AR     |
+|:------------|:-------|:------------|:-------|:--------|:-------|
+| aeroplane   | 69.463 | bicycle     | 61.632 | bird    | 58.633 |
+| boat        | 51.935 | bottle      | 50.982 | bus     | 73.750 |
+| car         | 59.642 | cat         | 77.427 | chair   | 58.861 |
+| cow         | 61.585 | diningtable | 57.968 | dog     | 71.320 |
+| horse       | 61.180 | motorbike   | 64.255 | person  | 63.397 |
+| pottedplant | 49.428 | sheep       | 60.969 | sofa    | 71.370 |
+| train       | 72.067 | tvmonitor   | 66.135 |         |        |
+
+2023-04-13 20:17:47.512 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 20:17:47.685 | INFO     | mmdet.core.trainer:before_epoch:667 - ---> start train epoch13
+2023-04-13 20:17:51.522 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 20/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.1, loss_dfl: 0.3, lr: 0.003750, ETA: 0:09:16
+2023-04-13 20:17:55.133 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 40/714, mem: 1791Mb, iter_time: 0.180s, data_time: 0.001s, total_loss: 2.1, loss_vfl: 1.2, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.003728, ETA: 0:09:12
+2023-04-13 20:17:59.135 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 60/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.003s, total_loss: 2.4, loss_vfl: 1.3, loss_bbox: 0.5, loss_dfl: 0.6, lr: 0.003705, ETA: 0:09:09
+2023-04-13 20:18:03.028 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 80/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.8, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.003683, ETA: 0:09:05
+2023-04-13 20:18:07.080 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 100/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 0.6, loss_vfl: 0.4, loss_bbox: 0.0, loss_dfl: 0.1, lr: 0.003661, ETA: 0:09:01
+2023-04-13 20:18:11.022 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 120/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.0, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.003638, ETA: 0:08:57
+2023-04-13 20:18:14.949 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 140/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.003s, total_loss: 1.0, loss_vfl: 0.7, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.003616, ETA: 0:08:53
+2023-04-13 20:18:18.863 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 160/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.001s, total_loss: 1.2, loss_vfl: 0.8, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.003594, ETA: 0:08:49
+2023-04-13 20:18:22.663 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 180/714, mem: 1791Mb, iter_time: 0.189s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.003572, ETA: 0:08:45
+2023-04-13 20:18:26.415 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 200/714, mem: 1791Mb, iter_time: 0.187s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.003549, ETA: 0:08:41
+2023-04-13 20:18:30.368 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 220/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.8, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.003527, ETA: 0:08:37
+2023-04-13 20:18:34.155 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 240/714, mem: 1791Mb, iter_time: 0.189s, data_time: 0.001s, total_loss: 2.1, loss_vfl: 1.1, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.003505, ETA: 0:08:33
+2023-04-13 20:18:38.077 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 260/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.001s, total_loss: 2.2, loss_vfl: 1.3, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.003483, ETA: 0:08:29
+2023-04-13 20:18:41.985 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 280/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.003461, ETA: 0:08:25
+2023-04-13 20:18:45.693 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 300/714, mem: 1791Mb, iter_time: 0.185s, data_time: 0.001s, total_loss: 2.5, loss_vfl: 1.2, loss_bbox: 0.6, loss_dfl: 0.6, lr: 0.003439, ETA: 0:08:21
+2023-04-13 20:18:49.560 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 320/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.001s, total_loss: 0.7, loss_vfl: 0.5, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.003417, ETA: 0:08:17
+2023-04-13 20:18:53.293 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 340/714, mem: 1791Mb, iter_time: 0.186s, data_time: 0.001s, total_loss: 1.4, loss_vfl: 0.7, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.003395, ETA: 0:08:13
+2023-04-13 20:18:57.080 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 360/714, mem: 1791Mb, iter_time: 0.188s, data_time: 0.003s, total_loss: 1.4, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.003373, ETA: 0:08:09
+2023-04-13 20:19:00.908 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 380/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.002s, total_loss: 2.8, loss_vfl: 1.3, loss_bbox: 0.8, loss_dfl: 0.6, lr: 0.003351, ETA: 0:08:05
+2023-04-13 20:19:04.804 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 400/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.1, loss_dfl: 0.3, lr: 0.003329, ETA: 0:08:01
+2023-04-13 20:19:08.593 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 420/714, mem: 1791Mb, iter_time: 0.188s, data_time: 0.001s, total_loss: 0.9, loss_vfl: 0.4, loss_bbox: 0.2, loss_dfl: 0.2, lr: 0.003308, ETA: 0:07:57
+2023-04-13 20:19:12.412 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 440/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.003286, ETA: 0:07:53
+2023-04-13 20:19:16.348 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 460/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.8, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.003264, ETA: 0:07:50
+2023-04-13 20:19:20.375 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 480/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.003242, ETA: 0:07:46
+2023-04-13 20:19:24.432 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 500/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.003221, ETA: 0:07:42
+2023-04-13 20:19:28.413 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 520/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.1, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.003199, ETA: 0:07:38
+2023-04-13 20:19:32.233 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 540/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.002s, total_loss: 0.9, loss_vfl: 0.5, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.003178, ETA: 0:07:34
+2023-04-13 20:19:36.270 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 560/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.8, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.003156, ETA: 0:07:30
+2023-04-13 20:19:40.175 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 580/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 0.9, loss_vfl: 0.5, loss_bbox: 0.2, loss_dfl: 0.2, lr: 0.003135, ETA: 0:07:26
+2023-04-13 20:19:44.148 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 600/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 0.8, loss_vfl: 0.5, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.003113, ETA: 0:07:22
+2023-04-13 20:19:48.069 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 620/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.003092, ETA: 0:07:18
+2023-04-13 20:19:51.911 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 640/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 0.9, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.003070, ETA: 0:07:14
+2023-04-13 20:19:55.676 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 660/714, mem: 1791Mb, iter_time: 0.187s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.003049, ETA: 0:07:10
+2023-04-13 20:19:59.700 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 680/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.5, lr: 0.003028, ETA: 0:07:06
+2023-04-13 20:20:03.598 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 13/16, iter: 700/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.003006, ETA: 0:07:02
+2023-04-13 20:20:06.477 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 20:20:06.710 | INFO     | mmdet.core.trainer:before_epoch:667 - ---> start train epoch14
+2023-04-13 20:20:10.447 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 20/714, mem: 1791Mb, iter_time: 0.186s, data_time: 0.003s, total_loss: 1.4, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.002970, ETA: 0:06:56
+2023-04-13 20:20:14.576 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 40/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.7, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.002949, ETA: 0:06:52
+2023-04-13 20:20:18.765 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 60/714, mem: 1791Mb, iter_time: 0.208s, data_time: 0.003s, total_loss: 0.7, loss_vfl: 0.4, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.002928, ETA: 0:06:48
+2023-04-13 20:20:22.858 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 80/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.002907, ETA: 0:06:44
+2023-04-13 20:20:26.899 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 100/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 2.5, loss_vfl: 1.1, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.002886, ETA: 0:06:40
+2023-04-13 20:20:30.872 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 120/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.1, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.002865, ETA: 0:06:36
+2023-04-13 20:20:34.899 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 140/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.002844, ETA: 0:06:32
+2023-04-13 20:20:38.796 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 160/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.002823, ETA: 0:06:28
+2023-04-13 20:20:42.815 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 180/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.2, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.002802, ETA: 0:06:24
+2023-04-13 20:20:46.785 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 200/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 2.4, loss_vfl: 1.4, loss_bbox: 0.4, loss_dfl: 0.6, lr: 0.002782, ETA: 0:06:21
+2023-04-13 20:20:50.845 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 220/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.002761, ETA: 0:06:17
+2023-04-13 20:20:54.882 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 240/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 0.9, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.002740, ETA: 0:06:13
+2023-04-13 20:20:58.897 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 260/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.002720, ETA: 0:06:09
+2023-04-13 20:21:02.943 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 280/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.8, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.002699, ETA: 0:06:05
+2023-04-13 20:21:06.934 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 300/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.002679, ETA: 0:06:01
+2023-04-13 20:21:10.977 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 320/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.002658, ETA: 0:05:57
+2023-04-13 20:21:14.887 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 340/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.001s, total_loss: 2.4, loss_vfl: 1.4, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.002638, ETA: 0:05:53
+2023-04-13 20:21:18.991 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 360/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.002617, ETA: 0:05:49
+2023-04-13 20:21:22.990 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 380/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.8, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.002597, ETA: 0:05:45
+2023-04-13 20:21:27.015 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 400/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 0.7, loss_vfl: 0.4, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.002577, ETA: 0:05:41
+2023-04-13 20:21:31.078 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 420/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.002556, ETA: 0:05:38
+2023-04-13 20:21:35.257 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 440/714, mem: 1791Mb, iter_time: 0.208s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.002536, ETA: 0:05:34
+2023-04-13 20:21:39.370 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 460/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.6, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.002516, ETA: 0:05:30
+2023-04-13 20:21:43.427 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 480/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 2.9, loss_vfl: 1.4, loss_bbox: 0.8, loss_dfl: 0.7, lr: 0.002496, ETA: 0:05:26
+2023-04-13 20:21:47.497 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 500/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.002476, ETA: 0:05:22
+2023-04-13 20:21:51.676 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 520/714, mem: 1791Mb, iter_time: 0.208s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.002456, ETA: 0:05:18
+2023-04-13 20:21:55.626 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 540/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.003s, total_loss: 2.5, loss_vfl: 1.2, loss_bbox: 0.7, loss_dfl: 0.6, lr: 0.002436, ETA: 0:05:14
+2023-04-13 20:21:59.638 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 560/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 1.0, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.002416, ETA: 0:05:10
+2023-04-13 20:22:03.691 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 580/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.7, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.002396, ETA: 0:05:06
+2023-04-13 20:22:07.589 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 600/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.003s, total_loss: 0.8, loss_vfl: 0.5, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.002377, ETA: 0:05:02
+2023-04-13 20:22:11.688 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 620/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.002357, ETA: 0:04:58
+2023-04-13 20:22:15.649 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 640/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.5, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.002337, ETA: 0:04:55
+2023-04-13 20:22:19.686 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 660/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.002318, ETA: 0:04:51
+2023-04-13 20:22:23.725 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 680/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 0.9, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.002298, ETA: 0:04:47
+2023-04-13 20:22:27.798 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 14/16, iter: 700/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 0.7, loss_vfl: 0.4, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.002279, ETA: 0:04:43
+2023-04-13 20:22:30.815 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 20:24:22.611 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:684 - Evaluate in main process...
+2023-04-13 20:24:30.428 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:717 - Loading and preparing results...
+2023-04-13 20:24:33.690 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:717 - DONE (t=3.26s)
+2023-04-13 20:24:33.719 | INFO     | pycocotools.coco:loadRes:366 - creating index...
+2023-04-13 20:24:34.138 | INFO     | pycocotools.coco:loadRes:366 - index created!
+2023-04-13 20:24:34.147 | WARNING  | mmdet.evaluators.coco_evaluator:evaluate_prediction:723 - Use standard COCOeval.
+2023-04-13 20:24:34.148 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - Running per image evaluation...
+2023-04-13 20:24:34.149 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - Evaluate annotation type *bbox*
+2023-04-13 20:25:04.253 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - DONE (t=30.11s).
+2023-04-13 20:25:04.255 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:727 - Accumulating evaluation results...
+2023-04-13 20:25:17.766 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:727 - DONE (t=13.51s).
+2023-04-13 20:25:18.769 | INFO     | mmdet.core.trainer:evaluate_and_save_model:838 -
+Average forward time: 25.64 ms, Average NMS time: 0.02 ms, Average inference time: 25.66 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.458
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.646
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.490
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.060
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.235
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.576
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.421
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.607
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.636
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.163
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.455
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.743
+per class AP:
+| class       | AP     | class       | AP     | class   | AP     |
+|:------------|:-------|:------------|:-------|:--------|:-------|
+| aeroplane   | 58.642 | bicycle     | 49.159 | bird    | 41.916 |
+| boat        | 27.772 | bottle      | 30.251 | bus     | 65.181 |
+| car         | 48.541 | cat         | 65.483 | chair   | 30.019 |
+| cow         | 35.560 | diningtable | 37.414 | dog     | 53.993 |
+| horse       | 50.658 | motorbike   | 49.596 | person  | 50.190 |
+| pottedplant | 24.460 | sheep       | 46.415 | sofa    | 44.603 |
+| train       | 61.099 | tvmonitor   | 45.738 |         |        |
+per class AR:
+| class       | AR     | class       | AR     | class   | AR     |
+|:------------|:-------|:------------|:-------|:--------|:-------|
+| aeroplane   | 68.512 | bicycle     | 63.474 | bird    | 59.762 |
+| boat        | 51.365 | bottle      | 51.296 | bus     | 73.625 |
+| car         | 61.091 | cat         | 77.492 | chair   | 58.778 |
+| cow         | 62.680 | diningtable | 57.647 | dog     | 71.501 |
+| horse       | 65.067 | motorbike   | 64.176 | person  | 63.861 |
+| pottedplant | 50.332 | sheep       | 61.794 | sofa    | 72.248 |
+| train       | 73.131 | tvmonitor   | 64.686 |         |        |
+
+2023-04-13 20:25:18.876 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 20:25:19.080 | INFO     | mmdet.core.trainer:before_epoch:667 - ---> start train epoch15
+2023-04-13 20:25:22.787 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 20/714, mem: 1791Mb, iter_time: 0.184s, data_time: 0.003s, total_loss: 2.1, loss_vfl: 1.0, loss_bbox: 0.5, loss_dfl: 0.6, lr: 0.002246, ETA: 0:04:36
+2023-04-13 20:25:26.630 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 40/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 1.0, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.002227, ETA: 0:04:32
+2023-04-13 20:25:30.532 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 60/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.002207, ETA: 0:04:28
+2023-04-13 20:25:34.461 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 80/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.2, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.002188, ETA: 0:04:24
+2023-04-13 20:25:38.368 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 100/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.8, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.002169, ETA: 0:04:20
+2023-04-13 20:25:42.491 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 120/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.002s, total_loss: 2.1, loss_vfl: 1.1, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.002150, ETA: 0:04:16
+2023-04-13 20:25:46.556 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 140/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.8, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.002131, ETA: 0:04:13
+2023-04-13 20:25:50.761 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 160/714, mem: 1791Mb, iter_time: 0.209s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 0.9, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.002112, ETA: 0:04:09
+2023-04-13 20:25:54.565 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 180/714, mem: 1791Mb, iter_time: 0.189s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.002093, ETA: 0:04:05
+2023-04-13 20:25:58.472 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 200/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.2, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.002074, ETA: 0:04:01
+2023-04-13 20:26:02.382 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 220/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.7, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.002056, ETA: 0:03:57
+2023-04-13 20:26:06.238 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 240/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.002037, ETA: 0:03:53
+2023-04-13 20:26:09.977 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 260/714, mem: 1791Mb, iter_time: 0.186s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.8, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.002018, ETA: 0:03:49
+2023-04-13 20:26:13.844 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 280/714, mem: 1791Mb, iter_time: 0.192s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.9, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.002000, ETA: 0:03:45
+2023-04-13 20:26:17.669 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 300/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.002s, total_loss: 2.3, loss_vfl: 1.1, loss_bbox: 0.7, loss_dfl: 0.5, lr: 0.001981, ETA: 0:03:41
+2023-04-13 20:26:21.704 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 320/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 2.4, loss_vfl: 1.3, loss_bbox: 0.6, loss_dfl: 0.6, lr: 0.001963, ETA: 0:03:37
+2023-04-13 20:26:25.709 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 340/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.8, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.001944, ETA: 0:03:33
+2023-04-13 20:26:29.694 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 360/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.7, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.001926, ETA: 0:03:29
+2023-04-13 20:26:33.602 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 380/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 2.4, loss_vfl: 1.3, loss_bbox: 0.6, loss_dfl: 0.6, lr: 0.001908, ETA: 0:03:25
+2023-04-13 20:26:37.430 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 400/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.6, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.001890, ETA: 0:03:21
+2023-04-13 20:26:41.200 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 420/714, mem: 1791Mb, iter_time: 0.188s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.001872, ETA: 0:03:17
+2023-04-13 20:26:45.102 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 440/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.8, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.001854, ETA: 0:03:14
+2023-04-13 20:26:49.061 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 460/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.001836, ETA: 0:03:10
+2023-04-13 20:26:52.784 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 480/714, mem: 1791Mb, iter_time: 0.185s, data_time: 0.002s, total_loss: 0.6, loss_vfl: 0.4, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.001818, ETA: 0:03:06
+2023-04-13 20:26:56.579 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 500/714, mem: 1791Mb, iter_time: 0.189s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 1.0, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.001800, ETA: 0:03:02
+2023-04-13 20:27:00.481 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 520/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.9, loss_vfl: 1.1, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.001782, ETA: 0:02:58
+2023-04-13 20:27:04.399 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 540/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 0.9, loss_bbox: 0.7, loss_dfl: 0.7, lr: 0.001765, ETA: 0:02:54
+2023-04-13 20:27:08.231 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 560/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.5, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.001747, ETA: 0:02:50
+2023-04-13 20:27:12.111 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 580/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.003s, total_loss: 1.9, loss_vfl: 0.9, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.001729, ETA: 0:02:46
+2023-04-13 20:27:16.057 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 600/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.001712, ETA: 0:02:42
+2023-04-13 20:27:20.087 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 620/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.1, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.001694, ETA: 0:02:38
+2023-04-13 20:27:23.978 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 640/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.7, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.001677, ETA: 0:02:34
+2023-04-13 20:27:27.858 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 660/714, mem: 1791Mb, iter_time: 0.193s, data_time: 0.001s, total_loss: 1.1, loss_vfl: 0.5, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.001660, ETA: 0:02:30
+2023-04-13 20:27:31.975 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 680/714, mem: 1791Mb, iter_time: 0.205s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.001643, ETA: 0:02:26
+2023-04-13 20:27:35.974 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 15/16, iter: 700/714, mem: 1791Mb, iter_time: 0.199s, data_time: 0.001s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.1, loss_dfl: 0.3, lr: 0.001626, ETA: 0:02:22
+2023-04-13 20:27:38.895 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 20:27:39.092 | INFO     | mmdet.core.trainer:before_epoch:667 - ---> start train epoch16
+2023-04-13 20:27:43.052 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 20/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.003s, total_loss: 1.4, loss_vfl: 0.7, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.001597, ETA: 0:02:16
+2023-04-13 20:27:46.957 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 40/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 0.6, loss_vfl: 0.4, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.001580, ETA: 0:02:12
+2023-04-13 20:27:50.989 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 60/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.8, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.001563, ETA: 0:02:08
+2023-04-13 20:27:54.966 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 80/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.9, loss_bbox: 0.1, loss_dfl: 0.3, lr: 0.001546, ETA: 0:02:04
+2023-04-13 20:27:58.808 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 100/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.0, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.001529, ETA: 0:02:00
+2023-04-13 20:28:02.985 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 120/714, mem: 1791Mb, iter_time: 0.208s, data_time: 0.002s, total_loss: 1.1, loss_vfl: 0.5, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.001513, ETA: 0:01:56
+2023-04-13 20:28:07.193 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 140/714, mem: 1791Mb, iter_time: 0.209s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.001496, ETA: 0:01:52
+2023-04-13 20:28:11.218 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 160/714, mem: 1791Mb, iter_time: 0.200s, data_time: 0.003s, total_loss: 1.2, loss_vfl: 0.6, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.001480, ETA: 0:01:48
+2023-04-13 20:28:15.387 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 180/714, mem: 1791Mb, iter_time: 0.207s, data_time: 0.003s, total_loss: 1.5, loss_vfl: 0.8, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.001463, ETA: 0:01:44
+2023-04-13 20:28:19.457 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 200/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.001447, ETA: 0:01:40
+2023-04-13 20:28:23.405 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 220/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 1.6, loss_vfl: 0.7, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.001431, ETA: 0:01:37
+2023-04-13 20:28:27.386 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 240/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 2.0, loss_vfl: 1.1, loss_bbox: 0.5, loss_dfl: 0.4, lr: 0.001414, ETA: 0:01:33
+2023-04-13 20:28:31.142 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 260/714, mem: 1791Mb, iter_time: 0.187s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.1, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.001398, ETA: 0:01:29
+2023-04-13 20:28:35.093 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 280/714, mem: 1791Mb, iter_time: 0.197s, data_time: 0.002s, total_loss: 1.3, loss_vfl: 0.6, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.001382, ETA: 0:01:25
+2023-04-13 20:28:39.197 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 300/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 0.9, loss_vfl: 0.7, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.001366, ETA: 0:01:21
+2023-04-13 20:28:43.088 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 320/714, mem: 1791Mb, iter_time: 0.194s, data_time: 0.002s, total_loss: 2.2, loss_vfl: 1.1, loss_bbox: 0.6, loss_dfl: 0.5, lr: 0.001351, ETA: 0:01:17
+2023-04-13 20:28:47.071 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 340/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.9, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.001335, ETA: 0:01:13
+2023-04-13 20:28:51.143 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 360/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 0.8, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.001319, ETA: 0:01:09
+2023-04-13 20:28:54.834 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 380/714, mem: 1791Mb, iter_time: 0.184s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.4, lr: 0.001303, ETA: 0:01:05
+2023-04-13 20:28:58.668 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 400/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 2.3, loss_vfl: 1.1, loss_bbox: 0.5, loss_dfl: 0.7, lr: 0.001288, ETA: 0:01:01
+2023-04-13 20:29:02.596 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 420/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.0, loss_bbox: 0.3, loss_dfl: 0.4, lr: 0.001272, ETA: 0:00:57
+2023-04-13 20:29:06.413 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 440/714, mem: 1791Mb, iter_time: 0.190s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 0.8, loss_bbox: 0.5, loss_dfl: 0.5, lr: 0.001257, ETA: 0:00:53
+2023-04-13 20:29:10.180 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 460/714, mem: 1791Mb, iter_time: 0.187s, data_time: 0.002s, total_loss: 1.7, loss_vfl: 1.1, loss_bbox: 0.3, loss_dfl: 0.3, lr: 0.001242, ETA: 0:00:49
+2023-04-13 20:29:14.024 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 480/714, mem: 1791Mb, iter_time: 0.191s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.001226, ETA: 0:00:45
+2023-04-13 20:29:17.941 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 500/714, mem: 1791Mb, iter_time: 0.195s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.9, loss_bbox: 0.1, loss_dfl: 0.4, lr: 0.001211, ETA: 0:00:42
+2023-04-13 20:29:21.888 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 520/714, mem: 1791Mb, iter_time: 0.196s, data_time: 0.002s, total_loss: 0.6, loss_vfl: 0.3, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.001196, ETA: 0:00:38
+2023-04-13 20:29:25.934 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 540/714, mem: 1791Mb, iter_time: 0.201s, data_time: 0.002s, total_loss: 1.2, loss_vfl: 0.6, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.001181, ETA: 0:00:34
+2023-04-13 20:29:30.022 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 560/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 1.4, loss_vfl: 0.9, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.001166, ETA: 0:00:30
+2023-04-13 20:29:34.117 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 580/714, mem: 1791Mb, iter_time: 0.204s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.7, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.001151, ETA: 0:00:26
+2023-04-13 20:29:38.194 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 600/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 1.5, loss_vfl: 0.7, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.001137, ETA: 0:00:22
+2023-04-13 20:29:42.262 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 620/714, mem: 1791Mb, iter_time: 0.202s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.6, loss_bbox: 0.1, loss_dfl: 0.3, lr: 0.001122, ETA: 0:00:18
+2023-04-13 20:29:46.344 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 640/714, mem: 1791Mb, iter_time: 0.203s, data_time: 0.002s, total_loss: 0.6, loss_vfl: 0.3, loss_bbox: 0.1, loss_dfl: 0.2, lr: 0.001108, ETA: 0:00:14
+2023-04-13 20:29:50.327 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 660/714, mem: 1791Mb, iter_time: 0.198s, data_time: 0.002s, total_loss: 1.0, loss_vfl: 0.5, loss_bbox: 0.2, loss_dfl: 0.3, lr: 0.001093, ETA: 0:00:10
+2023-04-13 20:29:54.465 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 680/714, mem: 1791Mb, iter_time: 0.206s, data_time: 0.002s, total_loss: 2.1, loss_vfl: 1.2, loss_bbox: 0.4, loss_dfl: 0.5, lr: 0.001079, ETA: 0:00:06
+2023-04-13 20:29:58.611 | INFO     | mmdet.core.trainer:after_iter:747 - epoch: 16/16, iter: 700/714, mem: 1791Mb, iter_time: 0.206s, data_time: 0.002s, total_loss: 1.8, loss_vfl: 1.0, loss_bbox: 0.4, loss_dfl: 0.4, lr: 0.001064, ETA: 0:00:02
+2023-04-13 20:30:01.496 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 20:31:43.614 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:684 - Evaluate in main process...
+2023-04-13 20:31:52.049 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:717 - Loading and preparing results...
+2023-04-13 20:31:55.798 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:717 - DONE (t=3.75s)
+2023-04-13 20:31:55.799 | INFO     | pycocotools.coco:loadRes:366 - creating index...
+2023-04-13 20:31:56.205 | INFO     | pycocotools.coco:loadRes:366 - index created!
+2023-04-13 20:31:56.215 | WARNING  | mmdet.evaluators.coco_evaluator:evaluate_prediction:723 - Use standard COCOeval.
+2023-04-13 20:31:56.216 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - Running per image evaluation...
+2023-04-13 20:31:56.217 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - Evaluate annotation type *bbox*
+2023-04-13 20:32:35.413 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:726 - DONE (t=39.20s).
+2023-04-13 20:32:35.414 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:727 - Accumulating evaluation results...
+2023-04-13 20:32:47.115 | INFO     | mmdet.evaluators.coco_evaluator:evaluate_prediction:727 - DONE (t=11.70s).
+2023-04-13 20:32:48.269 | INFO     | mmdet.core.trainer:evaluate_and_save_model:838 -
+Average forward time: 24.28 ms, Average NMS time: 0.02 ms, Average inference time: 24.30 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.463
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.652
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.495
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.064
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.234
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.581
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.423
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.608
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.638
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.180
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.462
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.743
+per class AP:
+| class       | AP     | class       | AP     | class   | AP     |
+|:------------|:-------|:------------|:-------|:--------|:-------|
+| aeroplane   | 58.858 | bicycle     | 49.116 | bird    | 41.502 |
+| boat        | 28.311 | bottle      | 30.061 | bus     | 64.786 |
+| car         | 48.532 | cat         | 65.970 | chair   | 30.540 |
+| cow         | 37.593 | diningtable | 36.919 | dog     | 55.344 |
+| horse       | 51.549 | motorbike   | 50.537 | person  | 50.272 |
+| pottedplant | 24.750 | sheep       | 47.740 | sofa    | 45.501 |
+| train       | 61.845 | tvmonitor   | 46.527 |         |        |
+per class AR:
+| class       | AR     | class       | AR     | class   | AR     |
+|:------------|:-------|:------------|:-------|:--------|:-------|
+| aeroplane   | 69.401 | bicycle     | 64.579 | bird    | 59.285 |
+| boat        | 51.263 | bottle      | 51.255 | bus     | 73.469 |
+| car         | 61.040 | cat         | 77.104 | chair   | 59.027 |
+| cow         | 62.536 | diningtable | 56.390 | dog     | 72.083 |
+| horse       | 64.826 | motorbike   | 64.229 | person  | 63.659 |
+| pottedplant | 50.756 | sheep       | 62.763 | sofa    | 72.687 |
+| train       | 73.769 | tvmonitor   | 65.725 |         |        |
+
+2023-04-13 20:32:48.405 | INFO     | mmdet.core.trainer:save_ckpt:863 - Save weights to PicoDet_outputs/picodet_s_416_voc2012
+2023-04-13 20:32:48.592 | INFO     | mmdet.core.trainer:after_train:662 - Training of experiment is done and the best AP is 46.31

@@ -48,7 +48,7 @@ def varifocal_loss(pred,
     # pred and target should be of the same size
     assert pred.shape == target.shape
     if use_sigmoid:
-        pred_new = F.sigmoid(pred)
+        pred_new = torch.sigmoid(pred)
     else:
         pred_new = pred
     target = target.to(pred.dtype)

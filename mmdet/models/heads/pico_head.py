@@ -49,7 +49,7 @@ class PicoSE(nn.Module):
         normal_(self.fc.weight, std=0.001)
 
     def forward(self, feat, avg_feat):
-        weight = F.sigmoid(self.fc(avg_feat))
+        weight = torch.sigmoid(self.fc(avg_feat))
         out = self.conv(feat * weight)
         return out
 
@@ -324,10 +324,10 @@ class PicoHeadV2(GFLHead):
 
             # cls prediction and alignment
             if self.use_align_head:
-                cls_prob = F.sigmoid(self.cls_align[i](conv_cls_feat))
-                cls_score = (F.sigmoid(cls_logit) * cls_prob + eps).sqrt()
+                cls_prob = torch.sigmoid(self.cls_align[i](conv_cls_feat))
+                cls_score = (torch.sigmoid(cls_logit) * cls_prob + eps).sqrt()
             else:
-                cls_score = F.sigmoid(cls_logit)
+                cls_score = torch.sigmoid(cls_logit)
 
             cls_score_out = cls_score.permute([0, 2, 3, 1])
             bbox_pred = reg_pred.permute([0, 2, 3, 1])
@@ -368,10 +368,10 @@ class PicoHeadV2(GFLHead):
 
             # cls prediction and alignment
             if self.use_align_head:
-                cls_prob = F.sigmoid(self.cls_align[i](conv_cls_feat))
-                cls_score = (F.sigmoid(cls_logit) * cls_prob + eps).sqrt()
+                cls_prob = torch.sigmoid(self.cls_align[i](conv_cls_feat))
+                cls_score = (torch.sigmoid(cls_logit) * cls_prob + eps).sqrt()
             else:
-                cls_score = F.sigmoid(cls_logit)
+                cls_score = torch.sigmoid(cls_logit)
 
             if not export_post_process:
                 # Now only supports batch size = 1 in deploy
