@@ -54,14 +54,14 @@ class SPP(nn.Module):
 ----------------------- 转换权重 -----------------------
 wget https://paddledet.bj.bcebos.com/models/picodet_s_416_coco_lcnet.pdparams
 wget https://paddledet.bj.bcebos.com/models/picodet_m_416_coco_lcnet.pdparams
-
+wget https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/legendary_models/PPLCNet_x0_75_pretrained.pdparams
 
 python tools/convert_weights.py -f exps/picodet/picodet_s_416_coco_lcnet.py -c picodet_s_416_coco_lcnet.pdparams -oc picodet_s_416_coco_lcnet.pth -nc 80
 
 python tools/convert_weights.py -f exps/picodet/picodet_m_416_coco_lcnet.py -c picodet_m_416_coco_lcnet.pdparams -oc picodet_m_416_coco_lcnet.pth -nc 80
 
 
-python tools/convert_weights.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -c CSPResNetb_s_pretrained.pdparams -oc CSPResNetb_s_pretrained.pth -nc 80 --only_backbone True
+python tools/convert_weights.py -f exps/picodet/picodet_s_416_coco_lcnet.py -c PPLCNet_x0_75_pretrained.pdparams -oc PPLCNet_x0_75_pretrained.pth -nc 80 --only_backbone True
 
 
 
@@ -150,13 +150,13 @@ Average forward time: 8.53 ms, Average NMS time: 0.00 ms, Average inference time
 
 ----------------------- 复现COCO上的精度 -----------------------
 
-(5)ppyoloe_crn_s_300e_coco
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-nohup python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 8 -b 256 -eb 16 -c CSPResNetb_s_pretrained.pth     > ppyoloe_crn_s_300e_coco_8gpu.log 2>&1 &
+(1)picodet_s_416_coco_lcnet
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+nohup python tools/train.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 4 -b 192 -eb 16 -c PPLCNet_x0_75_pretrained.pth     > picodet_s_416_coco_lcnet_4gpu.log 2>&1 &
 
 只有双卡的时候：
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 2 -b 64 -eb 16 -c CSPResNetb_s_pretrained.pth     > ppyoloe_crn_s_300e_coco_2gpu.log 2>&1 &
+nohup python tools/train.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 2 -b 96 -eb 16 -c PPLCNet_x0_75_pretrained.pth     > picodet_s_416_coco_lcnet_2gpu.log 2>&1 &
 
 
 

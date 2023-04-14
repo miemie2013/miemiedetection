@@ -367,6 +367,9 @@ def main(exp, args):
                             name2 = name2.replace('reg_conv_pw{}.{}'.format(ii, jj), 'reg_conv_pw{}_{}'.format(ii, jj))
                 if args.only_backbone:
                     name2 = 'backbone.' + name2
+                if args.only_backbone:
+                    if name2 in ['backbone.last_conv.weight', 'backbone.fc.weight', 'backbone.fc.bias']:
+                        continue
                 copy(name2, w, model_std)
         if args.only_backbone:
             delattr(model, "neck")
