@@ -149,6 +149,7 @@ Average forward time: 8.53 ms, Average NMS time: 0.00 ms, Average inference time
 
 
 ----------------------- 复现COCO上的精度 -----------------------
+相关训练日志见 train_coco 文件夹
 
 (1)picodet_s_416_coco_lcnet
 export CUDA_VISIBLE_DEVICES=0,1,2,3

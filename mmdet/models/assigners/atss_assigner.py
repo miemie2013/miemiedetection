@@ -49,9 +49,16 @@ class ATSSAssigner(nn.Module):
 
     def _gather_topk_pyramid(self, gt2anchor_distances, num_anchors_list,
                              pad_gt_mask):
+        """"""
+        '''
+        gt2anchor_distances    [N, 200, A]   gt和先验框 两组矩形两两之间中心点的距离
+        num_anchors_list       value = [52*52, 26*26, 13*13, 7*7]，每个特征图的格子数
+        pad_gt_mask            [N, 200, 1]  是真gt还是填充的假gt
+        '''
         pad_gt_mask = pad_gt_mask.repeat([1, 1, self.topk]).to(torch.bool)
-        gt2anchor_distances_list = torch.split(
-            gt2anchor_distances, num_anchors_list, -1)
+        gt2anchor_distances_list = torch.split(gt2anchor_distances, num_anchors_list, -1)
+        # 若 num_anchors_list.value = [a0, a1, a2, a3]
+        # 则 num_anchors_index.value = [a0, a0+a1, a0+a1+a2, a0+a1+a2+a3]
         num_anchors_index = np.cumsum(num_anchors_list).tolist()
         num_anchors_index = [0, ] + num_anchors_index[:-1]
         is_in_topk_list = []
@@ -114,13 +121,30 @@ class ATSSAssigner(nn.Module):
             assigned_bboxes (Tensor): (B, L, 4)
             assigned_scores (Tensor): (B, L, C), if pred_bboxes is not None, then output ious
         """
+        '''
+        anchor_bboxes        [A, 4]  先验框左上角坐标、右下角坐标；单位是像素
+        num_anchors_list     value = [52*52, 26*26, 13*13, 7*7]，每个特征图的格子数
+        gt_labels            [N, 200, 1]  每个gt的label
+        gt_bboxes            [N, 200, 4]  每个gt的左上角坐标、右下角坐标；单位是像素
+        pad_gt_mask          [N, 200, 1]  是真gt还是填充的假gt
+        bg_index==num_classes   背景的类别id
+        gt_scores            None
+        pred_bboxes          [N, A, 4],  预测框左上角坐标、右下角坐标；单位是像素
+        
+        作者提出了一种自适应的选取正样本的方法，具体方法如下：
+        1.对于每个 pyramid level，先计算每个anchor的中心点和gt的中心点的L2距离，
+          选取topk个anchor中心点离gt中心点最近的anchor为候选正样本（candidate positive samples）
+        2.计算每个候选正样本和groundtruth之间的IOU，计算这组IOU的均值和方差
+          根据方差和均值，设置选取正样本的阈值：t=m+g ；m为均值，g为方差
+        3.根据每一层的t从其候选正样本中选出真正需要加入训练的正样本
+        '''
         assert gt_labels.ndim == gt_bboxes.ndim and \
                gt_bboxes.ndim == 3
 
         num_anchors, _ = anchor_bboxes.shape
         batch_size, num_max_boxes, _ = gt_bboxes.shape
 
-        # negative batch
+        # negative batch   这一批全是没有gt的图片
         if num_max_boxes == 0:
             assigned_labels = torch.full(
                 [batch_size, num_anchors], bg_index, dtype=gt_labels.dtype)
@@ -132,16 +156,18 @@ class ATSSAssigner(nn.Module):
             assigned_bboxes = assigned_bboxes.to(gt_bboxes.device)
             assigned_scores = assigned_scores.to(gt_bboxes.device)
             return assigned_labels, assigned_bboxes, assigned_scores
+        # B=N
+        # n=200
+        # L=A
+        # 1. [N, 200, A]  计算 gt和先验框 两组矩形两两之间的iou
+        batch_anchor_bboxes = anchor_bboxes.unsqueeze(0).repeat([batch_size, 1, 1])  # [N, A, 4]  先验框左上角坐标、右下角坐标；单位是像素
+        ious = iou_similarity(gt_bboxes, batch_anchor_bboxes)  # [N, 200, A]  两组矩形两两之间的iou
 
-        # 1. compute iou between gt and anchor bbox, [B, n, L]
-        batch_anchor_bboxes = anchor_bboxes.unsqueeze(0).repeat([batch_size, 1, 1])
-        ious = iou_similarity(gt_bboxes, batch_anchor_bboxes)
-
-        # 2. compute center distance between all anchors and gt, [B, n, L]
-        gt_centers = bbox_center(gt_bboxes.reshape([-1, 4])).unsqueeze(1)
-        anchor_centers = bbox_center(anchor_bboxes)
+        # 2. [N, 200, A]  计算 gt和先验框 两组矩形两两之间中心点的距离
+        gt_centers = bbox_center(gt_bboxes.reshape([-1, 4])).unsqueeze(1)  # [N*200, 1, 2]  每个gt的中心点坐标；单位是像素
+        anchor_centers = bbox_center(anchor_bboxes)   # [A, 2]  先验框中心点坐标；单位是像素
         gt2anchor_distances = (gt_centers - anchor_centers.unsqueeze(0)) \
-            .norm(2, dim=-1).reshape([batch_size, -1, num_anchors])
+            .norm(2, dim=-1).reshape([batch_size, -1, num_anchors])   # [N, 200, A]  计算 gt和先验框 两组矩形两两之间中心点的距离
 
         # 3. on each pyramid level, selecting topk closest candidates
         # based on the center distance, [B, n, L]

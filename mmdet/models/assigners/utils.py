@@ -197,6 +197,9 @@ def generate_anchors_for_grid_cell(feats,
         num_anchors_list (List[int]): shape[s], contains [s_1, s_2, ...].
         stride_tensor (Tensor): shape[l, 1], contains the stride for each scale.
     """
+    # feats里有4个张量，形状分别是[N, C, 52, 52], [N, C, 26, 26], [N, C, 13, 13], [N, C, 7, 7]
+    # fpn_strides == [8, 16, 32, 64]
+    # grid_cell_size==5.0  表示每个格子出1个先验框，先验框是5.0倍的格子边长
     assert len(feats) == len(fpn_strides)
     anchors = []
     anchor_points = []
@@ -204,31 +207,30 @@ def generate_anchors_for_grid_cell(feats,
     stride_tensor = []
     for feat, stride in zip(feats, fpn_strides):
         _, _, h, w = feat.shape
-        cell_half_size = grid_cell_size * stride * 0.5
+        cell_half_size = grid_cell_size * stride * 0.5  # 先验框边长的一半
         shift_x = (torch.arange(end=w) + grid_cell_offset) * stride
         shift_y = (torch.arange(end=h) + grid_cell_offset) * stride
         # shift_y, shift_x = torch.meshgrid(shift_y, shift_x, indexing="ij")
-        shift_y, shift_x = torch.meshgrid(shift_y, shift_x)
+        shift_y, shift_x = torch.meshgrid(shift_y, shift_x)   # shift_y.shape == [h, w]   shift_x.shape == [h, w]
         anchor = torch.stack(
             [
                 shift_x - cell_half_size, shift_y - cell_half_size,
                 shift_x + cell_half_size, shift_y + cell_half_size
             ],
-            -1).to(feat.dtype)
-        anchor_point = torch.stack(
-            [shift_x, shift_y], -1).to(feat.dtype)
+            -1).to(feat.dtype)   # anchor.shape == [h, w, 4]  先验框左上角坐标、右下角坐标；单位是像素
+        anchor_point = torch.stack([shift_x, shift_y], -1).to(feat.dtype)   # anchor_point.shape == [h, w, 2]  格子中心点坐标（单位是像素）
 
-        anchors.append(anchor.reshape([-1, 4]))
-        anchor_points.append(anchor_point.reshape([-1, 2]))
-        num_anchors_list.append(len(anchors[-1]))
+        anchors.append(anchor.reshape([-1, 4]))   # [h*w, 4]  先验框左上角坐标、右下角坐标；单位是像素
+        anchor_points.append(anchor_point.reshape([-1, 2]))   # anchor_point.shape == [h*w, 2]  格子中心点坐标（单位是像素）
+        num_anchors_list.append(len(anchors[-1]))   # h*w，格子数
         stride_tensor.append(
             torch.full(
-                [num_anchors_list[-1], 1], stride, dtype=feat.dtype))
-    anchors = torch.cat(anchors)
+                [num_anchors_list[-1], 1], stride, dtype=feat.dtype))   # [h*w, 1]  格子边长
+    anchors = torch.cat(anchors)   # [A, 4]  先验框左上角坐标、右下角坐标；单位是像素
     anchors.requires_grad_(False)
-    anchor_points = torch.cat(anchor_points)
+    anchor_points = torch.cat(anchor_points)   # [A, 2]  格子中心点坐标（单位是像素）
     anchor_points.requires_grad_(False)
-    stride_tensor = torch.cat(stride_tensor)
+    stride_tensor = torch.cat(stride_tensor)   # [A, 1]  格子边长
     stride_tensor.requires_grad_(False)
     dvs = feats[0].device
     anchors = anchors.to(dvs)

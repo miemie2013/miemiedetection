@@ -123,6 +123,7 @@ def distance2bbox(points, distance, max_shape=None):
 
 
 def bbox_center(boxes):
+    # boxes              [A, 4]  矩形左上角坐标、右下角坐标；单位是像素。  返回矩形中心点坐标
     """Get bbox centers from boxes.
     Args:
         boxes (Tensor): boxes with shape (..., 4), "xmin, ymin, xmax, ymax" format.

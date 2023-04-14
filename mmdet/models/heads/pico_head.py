@@ -414,14 +414,19 @@ class PicoHeadV2(GFLHead):
         '''
         pred_scores, pred_regs, pred_bboxes, fpn_feats = head_outs
         gt_labels = gt_meta['gt_class']   # [N, 200, 1]
-        gt_bboxes = gt_meta['gt_bbox']    # [N, 200, 4]
+        gt_bboxes = gt_meta['gt_bbox']    # [N, 200, 4]  每个gt的左上角坐标、右下角坐标；单位是像素
         gt_scores = gt_meta['gt_score'] if 'gt_score' in gt_meta else None
         num_imgs = gt_meta['gt_class'].shape[0]
         pad_gt_mask = gt_meta['pad_gt_mask']  # [N, 200, 1]
 
+        # anchors              [A, 4]  先验框左上角坐标、右下角坐标；单位是像素
+        # _                    [A, 2]  格子中心点坐标（单位是像素）
+        # num_anchors_list     value = [52*52, 26*26, 13*13, 7*7]，每个特征图的格子数
+        # stride_tensor_list   [A, 1]  格子边长
         anchors, _, num_anchors_list, stride_tensor_list = generate_anchors_for_grid_cell(
             fpn_feats, self.fpn_stride, self.grid_cell_scale, self.cell_offset)
 
+        # centers              [A, 2]  先验框中心点坐标（单位是像素）
         centers = bbox_center(anchors)
 
         # label assignment
