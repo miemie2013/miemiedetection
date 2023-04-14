@@ -136,6 +136,7 @@ def bbox_center(boxes):
 
 def batch_distance2bbox(points, distance, max_shapes=None):
     """Decode distance prediction to bounding box for batch.
+    像FCOS那样，将 ltrb 解码成 预测框左上角坐标、右下角坐标
     Args:
         points (Tensor): [B, ..., 2], "xy" format
         distance (Tensor): [B, ..., 4], "ltrb" format
@@ -143,11 +144,13 @@ def batch_distance2bbox(points, distance, max_shapes=None):
     Returns:
         Tensor: Decoded bboxes, "x1y1x2y2" format.
     """
-    lt, rb = torch.split(distance, 2, -1)
+    #       points.shape == [A, 2], value == [[0.5, 0.5], [1.5, 0.5], [2.5, 0.5], ..., [4.5, 6.5], [5.5, 6.5], [6.5, 6.5]]  是格子中心点坐标（单位是格子边长）
+    # distance.shape == [N,  A, 4],   是预测的bbox，ltrb格式(均是正值且单位是格子边长)
+    lt, rb = torch.split(distance, 2, -1)  # lt.shape == [N, A, 2],  rb.shape == [N, A, 2]
     # while tensor add parameters, parameters should be better placed on the second place
-    x1y1 = -lt + points
-    x2y2 = rb + points
-    out_bbox = torch.cat([x1y1, x2y2], -1)
+    x1y1 = -lt + points  # x1y1.shape == [N, A, 2],  预测的bbox左上角坐标
+    x2y2 = rb + points   # x2y2.shape == [N, A, 2],  预测的bbox右下角坐标
+    out_bbox = torch.cat([x1y1, x2y2], -1)  # out_bbox.shape == [N, A, 4],  预测的bbox左上角坐标、右下角坐标
     if max_shapes is not None:
         max_shapes = max_shapes.flip(-1).tile([1, 2])
         delta_dim = out_bbox.ndim - max_shapes.ndim

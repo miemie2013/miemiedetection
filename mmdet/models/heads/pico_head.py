@@ -303,52 +303,53 @@ class PicoHeadV2(GFLHead):
             self.anchor_points, self.stride_tensor = self._generate_anchors()
 
     def forward(self, fpn_feats, export_post_process=True):
-        assert len(fpn_feats) == len(
-            self.fpn_stride
-        ), "The size of fpn_feats is not equal to size of fpn_stride"
+        assert len(fpn_feats) == len(self.fpn_stride), "The size of fpn_feats is not equal to size of fpn_stride"
 
         if self.training:
             return self.forward_train(fpn_feats)
         else:
-            return self.forward_eval(
-                fpn_feats, export_post_process=export_post_process)
+            return self.forward_eval(fpn_feats, export_post_process=export_post_process)
 
     def forward_train(self, fpn_feats):
         cls_score_list, reg_list, box_list = [], [], []
+        # fpn_feats里有4个张量，形状分别是[N, C, 52, 52], [N, C, 26, 26], [N, C, 13, 13], [N, C, 7, 7]
+        # self.fpn_stride == [8, 16, 32, 64]
         for i, (fpn_feat, stride) in enumerate(zip(fpn_feats, self.fpn_stride)):
             b, _, h, w = fpn_feat.shape
             # task decomposition
+            # conv_cls_feat.shape == [N, C, 52, 52]
+            # se_feat.shape ==       [N, C, 52, 52]
             conv_cls_feat, se_feat = self.conv_feat(fpn_feat, i)
-            cls_logit = self.head_cls_list[i](se_feat)
-            reg_pred = self.head_reg_list[i](se_feat)
+            cls_logit = self.head_cls_list[i](se_feat)   # shape == [N,       num_classes, 52, 52]
+            reg_pred = self.head_reg_list[i](se_feat)    # shape == [N, 4 * (reg_max + 1), 52, 52]
 
             # cls prediction and alignment
             if self.use_align_head:
                 cls_prob = torch.sigmoid(self.cls_align[i](conv_cls_feat))
-                cls_score = (torch.sigmoid(cls_logit) * cls_prob + eps).sqrt()
+                cls_score = (torch.sigmoid(cls_logit) * cls_prob + eps).sqrt()   # [N, num_classes, 52, 52],  分数
             else:
-                cls_score = torch.sigmoid(cls_logit)
+                cls_score = torch.sigmoid(cls_logit)   # [N, num_classes, 52, 52],  分数
 
-            cls_score_out = cls_score.permute([0, 2, 3, 1])
-            bbox_pred = reg_pred.permute([0, 2, 3, 1])
-            b, cell_h, cell_w, _ = cls_score_out.shape
+            bbox_pred = reg_pred.permute([0, 2, 3, 1])     # [N, 52, 52, 4 * (reg_max + 1)]
+            b, _, cell_h, cell_w = cls_score.shape
             y, x = self.get_single_level_center_point(
                 [cell_h, cell_w], stride, cell_offset=self.cell_offset)
+            # center_points.shape == [52*52, 2], value == [[0.5*stride, 0.5*stride], [1.5*stride, 0.5*stride], [2.5*stride, 0.5*stride],
+            # ..., [49.5*stride, 51.5*stride], [50.5*stride, 51.5*stride], [51.5*stride, 51.5*stride]]  是格子中心点坐标（单位是像素）
             center_points = torch.stack([x, y], dim=-1)
-            cls_score_out = cls_score_out.reshape(
-                [b, -1, self.cls_out_channels])
-            bbox_pred = self.distribution_project(bbox_pred) * stride
-            bbox_pred = bbox_pred.reshape([b, cell_h * cell_w, 4])
+            bbox_pred = self.distribution_project(bbox_pred) * stride  # [N*52*52, 4],   是预测的bbox，ltrb格式(均是正值，乘了stride，单位是像素)
+            bbox_pred = bbox_pred.reshape([b, cell_h * cell_w, 4])    # [N, 52*52, 4],   是预测的bbox，ltrb格式(均是正值，单位是像素)
+            # center_points.shape == [52*52, 2], value == [[0.5*stride, 0.5*stride], [1.5*stride, 0.5*stride], [2.5*stride, 0.5*stride],
+            # ..., [49.5*stride, 51.5*stride], [50.5*stride, 51.5*stride], [51.5*stride, 51.5*stride]]  是格子中心点坐标（单位是像素）
             center_points = center_points.to(bbox_pred.device)
-            bbox_pred = batch_distance2bbox(
-                center_points, bbox_pred, max_shapes=None)
-            cls_score_list.append(cls_score.flatten(2).permute([0, 2, 1]))
-            reg_list.append(reg_pred.flatten(2).permute([0, 2, 1]))
-            box_list.append(bbox_pred / stride)
+            bbox_pred = batch_distance2bbox(center_points, bbox_pred)   # [N, 52*52, 4],  像FCOS那样，将 ltrb 解码成 预测框左上角坐标、右下角坐标；单位是像素
+            cls_score_list.append(cls_score.flatten(2).permute([0, 2, 1]))   # [N, 52*52, num_classes],  分数
+            reg_list.append(reg_pred.flatten(2).permute([0, 2, 1]))   # [N, 52*52, 4 * (reg_max + 1)],  回归
+            box_list.append(bbox_pred / stride)   # [N, 52*52, 4],  预测框左上角坐标、右下角坐标；单位是格子边长
 
-        cls_score_list = torch.cat(cls_score_list, 1)
-        box_list = torch.cat(box_list, 1)
-        reg_list = torch.cat(reg_list, 1)
+        cls_score_list = torch.cat(cls_score_list, 1)   # [N, A, num_classes],  分数
+        box_list = torch.cat(box_list, 1)   # [N, A, 4],  预测框左上角坐标、右下角坐标；单位是格子边长
+        reg_list = torch.cat(reg_list, 1)   # [N, A, 4 * (reg_max + 1)],  回归
         return cls_score_list, reg_list, box_list, fpn_feats
 
     def forward_eval(self, fpn_feats, export_post_process=True):
@@ -359,12 +360,18 @@ class PicoHeadV2(GFLHead):
         anchor_points = anchor_points.to(fpn_feats[0].device)
         stride_tensor = stride_tensor.to(fpn_feats[0].device)
         cls_score_list, box_list = [], []
+        # anchor_points.shape == [A, 2], value == [[0.5, 0.5], [1.5, 0.5], [2.5, 0.5], ..., [4.5, 6.5], [5.5, 6.5], [6.5, 6.5]]  是格子中心点坐标（单位是格子边长）
+        # stride_tensor.shape == [A, 1], value == [[8.], [8.], [8.], ..., [64.], [64.], [64.]]   是格子边长（单位是像素）
+        # fpn_feats里有4个张量，形状分别是[N, C, 52, 52], [N, C, 26, 26], [N, C, 13, 13], [N, C, 7, 7]
+        # self.fpn_stride == [8, 16, 32, 64]
         for i, (fpn_feat, stride) in enumerate(zip(fpn_feats, self.fpn_stride)):
             _, _, h, w = fpn_feat.shape
             # task decomposition
+            # conv_cls_feat.shape == [N, C, 52, 52]
+            # se_feat.shape ==       [N, C, 52, 52]
             conv_cls_feat, se_feat = self.conv_feat(fpn_feat, i)
-            cls_logit = self.head_cls_list[i](se_feat)
-            reg_pred = self.head_reg_list[i](se_feat)
+            cls_logit = self.head_cls_list[i](se_feat)   # shape == [N,       num_classes, 52, 52]
+            reg_pred = self.head_reg_list[i](se_feat)    # shape == [N, 4 * (reg_max + 1), 52, 52]
 
             # cls prediction and alignment
             if self.use_align_head:
@@ -383,22 +390,28 @@ class PicoHeadV2(GFLHead):
                         [0, 2, 1]))
             else:
                 l = h * w
-                cls_score_out = cls_score.reshape([-1, self.cls_out_channels, l])
-                bbox_pred = reg_pred.permute([0, 2, 3, 1])
-                bbox_pred = self.distribution_project(bbox_pred)
-                bbox_pred = bbox_pred.reshape([-1, l, 4])
+                cls_score_out = cls_score.reshape([-1, self.cls_out_channels, l])   # [N, num_classes, 52*52]
+                bbox_pred = reg_pred.permute([0, 2, 3, 1])     # [N, 52, 52, 4 * (reg_max + 1)]
+                bbox_pred = self.distribution_project(bbox_pred)  # [N*52*52*4, ],   是预测的bbox，ltrb格式(均是正值且单位是格子边长)
+                bbox_pred = bbox_pred.reshape([-1, l, 4])         # [N, 52*52, 4],   是预测的bbox，ltrb格式(均是正值且单位是格子边长)
                 cls_score_list.append(cls_score_out)
                 box_list.append(bbox_pred)
 
         if export_post_process:
             cls_score_list = torch.cat(cls_score_list, -1)  # [N, 80, A]
-            box_list = torch.cat(box_list, 1)               # [N,  A, 4]
-            box_list = batch_distance2bbox(anchor_points, box_list)
-            box_list *= stride_tensor        # [N,  A, 4]
+            box_list = torch.cat(box_list, 1)               # [N,  A, 4],   是预测的bbox，ltrb格式(均是正值且单位是格子边长)
+            box_list = batch_distance2bbox(anchor_points, box_list)   # [N,  A, 4],  像FCOS那样，将 ltrb 解码成 预测框左上角坐标、右下角坐标
+            box_list *= stride_tensor        # [N,  A, 4]   预测框左上角坐标、右下角坐标；乘以格子边长，单位是像素
 
         return cls_score_list, box_list
 
     def get_loss(self, head_outs, gt_meta):
+        '''
+        pred_scores    [N, A, num_classes],  分数
+        pred_regs      [N, A, 4 * (reg_max + 1)],  回归
+        pred_bboxes    [N, A, 4],  预测框左上角坐标、右下角坐标；单位是格子边长
+        fpn_feats      fpn输出的特征图
+        '''
         pred_scores, pred_regs, pred_bboxes, fpn_feats = head_outs
         gt_labels = gt_meta['gt_class']   # [N, 200, 1]
         gt_bboxes = gt_meta['gt_bbox']    # [N, 200, 4]
@@ -447,8 +460,7 @@ class PicoHeadV2(GFLHead):
         flatten_bboxes = pred_bboxes.reshape([-1, 4])
         flatten_bbox_targets = assigned_bboxes.reshape([-1, 4])
         flatten_labels = assigned_labels.reshape([-1])
-        flatten_assigned_scores = assigned_scores.reshape(
-            [-1, self.num_classes])
+        flatten_assigned_scores = assigned_scores.reshape([-1, self.num_classes])
 
         pos_inds = torch.nonzero(
             torch.logical_and((flatten_labels >= 0),
@@ -469,12 +481,9 @@ class PicoHeadV2(GFLHead):
             weight_targets = gather_1d(weight_targets, pos_inds)
 
             pred_corners = pos_reg.reshape([-1, self.reg_max + 1])
-            target_corners = bbox2distance(pos_centers, pos_bbox_targets,
-                                           self.reg_max).reshape([-1])
+            target_corners = bbox2distance(pos_centers, pos_bbox_targets, self.reg_max).reshape([-1])
             # regression loss
-            loss_bbox = torch.sum(
-                self.loss_bbox(pos_decode_bbox_pred,
-                               pos_bbox_targets) * weight_targets)
+            loss_bbox = torch.sum(self.loss_bbox(pos_decode_bbox_pred, pos_bbox_targets) * weight_targets)
 
             # dfl loss
             loss_dfl = self.loss_dfl(
@@ -492,15 +501,13 @@ class PicoHeadV2(GFLHead):
             dist.all_reduce(avg_factor, op=dist.ReduceOp.SUM)
             avg_factor = avg_factor / world_size
         avg_factor = torch.clamp(avg_factor, min=1.)  # y = max(x, 1)
-        loss_vfl = self.loss_vfl(
-            flatten_cls_preds, flatten_assigned_scores, avg_factor=avg_factor)
+        loss_vfl = self.loss_vfl(flatten_cls_preds, flatten_assigned_scores, avg_factor=avg_factor)
 
         loss_bbox = loss_bbox / avg_factor
         loss_dfl = loss_dfl / avg_factor
 
         total_loss = loss_vfl + loss_bbox + loss_dfl
-        loss_states = dict(total_loss=total_loss,
-            loss_vfl=loss_vfl, loss_bbox=loss_bbox, loss_dfl=loss_dfl)
+        loss_states = dict(total_loss=total_loss, loss_vfl=loss_vfl, loss_bbox=loss_bbox, loss_dfl=loss_dfl)
 
         return loss_states
 
@@ -526,8 +533,8 @@ class PicoHeadV2(GFLHead):
 
     def post_process(self, head_outs, scale_factor, export_nms=True):
         pred_scores, pred_bboxes = head_outs
-        # pred_scores [N, 80, A]
-        # pred_bboxes [N,  A, 4]
+        # pred_scores [N, 80, A]   0到1之间的值
+        # pred_bboxes [N,  A, 4]   预测框左上角坐标、右下角坐标；单位是像素
         if not export_nms:
             return pred_bboxes, pred_scores
         else:
