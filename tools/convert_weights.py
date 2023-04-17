@@ -365,7 +365,7 @@ def main(exp, args):
                             name2 = name2.replace('reg_conv_dw{}.{}'.format(ii, jj), 'reg_conv_dw{}_{}'.format(ii, jj))
                         if 'reg_conv_pw{}.{}'.format(ii, jj) in key:
                             name2 = name2.replace('reg_conv_pw{}.{}'.format(ii, jj), 'reg_conv_pw{}_{}'.format(ii, jj))
-                if args.only_backbone:
+                if args.only_backbone and 'backbone.' not in name2:
                     name2 = 'backbone.' + name2
                 if args.only_backbone:
                     if name2 in ['backbone.last_conv.weight', 'backbone.fc.weight', 'backbone.fc.bias']:

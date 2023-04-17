@@ -120,17 +120,23 @@ def check_points_inside_bboxes(points,
     Returns:
         is_in_bboxes (Tensor, float32): shape[B, n, L], value=1. means selected
     """
-    points = points.unsqueeze(0).unsqueeze(1)
-    x, y = points.chunk(2, axis=-1)
-    xmin, ymin, xmax, ymax = bboxes.unsqueeze(2).chunk(4, axis=-1)
+    '''
+    points       [A, 2]  点的坐标
+    gt_bboxes    [N, 200, 4]  bbox的左上角坐标、右下角坐标
+    Returns:
+        is_in_bboxes (Tensor, float32): shape[N, 200, A], value=1. means selected
+    '''
+    points = points.unsqueeze(0).unsqueeze(1)  # [1, 1, A, 2]
+    x, y = points.chunk(2, axis=-1)   # [1, 1, A, 1]   [1, 1, A, 1]
+    xmin, ymin, xmax, ymax = bboxes.unsqueeze(2).chunk(4, axis=-1)  # [N, 200, 1, 1] [N, 200, 1, 1] [N, 200, 1, 1] [N, 200, 1, 1]
     # check whether `points` is in `bboxes`
-    l = x - xmin
-    t = y - ymin
-    r = xmax - x
-    b = ymax - y
-    delta_ltrb = torch.cat([l, t, r, b], -1)
-    delta_ltrb_min, _ = delta_ltrb.min(-1)
-    is_in_bboxes = (delta_ltrb_min > eps)
+    l = x - xmin  # [N, 200, A, 1]
+    t = y - ymin  # [N, 200, A, 1]
+    r = xmax - x  # [N, 200, A, 1]
+    b = ymax - y  # [N, 200, A, 1]
+    delta_ltrb = torch.cat([l, t, r, b], -1)  # [N, 200, A, 4]
+    delta_ltrb_min, _ = delta_ltrb.min(-1)    # [N, 200, A]
+    is_in_bboxes = (delta_ltrb_min > eps)     # [N, 200, A]
     if center_radius_tensor is not None:
         # check whether `points` is in `center_radius`
         center_radius_tensor = center_radius_tensor.unsqueeze(0).unsqueeze(1)

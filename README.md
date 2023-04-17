@@ -21,11 +21,13 @@ torch版本建议1.10.1+cu102或者更高；torchvision版本建议0.11.2+cu102�
 - [PPYOLOE](docs/README_PPYOLO.md)
 - [SOLOv2](readme_solo.txt)
 - [FCOS](docs/README_FCOS.md)
+- [PicoDet](readme_picodet.txt)
 
 ## Updates!!
 * 【2022/08/03】 PPYOLOv2、PPYOLO算法支持导出到NCNN！详情请参考[PPYOLO](docs/README_PPYOLO.md#NCNN) 文档的“NCNN”小节。
 * 【2022/06/22】 PPYOLOE算法支持导出到NCNN！详情请参考[PPYOLOE](docs/README_PPYOLO.md#NCNN) 文档的“NCNN”小节。
-* 【2022/05/15】 加入了PPYOLOE算法！！！
+* 【2022/05/15】 加入了PPYOLOE算法(基于PaddleDetection-release-2.4版本的代码复现)！
+* 【2023/04/17】 加入了PicoDet算法(基于PaddleDetection-release-2.6版本的代码复现)！实测可以复现官方的精度！转换权重、复现COCO上的精度相关命令见readme_picodet.txt，训练日志见train_coco/picodet_s_416_coco_lcnet_4gpu.txt
 
 
 ## 友情链接

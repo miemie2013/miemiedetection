@@ -56,27 +56,33 @@ class ATSSAssigner(nn.Module):
         pad_gt_mask            [N, 200, 1]  是真gt还是填充的假gt
         '''
         pad_gt_mask = pad_gt_mask.repeat([1, 1, self.topk]).to(torch.bool)
+        # gt2anchor_distances 最后一维，分成每个fpn特征图的格子
         gt2anchor_distances_list = torch.split(gt2anchor_distances, num_anchors_list, -1)
         # 若 num_anchors_list.value = [a0, a1, a2, a3]
         # 则 num_anchors_index.value = [a0, a0+a1, a0+a1+a2, a0+a1+a2+a3]
         num_anchors_index = np.cumsum(num_anchors_list).tolist()
-        num_anchors_index = [0, ] + num_anchors_index[:-1]
+        num_anchors_index = [0, ] + num_anchors_index[:-1]  # num_anchors_index.value = [0, a0, a0+a1, a0+a1+a2]  每个fpn特征图第一个格子在A维度的下标
         is_in_topk_list = []
         topk_idxs_list = []
-        for distances, anchors_index in zip(gt2anchor_distances_list,
-                                            num_anchors_index):
-            num_anchors = distances.shape[-1]
-            topk_metrics, topk_idxs = torch.topk(
-                distances, self.topk, dim=-1, largest=False)
-            topk_idxs_list.append(topk_idxs + anchors_index)
-            topk_idxs = torch.where(pad_gt_mask, topk_idxs,
-                                     torch.zeros_like(topk_idxs))
+        for distances, anchors_index in zip(gt2anchor_distances_list, num_anchors_index):
+            # distances    [N, 200, 52*52]   gt和 这层fpn先验框 两组矩形两两之间中心点的距离
+            # anchors_index.value = 0        每个fpn特征图第一个格子在A维度的下标
+            num_anchors = distances.shape[-1]   # 这个fpn特征图的格子数
+            # 对每个gt，取最近的topk个先验框。
+            # topk_metrics    [N, 200, topk]   每个gt最近的topk个先验框 的距离
+            # (把gt比作考试科目，把anchor比作学生，把每个fpn level比作不同的班级，topk_metrics即：当前班级每门科目得分的前topk名学生)
+            # topk_idxs       [N, 200, topk]   每个gt最近的topk个先验框 在52*52维度的下标  (即：当前班级每门科目得分的前topk名学生的id)
+            topk_metrics, topk_idxs = torch.topk(distances, self.topk, dim=-1, largest=False)
+            topk_idxs_list.append(topk_idxs + anchors_index)   # 每个gt最近的topk个先验框 在A维度的下标
+            # 假gt的topk_idxs置0
+            topk_idxs = torch.where(pad_gt_mask, topk_idxs, torch.zeros_like(topk_idxs))
+            # [N, 200, topk, num_anchors]  -> [N, 200, num_anchors]  (即：掩码。对于每门科目每个学生，该生是否拿到了该科目的前topk名)
+            # 对于每个gt每个anchor，该anchor是否是该gt的前topk个最近的anchor
             is_in_topk = F.one_hot(topk_idxs, num_anchors).sum(axis=-2)
-            is_in_topk = torch.where(is_in_topk > 1,
-                                      torch.zeros_like(is_in_topk), is_in_topk)
+            is_in_topk = torch.where(is_in_topk > 1, torch.zeros_like(is_in_topk), is_in_topk)  # 为了修复一些bug，可以不理解这句代码。
             is_in_topk_list.append(is_in_topk.to(gt2anchor_distances.dtype))
-        is_in_topk_list = torch.cat(is_in_topk_list, -1)
-        topk_idxs_list = torch.cat(topk_idxs_list, -1)
+        is_in_topk_list = torch.cat(is_in_topk_list, -1)  # [N, 200, A]         对于每个gt每个anchor，该anchor是否是该gt在该fpn level上的前topk个最近的anchor
+        topk_idxs_list = torch.cat(topk_idxs_list, -1)    # [N, 200, 4*topk]    每个fpn level, 每个gt最近的topk个先验框 在A维度的下标
         return is_in_topk_list, topk_idxs_list
 
     @torch.no_grad()
@@ -134,7 +140,7 @@ class ATSSAssigner(nn.Module):
         作者提出了一种自适应的选取正样本的方法，具体方法如下：
         1.对于每个 pyramid level，先计算每个anchor的中心点和gt的中心点的L2距离，
           选取topk个anchor中心点离gt中心点最近的anchor为候选正样本（candidate positive samples）
-        2.计算每个候选正样本和groundtruth之间的IOU，计算这组IOU的均值和方差
+        2.计算每个候选正样本和gt之间的IOU，计算这组IOU的均值和方差
           根据方差和均值，设置选取正样本的阈值：t=m+g ；m为均值，g为方差
         3.根据每一层的t从其候选正样本中选出真正需要加入训练的正样本
         '''
@@ -169,42 +175,46 @@ class ATSSAssigner(nn.Module):
         gt2anchor_distances = (gt_centers - anchor_centers.unsqueeze(0)) \
             .norm(2, dim=-1).reshape([batch_size, -1, num_anchors])   # [N, 200, A]  计算 gt和先验框 两组矩形两两之间中心点的距离
 
-        # 3. on each pyramid level, selecting topk closest candidates
-        # based on the center distance, [B, n, L]
+        # 3. 对每个 pyramid level, 每个gt取最近的topk个anchor
+        # is_in_topk  [N, 200, A]         对于每个gt每个anchor，该anchor是否是该gt在该fpn level上的前topk个最近的anchor
+        # topk_idxs   [N, 200, 4*topk]    每个fpn level, 每个gt最近的topk个先验框 在A维度的下标
         is_in_topk, topk_idxs = self._gather_topk_pyramid(
             gt2anchor_distances, num_anchors_list, pad_gt_mask)
 
         # 4. get corresponding iou for the these candidates, and compute the
         # mean and std, 5. set mean + std as the iou threshold
-        iou_candidates = ious * is_in_topk
-        aaaaaa1 = iou_candidates.reshape((-1, iou_candidates.shape[-1]))
-        aaaaaa2 = topk_idxs.reshape((-1, topk_idxs.shape[-1]))
-        iou_threshold = index_sample_2d(aaaaaa1, aaaaaa2)
-        iou_threshold = iou_threshold.reshape([batch_size, num_max_boxes, -1])
+        iou_candidates = ious * is_in_topk   # [N, 200, A]  前topk个anchor与该gt的iou
+        aaaaaa1 = iou_candidates.reshape((-1, iou_candidates.shape[-1]))   # [N*200, A]
+        aaaaaa2 = topk_idxs.reshape((-1, topk_idxs.shape[-1]))             # [N*200, 4*topk]
+        iou_threshold = index_sample_2d(aaaaaa1, aaaaaa2)   # [N*200, 4*topk]   每个fpn level, 前topk个anchor与该gt的iou
+        iou_threshold = iou_threshold.reshape([batch_size, num_max_boxes, -1])   # [N, 200, 4*topk]
+        # [N, 200, 1]  每个gt的均值和标准差相加，作为阈值
         iou_threshold = iou_threshold.mean(dim=-1, keepdim=True) + \
                         iou_threshold.std(dim=-1, keepdim=True)
+        # [N, 200, A]  前topk个最近的anchor（候选正样本）做一次过滤，iou > 阈值的，保留下来。
         is_in_topk = torch.where(
             iou_candidates > iou_threshold.repeat([1, 1, num_anchors]),
             is_in_topk, torch.zeros_like(is_in_topk))
 
-        # 6. check the positive sample's center in gt, [B, n, L]
+        # 6. [N, 200, A]   anchor中心点是否在gt里面
         if self.sm_use:
             is_in_gts = check_points_inside_bboxes(anchor_centers, gt_bboxes, sm_use=True)
         else:
             is_in_gts = check_points_inside_bboxes(anchor_centers, gt_bboxes)
 
-        # select positive sample, [B, n, L]
+        # [N, 200, A], 这才是最终正样本。 iou超过阈值的，且位于gt框内部的，且不是假gt的
         mask_positive = is_in_topk * is_in_gts * pad_gt_mask
 
-        # 7. if an anchor box is assigned to multiple gts,
-        # the one with the highest iou will be selected.
-        mask_positive_sum = mask_positive.sum(dim=-2)
+        # 7. 如果一个anchor被分配给多个gt,
+        # 它只分配给与其具有最高iou的gt.
+        mask_positive_sum = mask_positive.sum(dim=-2)  # [N, A]  每个anchor被分配给了几个gt
         if mask_positive_sum.max() > 1:
-            mask_multiple_gts = (mask_positive_sum.unsqueeze(1) > 1).repeat(
-                [1, num_max_boxes, 1])
+            # [N, 1, A] -> [N, 200, A]   1个anchor对多个gt的anchor的掩码，重复num_max_boxes次
+            mask_multiple_gts = (mask_positive_sum.unsqueeze(1) > 1).repeat([1, num_max_boxes, 1])
             if self.sm_use:
                 is_max_iou = compute_max_iou_anchor(ious * mask_positive)
             else:
+                # [N, 200, A]，对每个anchor，具有最高iou的gt处为1
                 is_max_iou = compute_max_iou_anchor(ious)
             # when use fp16
             mask_positive = torch.where(mask_multiple_gts, is_max_iou, mask_positive.to(is_max_iou.dtype))
