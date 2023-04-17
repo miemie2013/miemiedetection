@@ -135,6 +135,19 @@ Average forward time: 8.53 ms, Average NMS time: 0.00 ms, Average inference time
 
 python tools/eval.py -f exps/picodet/picodet_m_416_coco_lcnet.py -d 1 -b 4 -c picodet_m_416_coco_lcnet.pth --conf 0.025 --tsize 416
 
+Average forward time: 7.04 ms, Average NMS time: 0.00 ms, Average inference time: 7.05 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.368
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.525
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.391
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.145
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.400
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.579
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.301
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.475
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.506
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.222
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.571
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.736
 
 
 
