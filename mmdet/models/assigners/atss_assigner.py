@@ -234,38 +234,41 @@ class ATSSAssigner(nn.Module):
         assigned_gt_index = mask_positive.argmax(-2)
 
         # assigned target
+        # [N, 1]    value=[[0], [1], [2], ..., [N-1]]    图片的下标
         batch_ind = torch.arange(end=batch_size, dtype=gt_labels.dtype).unsqueeze(-1)
         batch_ind = batch_ind.to(assigned_gt_index.device)
+        # [N, A]   每个anchor被分配的gt在 N*200维度(N*num_max_boxes维度) 里的下标
         assigned_gt_index = assigned_gt_index + batch_ind * num_max_boxes
-        # print('aaaaaaaaaaaaaaaaaaaa')
-        # print(gt_labels.shape)
-        # print(gt_labels.dtype)
-        # print(assigned_gt_index.shape)
-        # print(assigned_gt_index.dtype)
 
         # gt_labels.shape = [N, 200, 1]
-        # assigned_gt_index.shape = [N, 2577]
+        # assigned_labels.shape = [N*A, ]    每个anchor学习的类别id
         assigned_labels = gather_1d(gt_labels.flatten(), index=assigned_gt_index.flatten().to(torch.int64))
-        assigned_labels = assigned_labels.reshape([batch_size, num_anchors])  # assigned_labels.shape = [N, num_anchors]
-        assigned_labels = torch.where(
-            mask_positive_sum > 0, assigned_labels,
-            torch.full_like(assigned_labels, bg_index))
+        assigned_labels = assigned_labels.reshape([batch_size, num_anchors])  # assigned_labels.shape = [N, A]
+        # [N, A]    正样本处保留原值，负样本处置为bg_index
+        assigned_labels = torch.where(mask_positive_sum > 0, assigned_labels, torch.full_like(assigned_labels, bg_index))
 
-        assigned_bboxes = gather_1d(
-            gt_bboxes.reshape([-1, 4]), index=assigned_gt_index.flatten().to(torch.int64))
-        assigned_bboxes = assigned_bboxes.reshape([batch_size, num_anchors, 4])
+        # assigned_bboxes.shape = [N*A, 4]    每个anchor学习的左上角坐标、右下角坐标；单位是像素
+        assigned_bboxes = gather_1d(gt_bboxes.reshape([-1, 4]), index=assigned_gt_index.flatten().to(torch.int64))
+        assigned_bboxes = assigned_bboxes.reshape([batch_size, num_anchors, 4])  # assigned_bboxes.shape = [N, A, 4]
 
         assigned_labels = assigned_labels.to(torch.int64)
+        # [N, A, num_classes + 1]    每个anchor学习的one_hot向量
         assigned_scores = F.one_hot(assigned_labels, self.num_classes + 1)
         assigned_scores = assigned_scores.to(torch.float32)
-        ind = list(range(self.num_classes + 1))
-        ind.remove(bg_index)
-        assigned_scores = torch.index_select(assigned_scores, dim=-1, index=torch.Tensor(ind).to(torch.int32).to(assigned_scores.device))
+        ind = list(range(self.num_classes + 1))  # ind.value = [0, 1, 2, ..., num_classes - 1, num_classes]
+        ind.remove(bg_index)                     # ind.value = [0, 1, 2, ..., num_classes - 1]
+        ind = torch.Tensor(ind).to(torch.int32).to(assigned_scores.device)   # ind变成张量
+        # [N, A, num_classes]    每个anchor学习的one_hot向量
+        # 相当于assigned_scores = assigned_scores[:, :, :-1]
+        assigned_scores = torch.index_select(assigned_scores, dim=-1, index=ind)
         if pred_bboxes is not None:
             # assigned iou
+            # [N, 200, A]  计算 gt和预测框 两组矩形两两之间的iou。只保留正样本的。
             ious = batch_iou_similarity(gt_bboxes, pred_bboxes) * mask_positive
+            # [N, A]       每个预测框与所有gt的最高iou
             ious_max, _ = ious.max(-2)
-            ious_max = ious_max.unsqueeze(-1)
+            ious_max = ious_max.unsqueeze(-1)  # [N, A, 1]
+            # [N, A, num_classes]    每个anchor学习的one_hot向量，目标类别处不是1而是正样本与所有gt的最高iou。用于 VarifocalLoss
             assigned_scores *= ious_max
         elif gt_scores is not None:
             gather_scores = gather_1d(

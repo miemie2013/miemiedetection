@@ -117,7 +117,7 @@ class PicoDet_Method_Exp(COCOBaseExp):
             fpn_stride=[8, 16, 32, 64],
             feat_in_chan=128,
             prior_prob=0.01,
-            reg_max=7,
+            reg_max=7,   # 起源于Generalized Focal Loss， 每个anchor预测的ltrb的最大值是reg_max个格子边长。
             cell_offset=0.5,
             grid_cell_scale=5.0,
             static_assigner_epoch=100,

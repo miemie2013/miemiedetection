@@ -80,6 +80,9 @@ def distribution_focal_loss(pred, label):
     """Distribution Focal Loss (DFL) is from `Generalized Focal Loss: Learning
     Qualified and Distributed Bounding Boxes for Dense Object Detection
     <https://arxiv.org/abs/2006.04388>`_.
+        pred      [M*4, reg_max + 1]  M个正样本预测的ltrb取值为[0, 1, 2, ..., reg_max]的概率。未经过softmax()激活
+        label     [M*4, ]             M个正样本学习的ltrb；单位是格子边长
+        可以参考  https://blog.csdn.net/tangshopping/article/details/125223231
     Args:
         pred (Tensor): Predicted general distribution of bounding boxes
             (before softmax) with shape (N, n+1), n is the max value of the
@@ -89,10 +92,11 @@ def distribution_focal_loss(pred, label):
     Returns:
         Tensor: Loss tensor with shape (N,).
     """
-    dis_left = label.to(torch.int64)
-    dis_right = dis_left + 1
-    weight_left = dis_right.to(torch.float32) - label
-    weight_right = label - dis_left.to(torch.float32)
+    dis_left = label.to(torch.int64)  # [M*4, ]   M个正样本学习的ltrb下取整；单位是格子边长。比如若label = 3.2，则 dis_left=3
+    dis_right = dis_left + 1          # [M*4, ]   M个正样本学习的ltrb上取整；单位是格子边长。比如若label = 3.2，则 dis_right=4
+    weight_left = dis_right.to(torch.float32) - label   # [M*4, ]   M个正样本学习的ltrb离上取整的差距；单位是格子边长。比如若label = 3.2，则 weight_left=0.8
+    weight_right = label - dis_left.to(torch.float32)   # [M*4, ]   M个正样本学习的ltrb离下取整的差距；单位是格子边长。比如若label = 3.2，则 weight_right=0.2
+    # 优化概率。目标是上取整和下取整的数值。下取整交叉熵的权重有0.8，上取整交叉熵的权重只有0.2
     loss = F.cross_entropy(pred, dis_left, reduction='none') * weight_left \
         + F.cross_entropy(pred, dis_right, reduction='none') * weight_right
     return loss
@@ -177,6 +181,9 @@ class DistributionFocalLoss(nn.Module):
 
     def forward(self, pred, target, weight=None, avg_factor=None):
         """Forward function.
+        pred      [M*4, reg_max + 1]  M个正样本预测的ltrb取值为[0, 1, 2, ..., reg_max]的概率。未经过softmax()激活
+        target    [M*4, ]             M个正样本学习的ltrb；单位是格子边长
+        weight    [M*4, ]             M个正样本 与所有gt的最高iou。重复4次代表分给ltrb
         Args:
             pred (Tensor): Predicted general distribution of bounding
                 boxes (before softmax) with shape (N, n+1), n is the max value

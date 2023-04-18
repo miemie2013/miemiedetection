@@ -59,6 +59,7 @@ class Integral(nn.Module):
     def __init__(self, reg_max=16):
         super(Integral, self).__init__()
         self.reg_max = reg_max
+        # project数组，值为[0, 1, 2, ..., reg_max]
         self.register_buffer('project', torch.linspace(0, self.reg_max, self.reg_max + 1))
 
     def forward(self, x):
@@ -72,8 +73,9 @@ class Integral(nn.Module):
                 offsets from the box center in four directions, shape (N, 4).
         """
         # x.shape = [N, 52, 52, 4 * (reg_max + 1)]
-        x = F.softmax(x.reshape([-1, self.reg_max + 1]), dim=1)   # [N*52*52*4, (reg_max + 1)]
-        x = F.linear(x, self.project)  # [N*52*52*4, ]
+        # [N*52*52*4, (reg_max + 1)]    每个ltrb持有(reg_max + 1)个概率值，分别是取值为[0, 1, 2, ..., reg_max]的概率。概率之和为1所以用softmax()
+        x = F.softmax(x.reshape([-1, self.reg_max + 1]), dim=1)
+        x = F.linear(x, self.project)  # [N*52*52*4, ]   预测的ltrb应该为 project数组 的期望。
         if self.training:
             x = x.reshape([-1, 4])  # [N*52*52, 4]
         return x

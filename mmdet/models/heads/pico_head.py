@@ -186,7 +186,7 @@ class PicoHeadV2(GFLHead):
         loss_dfl (object): Instance of DistributionFocalLoss.
         loss_bbox (object): Instance of bbox loss.
         assigner (object): Instance of label assigner.
-        reg_max: Max value of integral set :math: `{0, ..., reg_max}`
+        reg_max: Max value of integral set :math: `{0, ..., reg_max}`   起源于Generalized Focal Loss， 每个anchor预测的ltrb的最大值是reg_max个格子边长。
                 n QFL setting. Default: 7.
     """
     __inject__ = [
@@ -344,12 +344,12 @@ class PicoHeadV2(GFLHead):
             center_points = center_points.to(bbox_pred.device)
             bbox_pred = batch_distance2bbox(center_points, bbox_pred)   # [N, 52*52, 4],  像FCOS那样，将 ltrb 解码成 预测框左上角坐标、右下角坐标；单位是像素
             cls_score_list.append(cls_score.flatten(2).permute([0, 2, 1]))   # [N, 52*52, num_classes],  分数
-            reg_list.append(reg_pred.flatten(2).permute([0, 2, 1]))   # [N, 52*52, 4 * (reg_max + 1)],  回归
+            reg_list.append(reg_pred.flatten(2).permute([0, 2, 1]))   # [N, 52*52, 4 * (reg_max + 1)],  预测的ltrb取值为[0, 1, 2, ..., reg_max]的概率。未经过softmax()激活
             box_list.append(bbox_pred / stride)   # [N, 52*52, 4],  预测框左上角坐标、右下角坐标；单位是格子边长
 
         cls_score_list = torch.cat(cls_score_list, 1)   # [N, A, num_classes],  分数
         box_list = torch.cat(box_list, 1)   # [N, A, 4],  预测框左上角坐标、右下角坐标；单位是格子边长
-        reg_list = torch.cat(reg_list, 1)   # [N, A, 4 * (reg_max + 1)],  回归
+        reg_list = torch.cat(reg_list, 1)   # [N, A, 4 * (reg_max + 1)],  预测的ltrb取值为[0, 1, 2, ..., reg_max]的概率。未经过softmax()激活
         return cls_score_list, reg_list, box_list, fpn_feats
 
     def forward_eval(self, fpn_feats, export_post_process=True):
@@ -407,8 +407,8 @@ class PicoHeadV2(GFLHead):
 
     def get_loss(self, head_outs, gt_meta):
         '''
-        pred_scores    [N, A, num_classes],  分数
-        pred_regs      [N, A, 4 * (reg_max + 1)],  回归
+        pred_scores    [N, A, num_classes],  预测分数，已经经过sigmoid激活
+        pred_regs      [N, A, 4 * (reg_max + 1)],  预测的ltrb取值为[0, 1, 2, ..., reg_max]的概率。未经过softmax()激活
         pred_bboxes    [N, A, 4],  预测框左上角坐标、右下角坐标；单位是格子边长
         fpn_feats      fpn输出的特征图
         '''
@@ -431,9 +431,9 @@ class PicoHeadV2(GFLHead):
 
         # label assignment
         if gt_meta['epoch_id'] < self.static_assigner_epoch:
-            # assigned_labels    [N, A]               每个anchor负责学习的gt的类别id
-            # assigned_bboxes    [N, A, 4]            每个anchor负责学习的gt的坐标（左上角坐标、右下角坐标；单位是像素）
-            # assigned_scores    [N, A, num_classes]  每个anchor负责学习的分数，参与 loss_vfl
+            # assigned_labels    [N, A]               每个anchor负责学习的gt的类别id，负样本处为bg_index==num_classes
+            # assigned_bboxes    [N, A, 4]            每个anchor学习的左上角坐标、右下角坐标；单位是像素
+            # assigned_scores    [N, A, num_classes]  每个anchor学习的one_hot向量，目标类别处不是1而是正样本与所有gt的最高iou。用于 VarifocalLoss
             assigned_labels, assigned_bboxes, assigned_scores, _ = self.static_assigner(
                 anchors,
                 num_anchors_list,
@@ -456,44 +456,53 @@ class PicoHeadV2(GFLHead):
                 bg_index=self.num_classes,
                 gt_scores=gt_scores)
 
-        assigned_bboxes /= stride_tensor_list   # [N, A, 4] 每个anchor负责学习的gt的坐标（左上角坐标、右下角坐标；单位是格子边长）
+        assigned_bboxes /= stride_tensor_list   # [N, A, 4] 每个anchor学习的左上角坐标、右下角坐标；单位是格子边长
 
         centers_shape = centers.shape  # [A, 2]
-        flatten_centers = centers.expand(
-            [num_imgs, centers_shape[0], centers_shape[1]]).reshape([-1, 2])
-        flatten_strides = stride_tensor_list.expand(
-            [num_imgs, centers_shape[0], 1]).reshape([-1, 1])
+        # [A, 2] -> [N, A, 2] -> [N*A, 2]   先验框中心点坐标（单位是像素），重复N次（有几张图片重复几次，每张图片都有先验框）
+        flatten_centers = centers.expand([num_imgs, centers_shape[0], centers_shape[1]]).reshape([-1, 2])
+        # [A, 1] -> [N, A, 1] -> [N*A, 1]   格子边长，重复N次
+        flatten_strides = stride_tensor_list.expand([num_imgs, centers_shape[0], 1]).reshape([-1, 1])
+        # [N*A, num_classes]     预测分数，已经经过sigmoid激活
         flatten_cls_preds = pred_scores.reshape([-1, self.num_classes])
+        # [N*A, 4 * (reg_max + 1)],  预测的ltrb取值为[0, 1, 2, ..., reg_max]的概率。未经过softmax()激活
         flatten_regs = pred_regs.reshape([-1, 4 * (self.reg_max + 1)])
+        # [N*A, 4],  预测框左上角坐标、右下角坐标；单位是格子边长
         flatten_bboxes = pred_bboxes.reshape([-1, 4])
+        # [N*A, 4],  每个anchor学习的左上角坐标、右下角坐标；单位是格子边长
         flatten_bbox_targets = assigned_bboxes.reshape([-1, 4])
+        # [N*A, ]    每个anchor负责学习的gt的类别id，负样本处为bg_index==num_classes
         flatten_labels = assigned_labels.reshape([-1])
+        # [N*A, num_classes]  每个anchor学习的one_hot向量，目标类别处不是1而是正样本与所有gt的最高iou。用于 VarifocalLoss
         flatten_assigned_scores = assigned_scores.reshape([-1, self.num_classes])
 
-        pos_inds = torch.nonzero(
-            torch.logical_and((flatten_labels >= 0),
-                               (flatten_labels < self.num_classes)),
-            as_tuple=False).squeeze(1)
-
+        # [M, ]   是正样本的anchor在 N*A维度 的下标，设有M个正样本。
+        pos_inds = torch.nonzero(torch.logical_and((flatten_labels >= 0), (flatten_labels < self.num_classes)), as_tuple=False).squeeze(1)
+        # M == num_total_pos
         num_total_pos = len(pos_inds)
 
         if num_total_pos > 0:
-            pos_bbox_targets = gather_1d(flatten_bbox_targets, pos_inds)
-            pos_decode_bbox_pred = gather_1d(flatten_bboxes, pos_inds)
-            pos_reg = gather_1d(flatten_regs, pos_inds)
-            pos_strides = gather_1d(flatten_strides, pos_inds)
-            pos_centers = gather_1d(flatten_centers, pos_inds) / pos_strides
+            pos_bbox_targets = gather_1d(flatten_bbox_targets, pos_inds)       # [M, 4]  M个正样本学习的左上角坐标、右下角坐标；单位是格子边长
+            pos_decode_bbox_pred = gather_1d(flatten_bboxes, pos_inds)         # [M, 4]  M个正样本预测的左上角坐标、右下角坐标；单位是格子边长
+            pos_reg = gather_1d(flatten_regs, pos_inds)                        # [M, 4 * (reg_max + 1)]  M个正样本预测的ltrb取值为[0, 1, 2, ..., reg_max]的概率。未经过softmax()激活
+            pos_strides = gather_1d(flatten_strides, pos_inds)                 # [M, 1]  M个正样本所处格子的边长；单位是像素
+            pos_centers = gather_1d(flatten_centers, pos_inds) / pos_strides   # [M, 2]  M个正样本所处格子的中心点坐标（单位是格子边长）
 
+            # [N*A, num_classes]  每个anchor学习的one_hot向量，目标类别处不是1而是正样本与所有gt的最高iou。
             weight_targets = flatten_assigned_scores.detach()
+            # [N*A, 1]            每个anchor，负样本处是0，正样本处是 正样本与所有gt的最高iou。
             weight_targets, _ = weight_targets.max(axis=1, keepdim=True)
+            # [M, 1]              M个正样本 与所有gt的最高iou。
             weight_targets = gather_1d(weight_targets, pos_inds)
 
+            # [M*4, reg_max + 1]  M个正样本预测的ltrb取值为[0, 1, 2, ..., reg_max]的概率。未经过softmax()激活
             pred_corners = pos_reg.reshape([-1, self.reg_max + 1])
+            # [M, 4] -> [M*4, ]   M个正样本学习的ltrb；单位是格子边长
             target_corners = bbox2distance(pos_centers, pos_bbox_targets, self.reg_max).reshape([-1])
-            # regression loss
+            # regression loss, 也就是bbox的loss，是 GIoULoss, 每个正样本loss的权重是与所有gt的最高iou
             loss_bbox = torch.sum(self.loss_bbox(pos_decode_bbox_pred, pos_bbox_targets) * weight_targets)
 
-            # dfl loss
+            # dfl loss。  起源于Generalized Focal Loss， 这个也是bbox的loss，优化 ltrb取值为[0, 1, 2, ..., reg_max]的概率
             loss_dfl = self.loss_dfl(
                 pred_corners,
                 target_corners,
@@ -509,6 +518,7 @@ class PicoHeadV2(GFLHead):
             dist.all_reduce(avg_factor, op=dist.ReduceOp.SUM)
             avg_factor = avg_factor / world_size
         avg_factor = torch.clamp(avg_factor, min=1.)  # y = max(x, 1)
+        # 分类的loss
         loss_vfl = self.loss_vfl(flatten_cls_preds, flatten_assigned_scores, avg_factor=avg_factor)
 
         loss_bbox = loss_bbox / avg_factor

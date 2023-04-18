@@ -31,7 +31,8 @@ def varifocal_loss(pred,
                    iou_weighted=True,
                    use_sigmoid=True):
     """`Varifocal Loss <https://arxiv.org/abs/2008.13367>`_
-
+        pred    [N*A, num_classes]  预测分数，已经经过sigmoid激活
+        target  [N*A, num_classes]  每个anchor学习的one_hot向量，目标类别处不是1而是正样本与所有gt的最高iou
     Args:
         pred (Tensor): The prediction with shape (N, C), C is the
             number of classes
@@ -107,7 +108,8 @@ class VarifocalLoss(nn.Module):
 
     def forward(self, pred, target, weight=None, avg_factor=None):
         """Forward function.
-
+            pred    [N*A, num_classes]  预测分数，已经经过sigmoid激活
+            target  [N*A, num_classes]  每个anchor学习的one_hot向量，目标类别处不是1而是正样本与所有gt的最高iou
         Args:
             pred (Tensor): The prediction.
             target (Tensor): The learning target of the prediction.
