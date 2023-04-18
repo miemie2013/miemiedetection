@@ -216,23 +216,25 @@ class ATSSAssigner(nn.Module):
             else:
                 # [N, 200, A]，对每个anchor，具有最高iou的gt处为1
                 is_max_iou = compute_max_iou_anchor(ious)
-            # when use fp16
+            # [N, 200, A], 最终正样本。一对多的时候，选择具有最高iou的gt
             mask_positive = torch.where(mask_multiple_gts, is_max_iou, mask_positive.to(is_max_iou.dtype))
-            # mask_positive = torch.where(mask_multiple_gts, is_max_iou, mask_positive)
+            # [N, A], 每个anchor学习的gt个数(最大是1最小是0)。也是anchor是否是正样本的掩码
             mask_positive_sum = mask_positive.sum(-2)
-        # 8. make sure every gt_bbox matches the anchor
+        # 8. 确保 每一个gt 被分配给anchor
         if self.force_gt_matching:
+            # [N, 200, A]，对每个gt，具有最高iou的anchor处为1。 * pad_gt_mask表示假gt处都是0
             is_max_iou = compute_max_iou_gt(ious) * pad_gt_mask
-            mask_max_iou = (is_max_iou.sum(-2, keepdim=True) == 1).repeat(
-                [1, num_max_boxes, 1])
-            mask_positive = torch.where(mask_max_iou, is_max_iou,
-                                         mask_positive)
+            # [N, 1, A] -> [N, 200, A]    求和之后表示，每个anchor是几个gt最高iou的。 ==1表示只保留是1个gt的最高iou的
+            mask_max_iou = (is_max_iou.sum(-2, keepdim=True) == 1).repeat([1, num_max_boxes, 1])
+            # 反悔重写。 [N, 200, A], 最终正样本。
+            mask_positive = torch.where(mask_max_iou, is_max_iou, mask_positive)
+            # 反悔重写。 [N, A], 每个anchor学习的gt个数(最大是1最小是0)。也是anchor是否是正样本的掩码
             mask_positive_sum = mask_positive.sum(-2)
+        # [N, A]   每个anchor被分配的gt在 200维度(num_max_boxes维度) 里的下标
         assigned_gt_index = mask_positive.argmax(-2)
 
         # assigned target
-        batch_ind = torch.arange(
-            end=batch_size, dtype=gt_labels.dtype).unsqueeze(-1)
+        batch_ind = torch.arange(end=batch_size, dtype=gt_labels.dtype).unsqueeze(-1)
         batch_ind = batch_ind.to(assigned_gt_index.device)
         assigned_gt_index = assigned_gt_index + batch_ind * num_max_boxes
         # print('aaaaaaaaaaaaaaaaaaaa')

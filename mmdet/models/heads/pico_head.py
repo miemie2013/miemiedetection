@@ -431,6 +431,9 @@ class PicoHeadV2(GFLHead):
 
         # label assignment
         if gt_meta['epoch_id'] < self.static_assigner_epoch:
+            # assigned_labels    [N, A]               每个anchor负责学习的gt的类别id
+            # assigned_bboxes    [N, A, 4]            每个anchor负责学习的gt的坐标（左上角坐标、右下角坐标；单位是像素）
+            # assigned_scores    [N, A, num_classes]  每个anchor负责学习的分数，参与 loss_vfl
             assigned_labels, assigned_bboxes, assigned_scores, _ = self.static_assigner(
                 anchors,
                 num_anchors_list,
@@ -453,9 +456,9 @@ class PicoHeadV2(GFLHead):
                 bg_index=self.num_classes,
                 gt_scores=gt_scores)
 
-        assigned_bboxes /= stride_tensor_list
+        assigned_bboxes /= stride_tensor_list   # [N, A, 4] 每个anchor负责学习的gt的坐标（左上角坐标、右下角坐标；单位是格子边长）
 
-        centers_shape = centers.shape
+        centers_shape = centers.shape  # [A, 2]
         flatten_centers = centers.expand(
             [num_imgs, centers_shape[0], centers_shape[1]]).reshape([-1, 2])
         flatten_strides = stride_tensor_list.expand(

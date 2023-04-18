@@ -160,6 +160,7 @@ def check_points_inside_bboxes(points,
 
 def compute_max_iou_anchor(ious):
     r"""
+    返回： [N, 200, A]，对每个anchor，具有最高iou的gt处为1
     For each anchor, find the GT with the largest IOU.
     Args:
         ious (Tensor, float32): shape[B, n, L], n: num_gts, L: num_anchors
@@ -174,6 +175,7 @@ def compute_max_iou_anchor(ious):
 
 def compute_max_iou_gt(ious):
     r"""
+    返回： [N, 200, A]，对每个gt，具有最高iou的anchor处为1
     For each GT, find the anchor with the largest IOU.
     Args:
         ious (Tensor, float32): shape[B, n, L], n: num_gts, L: num_anchors
