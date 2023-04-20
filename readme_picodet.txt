@@ -175,6 +175,8 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3
 nohup python tools/train.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 4 -b 192 -eb 16     > picodet_s_416_coco_lcnet_from_scratch_4gpu.log 2>&1 &
 
 
+python tools/eval.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 1 -b 4 -c PicoDet_outputs/picodet_s_416_coco_lcnet/300.pth --conf 0.025 --tsize 416
+
 
 
 只有双卡的时候：
