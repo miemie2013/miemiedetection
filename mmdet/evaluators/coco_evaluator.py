@@ -219,7 +219,7 @@ class COCOEvaluator:
         nms_time = 0
         n_samples = max(len(self.dataloader) - 1, 1)
         steps = len(self.dataloader)
-        print_interval = steps // 10
+        print_interval = max(steps // 10, 1)
         num_imgs = self.dataloader.dataset.num_record
 
         if trt_file is not None:
@@ -306,7 +306,7 @@ class COCOEvaluator:
         nms_time = 0
         n_samples = max(len(self.dataloader) - 1, 1)
         steps = len(self.dataloader)
-        print_interval = steps // 10
+        print_interval = max(steps // 10, 1)
         num_imgs = self.dataloader.dataset.num_record
 
         if trt_file is not None:
