@@ -37,6 +37,7 @@ class Exp(PicoDet_Method_Exp):
         self.eval_width = 640
         self.test_size = [self.eval_height, self.eval_width]
         self.resizeImage['target_size'] = 640
+        self.head['eval_size'] = self.test_size
 
         # ---------------- dataloader config ---------------- #
         # 默认是4。如果报错“OSError: [WinError 1455] 页面文件太小,无法完成操作”，设置为2或0解决。

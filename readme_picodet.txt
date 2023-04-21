@@ -117,6 +117,22 @@ tail -n 20 picodet_s_416.log
 实测 picodet_s_416 的AP(0.50:0.95)可以到达0.46+、AP(0.50)可以到达0.65+、AP(small)可以到达0.06+。
 
 
+- - - - - - - - - - - - - - - - - - - - - -
+迁移学习（不冻结骨干网络）:（可以加--fp16， 但是picodet没有用自动混合精度训练。-eb表示验证时的批大小）
+1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
+export CUDA_VISIBLE_DEVICES=0,1
+nohup python tools/train.py -f exps/picodet/picodet_m_640_voc2012.py -d 2 -b 24 -eb 8 -c picodet_m_416_coco_lcnet.pth     > picodet_m_640.log 2>&1 &
+
+tail -n 20 picodet_m_640.log
+
+python tools/eval.py -f exps/picodet/picodet_m_640_voc2012.py -d 1 -b 8 -c PicoDet_outputs/picodet_m_640_voc2012/16.pth --conf 0.025 --tsize 640
+
+python tools/demo.py image -f exps/picodet/picodet_m_640_voc2012.py -c PicoDet_outputs/picodet_m_640_voc2012/16.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
+
+
+实测 picodet_m_640 的AP(0.50:0.95)可以到达0.55+、AP(0.50)可以到达0.75+、AP(small)可以到达0.12+。
+
+
 
 
 

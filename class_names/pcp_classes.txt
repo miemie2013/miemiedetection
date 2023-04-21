@@ -1,0 +1,5 @@
+person
+car
+two_wheel
+pet
+box

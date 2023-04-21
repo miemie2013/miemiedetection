@@ -13,30 +13,36 @@ class Exp(PicoDet_Method_Exp):
     def __init__(self):
         super(Exp, self).__init__()
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
+        # custom dataset
+        self.num_classes = 5
+        self.data_dir = '../PersonCarPet'
+        self.cls_names = 'class_names/pcp_classes.txt'
+        self.ann_folder = "annotations"
+        self.train_ann = "train_T40RGBIR_pet_Package_voc_coco_11_22131images_121576bbox.json"
+        self.val_ann = "val_T40_RGB_PCPaP_1871images_11892bbox.json"
+        self.train_image_folder = "pcp_train"
+        self.val_image_folder = "pcp_val"
+
+        self.max_epoch = 60
+        self.print_interval = 20
+        self.eval_interval = 4
+        self.warmup_epochs = 1
+        self.cosinedecay_epochs = 80
+        self.head['static_assigner_epoch'] = 20
 
         # learning_rate
-        self.basic_lr_per_img = 0.12 / (4. * 24.0)
-        self.max_epoch = 250
-        self.cosinedecay_epochs = 300
+        self.basic_lr_per_img = 0.24 / (4. * 48.0)
 
-        self.scale = 2.0
+        self.scale = 1.5
         self.backbone['scale'] = self.scale
         self.fpn['in_channels'] = [make_divisible(128 * self.scale), make_divisible(256 * self.scale), make_divisible(512 * self.scale)]
-        self.fpn['out_channels'] = 160
-        self.head['feat_in_chan'] = 160
         self.head['num_classes'] = self.num_classes
-        self.conv_feat['feat_in'] = 160
-        self.conv_feat['feat_out'] = 160
-        self.conv_feat['num_convs'] = 4
-        self.conv_feat['num_fpn_stride'] = 4
-        self.conv_feat['share_cls_reg'] = True
-        self.conv_feat['use_se'] = True
         self.static_assigner['num_classes'] = self.num_classes
-        self.randomShape['sizes'] = [256, 288, 320, 352, 384]
-        self.eval_height = 320
-        self.eval_width = 320
+        self.randomShape['sizes'] = [576, 608, 640, 672, 704]
+        self.eval_height = 640
+        self.eval_width = 640
         self.test_size = [self.eval_height, self.eval_width]
-        self.resizeImage['target_size'] = 320
+        self.resizeImage['target_size'] = 640
         self.head['eval_size'] = self.test_size
 
         # ---------------- dataloader config ---------------- #
