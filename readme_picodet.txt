@@ -54,11 +54,17 @@ class SPP(nn.Module):
 ----------------------- 转换权重 -----------------------
 wget https://paddledet.bj.bcebos.com/models/picodet_s_416_coco_lcnet.pdparams
 wget https://paddledet.bj.bcebos.com/models/picodet_m_416_coco_lcnet.pdparams
+wget https://paddledet.bj.bcebos.com/models/picodet_l_320_coco_lcnet.pdparams
+wget https://paddledet.bj.bcebos.com/models/picodet_l_416_coco_lcnet.pdparams
+wget https://paddledet.bj.bcebos.com/models/picodet_l_640_coco_lcnet.pdparams
 wget https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/legendary_models/PPLCNet_x0_75_pretrained.pdparams
 wget https://paddledet.bj.bcebos.com/models/pretrained/LCNet_x1_5_pretrained.pdparams
 
 python tools/convert_weights.py -f exps/picodet/picodet_s_416_coco_lcnet.py -c picodet_s_416_coco_lcnet.pdparams -oc picodet_s_416_coco_lcnet.pth -nc 80
 python tools/convert_weights.py -f exps/picodet/picodet_m_416_coco_lcnet.py -c picodet_m_416_coco_lcnet.pdparams -oc picodet_m_416_coco_lcnet.pth -nc 80
+python tools/convert_weights.py -f exps/picodet/picodet_l_320_coco_lcnet.py -c picodet_l_320_coco_lcnet.pdparams -oc picodet_l_320_coco_lcnet.pth -nc 80
+python tools/convert_weights.py -f exps/picodet/picodet_l_416_coco_lcnet.py -c picodet_l_416_coco_lcnet.pdparams -oc picodet_l_416_coco_lcnet.pth -nc 80
+python tools/convert_weights.py -f exps/picodet/picodet_l_640_coco_lcnet.py -c picodet_l_640_coco_lcnet.pdparams -oc picodet_l_640_coco_lcnet.pth -nc 80
 
 
 python tools/convert_weights.py -f exps/picodet/picodet_s_416_coco_lcnet.py -c PPLCNet_x0_75_pretrained.pdparams -oc PPLCNet_x0_75_pretrained.pth -nc 80 --only_backbone True
@@ -70,6 +76,10 @@ python tools/convert_weights.py -f exps/picodet/picodet_m_416_coco_lcnet.py -c L
 python tools/demo.py image -f exps/picodet/picodet_s_416_coco_lcnet.py -c picodet_s_416_coco_lcnet.pth --path assets/000000000019.jpg --conf 0.15 --tsize 416 --save_result --device gpu
 
 python tools/demo.py image -f exps/picodet/picodet_m_416_coco_lcnet.py -c picodet_m_416_coco_lcnet.pth --path assets/000000000019.jpg --conf 0.15 --tsize 416 --save_result --device gpu
+
+python tools/demo.py image -f exps/picodet/picodet_l_320_coco_lcnet.py -c picodet_l_320_coco_lcnet.pth --path assets/000000000019.jpg --conf 0.15 --tsize 320 --save_result --device gpu
+python tools/demo.py image -f exps/picodet/picodet_l_416_coco_lcnet.py -c picodet_l_416_coco_lcnet.pth --path assets/000000000019.jpg --conf 0.15 --tsize 416 --save_result --device gpu
+python tools/demo.py image -f exps/picodet/picodet_l_640_coco_lcnet.py -c picodet_l_640_coco_lcnet.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
 
 
@@ -148,6 +158,58 @@ Average forward time: 7.04 ms, Average NMS time: 0.00 ms, Average inference time
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.222
  Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.571
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.736
+
+
+python tools/eval.py -f exps/picodet/picodet_l_320_coco_lcnet.py -d 1 -b 4 -c picodet_l_320_coco_lcnet.pth --conf 0.025 --tsize 320
+
+Average forward time: 8.53 ms, Average NMS time: 0.00 ms, Average inference time: 8.53 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.355
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.510
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.377
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.136
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.393
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.569
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.296
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.459
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.488
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.199
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.563
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.739
+
+
+python tools/eval.py -f exps/picodet/picodet_l_416_coco_lcnet.py -d 1 -b 4 -c picodet_l_416_coco_lcnet.pth --conf 0.025 --tsize 416
+
+Average forward time: 8.58 ms, Average NMS time: 0.00 ms, Average inference time: 8.58 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.389
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.549
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.417
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.167
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.430
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.593
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.315
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.496
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.526
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.252
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.594
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.745
+
+
+python tools/eval.py -f exps/picodet/picodet_l_640_coco_lcnet.py -d 1 -b 4 -c picodet_l_640_coco_lcnet.pth --conf 0.025 --tsize 640
+
+Average forward time: 9.52 ms, Average NMS time: 0.00 ms, Average inference time: 9.53 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.421
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.588
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.453
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.223
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.460
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.596
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.333
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.533
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.571
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.331
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.628
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.757
+
 
 
 
