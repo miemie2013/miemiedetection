@@ -364,6 +364,27 @@ python tools/train.py -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -d 1 -b 8 -eb 2 -
 
 
 
+- - - - - - - - - - - - - - - - - - - - - -
+ppyoloe_plus_s迁移学习（不冻结骨干网络）:（可以加--fp16， -eb表示验证时的批大小）
+python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 1 -b 4 -eb 2 -c ppyoloe_crn_s_obj365_pretrained.pth --fp16
+
+python tools/eval.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 1 -b 4 -c PPYOLOEPlus_outputs/ppyoloe_plus_crn_s_voc2012/16.pth --conf 0.01 --tsize 640
+
+python tools/demo.py image -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -c PPYOLOEPlus_outputs/ppyoloe_plus_crn_s_voc2012/16.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
+
+
+1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
+export CUDA_VISIBLE_DEVICES=0,1
+nohup python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 2 -b 4 -eb 2 -c ppyoloe_crn_s_obj365_pretrained.pth --fp16     > ppyoloe_plus_s.log 2>&1 &
+
+tail -n 20 ppyoloe_plus_s.log
+
+
+
+实测ppyoloe_plus_s的AP(0.50:0.95)可以到达0.xx+、AP(0.50)可以到达0.xx+、AP(small)可以到达0.xx+。
+
+
+
 ----------------------- 恢复训练（加上参数--resume） -----------------------
 python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 4 -c PPYOLO_outputs/ppyolo_r50vd_2x/13.pth --resume
 
@@ -651,7 +672,19 @@ Average forward time: 20.97 ms, Average NMS time: 0.00 ms, Average inference tim
 
 python tools/eval.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_x_80e_coco.py -d 1 -b 8 -c ppyoloe_plus_crn_x_80e_coco.pth --conf 0.01 --tsize 640
 
-
+Average forward time: 29.93 ms, Average NMS time: 0.00 ms, Average inference time: 29.93 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.538
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.714
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.584
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.367
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.583
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.696
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.393
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.645
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.684
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.501
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.736
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.831
 
 
 
