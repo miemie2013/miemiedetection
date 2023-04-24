@@ -9,6 +9,7 @@ from .yolox.yolox_base import YOLOXExp
 
 from .ppyolo.ppyolo_method_base import PPYOLO_Method_Exp
 from .ppyoloe.ppyoloe_method_base import PPYOLOE_Method_Exp
+from .ppyoloe_plus.ppyoloe_plus_method_base import PPYOLOEPlus_Method_Exp
 from .picodet.picodet_method_base import PicoDet_Method_Exp
 from .solo.solo_method_base import SOLO_Method_Exp
 

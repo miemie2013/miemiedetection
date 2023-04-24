@@ -24,6 +24,19 @@ wget https://paddledet.bj.bcebos.com/models/pretrained/CSPResNetb_l_pretrained.p
 wget https://paddledet.bj.bcebos.com/models/pretrained/CSPResNetb_x_pretrained.pdparams
 
 
+wget https://paddledet.bj.bcebos.com/models/ppyoloe_plus_crn_s_80e_coco.pdparams
+wget https://paddledet.bj.bcebos.com/models/ppyoloe_plus_crn_m_80e_coco.pdparams
+wget https://paddledet.bj.bcebos.com/models/ppyoloe_plus_crn_l_80e_coco.pdparams
+wget https://paddledet.bj.bcebos.com/models/ppyoloe_plus_crn_x_80e_coco.pdparams
+wget https://bj.bcebos.com/v1/paddledet/models/pretrained/ppyoloe_crn_s_obj365_pretrained.pdparams
+wget https://bj.bcebos.com/v1/paddledet/models/pretrained/ppyoloe_crn_m_obj365_pretrained.pdparams
+wget https://bj.bcebos.com/v1/paddledet/models/pretrained/ppyoloe_crn_l_obj365_pretrained.pdparams
+wget https://bj.bcebos.com/v1/paddledet/models/pretrained/ppyoloe_crn_x_obj365_pretrained.pdparams
+
+
+
+
+
 python tools/convert_weights.py -f exps/ppyolo/ppyolo_r50vd_2x.py -c ppyolo_r50vd_dcn_2x_coco.pdparams -oc ppyolo_r50vd_2x.pth -nc 80
 python tools/convert_weights.py -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd_coco.pdparams -oc ppyolo_r18vd.pth -nc 80
 python tools/convert_weights.py -f exps/ppyolo/ppyolov2_r50vd_365e.py -c ppyolov2_r50vd_dcn_365e_coco.pdparams -oc ppyolov2_r50vd_365e.pth -nc 80
@@ -42,6 +55,17 @@ python tools/convert_weights.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -c CS
 python tools/convert_weights.py -f exps/ppyoloe/ppyoloe_crn_m_300e_coco.py -c CSPResNetb_m_pretrained.pdparams -oc CSPResNetb_m_pretrained.pth -nc 80 --only_backbone True
 python tools/convert_weights.py -f exps/ppyoloe/ppyoloe_crn_l_300e_coco.py -c CSPResNetb_l_pretrained.pdparams -oc CSPResNetb_l_pretrained.pth -nc 80 --only_backbone True
 python tools/convert_weights.py -f exps/ppyoloe/ppyoloe_crn_x_300e_coco.py -c CSPResNetb_x_pretrained.pdparams -oc CSPResNetb_x_pretrained.pth -nc 80 --only_backbone True
+
+
+python tools/convert_weights.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_80e_coco.py -c ppyoloe_plus_crn_s_80e_coco.pdparams -oc ppyoloe_plus_crn_s_80e_coco.pth -nc 80
+python tools/convert_weights.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_m_80e_coco.py -c ppyoloe_plus_crn_m_80e_coco.pdparams -oc ppyoloe_plus_crn_m_80e_coco.pth -nc 80
+python tools/convert_weights.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_l_80e_coco.py -c ppyoloe_plus_crn_l_80e_coco.pdparams -oc ppyoloe_plus_crn_l_80e_coco.pth -nc 80
+python tools/convert_weights.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_x_80e_coco.py -c ppyoloe_plus_crn_x_80e_coco.pdparams -oc ppyoloe_plus_crn_x_80e_coco.pth -nc 80
+
+python tools/convert_weights.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_80e_coco.py -c ppyoloe_crn_s_obj365_pretrained.pdparams -oc ppyoloe_crn_s_obj365_pretrained.pth -nc 365
+python tools/convert_weights.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_m_80e_coco.py -c ppyoloe_crn_m_obj365_pretrained.pdparams -oc ppyoloe_crn_m_obj365_pretrained.pth -nc 365
+python tools/convert_weights.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_l_80e_coco.py -c ppyoloe_crn_l_obj365_pretrained.pdparams -oc ppyoloe_crn_l_obj365_pretrained.pth -nc 365
+python tools/convert_weights.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_x_80e_coco.py -c ppyoloe_crn_x_obj365_pretrained.pdparams -oc ppyoloe_crn_x_obj365_pretrained.pth -nc 365
 
 
 
@@ -70,6 +94,8 @@ python tools/demo.py image -f exps/ppyoloe/ppyoloe_crn_l_300e_coco.py -c ppyoloe
 python tools/demo.py image -f exps/ppyoloe/ppyoloe_crn_x_300e_coco.py -c ppyoloe_crn_x_300e_coco.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
 python tools/demo.py image -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -c PPYOLOE_outputs/ppyoloe_crn_l_voc2012/6.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
+
+python tools/demo.py image -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_80e_coco.py -c ppyoloe_plus_crn_s_80e_coco.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
 
 
@@ -568,6 +594,62 @@ Average forward time: 79.69 ms, Average NMS time: 0.00 ms, Average inference tim
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.484
  Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.718
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.823
+
+
+
+python tools/eval.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_80e_coco.py -d 1 -b 8 -c ppyoloe_plus_crn_s_80e_coco.pth --conf 0.01 --tsize 640
+
+Average forward time: 13.68 ms, Average NMS time: 0.00 ms, Average inference time: 13.69 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.429
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.602
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.465
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.252
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.466
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.581
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.340
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.552
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.590
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.384
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.648
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.754
+
+
+python tools/eval.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_m_80e_coco.py -d 1 -b 8 -c ppyoloe_plus_crn_m_80e_coco.pth --conf 0.01 --tsize 640
+
+Average forward time: 17.50 ms, Average NMS time: 0.00 ms, Average inference time: 17.50 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.488
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.665
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.529
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.299
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.531
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.652
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.372
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.600
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.641
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.441
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.693
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.799
+
+
+
+python tools/eval.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_l_80e_coco.py -d 1 -b 8 -c ppyoloe_plus_crn_l_80e_coco.pth --conf 0.01 --tsize 640
+
+Average forward time: 20.97 ms, Average NMS time: 0.00 ms, Average inference time: 20.97 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.519
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.695
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.564
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.339
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.567
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.681
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.384
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.629
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.670
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.486
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.724
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.822
+
+
+python tools/eval.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_x_80e_coco.py -d 1 -b 8 -c ppyoloe_plus_crn_x_80e_coco.pth --conf 0.01 --tsize 640
 
 
 

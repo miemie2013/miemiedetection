@@ -98,7 +98,7 @@ class ConvBNLayer(nn.Module):
 
 
 class RepVggBlock(nn.Module):
-    def __init__(self, ch_in, ch_out, act='relu', act_name='relu'):
+    def __init__(self, ch_in, ch_out, act='relu', act_name='relu', alpha=False):
         super(RepVggBlock, self).__init__()
         self.ch_in = ch_in
         self.ch_out = ch_out
@@ -107,14 +107,21 @@ class RepVggBlock(nn.Module):
         self.conv2 = ConvBNLayer(
             ch_in, ch_out, 1, stride=1, padding=0, act=None)
         self.act_name = act_name
-        self.act = get_act_fn(act) if act is None or isinstance(act, (
-            str, dict)) else act
+        self.act = get_act_fn(act) if act is None or isinstance(act, (str, dict)) else act
+        if alpha:
+            self.alpha = torch.nn.Parameter(torch.randn([1, ]))
+            torch.nn.init.constant_(self.alpha, 1.0)
+        else:
+            self.alpha = None
 
     def forward(self, x):
         if hasattr(self, 'conv'):
             y = self.conv(x)
         else:
-            y = self.conv1(x) + self.conv2(x)
+            if self.alpha:
+                y = self.conv1(x) + self.alpha * self.conv2(x)
+            else:
+                y = self.conv1(x) + self.conv2(x)
         y = self.act(y)
         return y
 
@@ -137,6 +144,15 @@ class RepVggBlock(nn.Module):
         return bottom_names
 
     def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
+        if self.alpha:
+            if self.alpha.requires_grad:
+                param_group_alpha = {'params': [self.alpha]}
+                param_group_alpha['lr'] = base_lr * 1.0
+                param_group_alpha['base_lr'] = base_lr * 1.0
+                param_group_alpha['weight_decay'] = base_wd
+                param_group_alpha['need_clip'] = need_clip
+                param_group_alpha['clip_norm'] = clip_norm
+                param_groups.append(param_group_alpha)
         if hasattr(self, 'conv'):
             self.conv.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
         else:
@@ -185,11 +201,11 @@ class RepVggBlock(nn.Module):
 
 
 class BasicBlock(nn.Module):
-    def __init__(self, ch_in, ch_out, act='relu', act_name='relu', shortcut=True):
+    def __init__(self, ch_in, ch_out, act='relu', act_name='relu', shortcut=True, use_alpha=False):
         super(BasicBlock, self).__init__()
         assert ch_in == ch_out
         self.conv1 = ConvBNLayer(ch_in, ch_out, 3, stride=1, padding=1, act=act, act_name=act_name)
-        self.conv2 = RepVggBlock(ch_out, ch_out, act=act, act_name=act_name)
+        self.conv2 = RepVggBlock(ch_out, ch_out, act=act, act_name=act_name, alpha=use_alpha)
         self.shortcut = shortcut
 
     def forward(self, x):
@@ -286,7 +302,8 @@ class CSPResStage(nn.Module):
                  stride,
                  act='relu',
                  act_name=None,
-                 attn='eca'):
+                 attn='eca',
+                 use_alpha=False):
         super(CSPResStage, self).__init__()
 
         ch_mid = (ch_in + ch_out) // 2
@@ -299,7 +316,7 @@ class CSPResStage(nn.Module):
         self.conv2 = ConvBNLayer(ch_mid, ch_mid // 2, 1, act=act, act_name=act_name)
         self.blocks = nn.Sequential(*[
             block_fn(
-                ch_mid // 2, ch_mid // 2, act=act, act_name=act_name, shortcut=True)
+                ch_mid // 2, ch_mid // 2, act=act, act_name=act_name, shortcut=True, use_alpha=use_alpha)
             for i in range(n)
         ])
         if attn:
@@ -366,7 +383,8 @@ class CSPResNet(nn.Module):
                  width_mult=1.0,
                  depth_mult=1.0,
                  freeze_at=-1,
-                 trt=False):
+                 trt=False,
+                 use_alpha=False):
         super(CSPResNet, self).__init__()
         channels = [max(round(c * width_mult), 1) for c in channels]
         layers = [max(round(l * depth_mult), 1) for l in layers]
@@ -388,7 +406,7 @@ class CSPResNet(nn.Module):
         n = len(channels) - 1
         self.stages = nn.Sequential()
         for i in range(n):
-            self.stages.add_module(str(i), CSPResStage(BasicBlock, channels[i], channels[i + 1], layers[i], 2, act=act, act_name=act_name))
+            self.stages.add_module(str(i), CSPResStage(BasicBlock, channels[i], channels[i + 1], layers[i], 2, act=act, act_name=act_name, use_alpha=use_alpha))
 
         self._out_channels = channels[1:]
         self._out_strides = [4, 8, 16, 32]
