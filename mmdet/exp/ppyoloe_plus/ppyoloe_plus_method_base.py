@@ -147,9 +147,9 @@ class PPYOLOEPlus_Method_Exp(COCOBaseExp):
         self.nms_cfg = dict(
             nms_type='multiclass_nms',
             score_threshold=0.01,
-            nms_threshold=0.6,
+            nms_threshold=0.7,
             nms_top_k=1000,
-            keep_top_k=100,
+            keep_top_k=300,
         )
 
         # ---------------- 预处理相关 ---------------- #
