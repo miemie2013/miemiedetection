@@ -47,6 +47,7 @@ def make_parser():
         type=bool,
         help="only convert backbone",
     )
+    parser.add_argument('--fyx', action='store_true', help='for YoloX-Pytorch')
     parser.add_argument(
         "--device",
         default="cpu",
@@ -472,6 +473,21 @@ def main(exp, args):
         "model": model.state_dict(),
         "optimizer": None,
     }
+    # for YoloX-Pytorch
+    # python tools/convert_weights.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_80e_coco.py -c ppyoloe_crn_s_obj365_pretrained.pdparams -oc ppyoloep_s_obj365.pth -nc 365 --fyx
+    if args.fyx:
+        new_std = model.state_dict()
+        new_std2 = {}
+        for kk in new_std.keys():
+            if kk.startswith('yolo_head.'):
+                new_std2[kk.replace('yolo_head.', 'head.')] = new_std[kk]
+            else:
+                new_std2[kk] = new_std[kk]
+        ckpt_state = {
+            "epoch": 0,
+            "state_dict": new_std2,
+            "optimizer": None,
+        }
     torch.save(ckpt_state, args.output_ckpt)
     logger.info("Done.")
 
