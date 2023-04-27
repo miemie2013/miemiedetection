@@ -99,7 +99,7 @@ nohup xxx     > ppyolo.log 2>&1 &
 
 - - - - - - - - - - - - - - - - - - - - - -
 迁移学习（不冻结骨干网络）:（可以加--fp16， 但是picodet没有用自动混合精度训练。-eb表示验证时的批大小）
-python tools/train.py -f exps/picodet/picodet_s_416_voc2012.py -d 1 -b 8 -eb 2 -c picodet_s_416_coco_lcnet.pth
+python tools/train.py -f exps/picodet/picodet_s_416_voc2012.py -d 1 -b 48 -eb 24 -c picodet_s_416_coco_lcnet.pth
 
 python tools/eval.py -f exps/picodet/picodet_s_416_voc2012.py -d 1 -b 8 -c PicoDet_outputs/picodet_s_416_voc2012/16.pth --conf 0.025 --tsize 416
 
@@ -108,13 +108,30 @@ python tools/demo.py image -f exps/picodet/picodet_s_416_voc2012.py -c PicoDet_o
 
 1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train.py -f exps/picodet/picodet_s_416_voc2012.py -d 2 -b 8 -eb 2 -c picodet_s_416_coco_lcnet.pth     > picodet_s_416.log 2>&1 &
+nohup python tools/train.py -f exps/picodet/picodet_s_416_voc2012.py -d 2 -b 48 -eb 24 -c picodet_s_416_coco_lcnet.pth     > picodet_s_416.log 2>&1 &
 
 tail -n 20 picodet_s_416.log
 
 
 
-实测 picodet_s_416 的AP(0.50:0.95)可以到达0.46+、AP(0.50)可以到达0.65+、AP(small)可以到达0.06+。
+实测 picodet_s_416 的AP(0.50:0.95)可以到达0.487+、AP(0.50)可以到达0.676+、AP(small)可以到达0.064+。
+
+
+如果修改 exps/picodet/picodet_s_416_voc2012.py 的 self.head['static_assigner_epoch'] = 499，即全程使用ATSS分配正负样本，则
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.464
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.656
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.497
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.070
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.238
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.583
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.415
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.591
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.616
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.177
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.438
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.720
+
+
 
 
 - - - - - - - - - - - - - - - - - - - - - -

@@ -80,7 +80,7 @@ class COCOEvaluator:
     """
 
     def __init__(
-        self, dataloader, img_size, confthre, nmsthre, num_classes, archi_name='', testdev=False, per_class_AP=True, per_class_AR=True
+        self, dataloader, img_size, confthre, nmsthre, num_classes, archi_name='', testdev=False, per_class_AP=False, per_class_AR=False
     ):
         """
         Args:
@@ -219,7 +219,7 @@ class COCOEvaluator:
         nms_time = 0
         n_samples = max(len(self.dataloader) - 1, 1)
         steps = len(self.dataloader)
-        print_interval = max(steps // 10, 1)
+        print_interval = max(steps // 5, 1) + 1
         num_imgs = self.dataloader.dataset.num_record
 
         if trt_file is not None:
@@ -306,7 +306,7 @@ class COCOEvaluator:
         nms_time = 0
         n_samples = max(len(self.dataloader) - 1, 1)
         steps = len(self.dataloader)
-        print_interval = max(steps // 10, 1)
+        print_interval = max(steps // 5, 1) + 1
         num_imgs = self.dataloader.dataset.num_record
 
         if trt_file is not None:
