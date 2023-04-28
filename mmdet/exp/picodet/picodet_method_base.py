@@ -233,7 +233,7 @@ class PicoDet_Method_Exp(COCOBaseExp):
         self.eval_data_num_workers = 2
 
     def get_model(self):
-        from mmdet.models import LCNet, ATSSAssigner, TaskAlignedAssigner, PicoHeadV2, PicoDet, PicoFeat
+        from mmdet.models import LCNet, ATSSAssigner, TaskAlignedAssigner, PositionAssigner, PicoHeadV2, PicoDet, PicoFeat
         from mmdet.models.necks.lc_pan import LCPAN
         from mmdet.models.losses.iou_losses import GIoULoss
         from mmdet.models.losses.varifocal_loss import VarifocalLoss
@@ -249,12 +249,17 @@ class PicoDet_Method_Exp(COCOBaseExp):
             fpn = Fpn(**self.fpn)
             conv_feat = PicoFeat(**self.conv_feat)
             static_assigner = ATSSAssigner(**self.static_assigner)
-            assigner = TaskAlignedAssigner(**self.assigner)
+            Assigner = None
+            if self.assigner_type == 'TaskAlignedAssigner':
+                Assigner = TaskAlignedAssigner
+            elif self.assigner_type == 'PositionAssigner':
+                Assigner = PositionAssigner
+            assigner = Assigner(**self.assigner)
             loss_class = VarifocalLoss(**self.loss_class)
             loss_dfl = DistributionFocalLoss(**self.loss_dfl)
             loss_bbox = GIoULoss(**self.loss_bbox)
             head = PicoHeadV2(conv_feat=conv_feat, static_assigner=static_assigner,
-                              assigner=assigner, loss_class=loss_class, loss_dfl=loss_dfl,
+                              assigner_type=self.assigner_type, assigner=assigner, loss_class=loss_class, loss_dfl=loss_dfl,
                               loss_bbox=loss_bbox, nms_cfg=self.nms_cfg, **self.head)
             self.model = PicoDet(backbone, fpn, head)
         return self.model

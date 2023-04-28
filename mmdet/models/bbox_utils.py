@@ -162,6 +162,40 @@ def batch_distance2bbox(points, distance, max_shapes=None):
     return out_bbox
 
 
+def batch_bbox2distance(points, bbox):
+    """
+    Args:
+        points:     [A, 2]  格子中心点坐标
+        bbox:    [N, A, 4]  预测框左上角坐标、右下角坐标
+    Returns:
+        lt:      [N, A, 2]  预测的lt
+        rb:      [N, A, 2]  预测的rb
+    """
+    x1y1, x2y2 = torch.split(bbox, 2, -1)  # x1y1.shape == [N, A, 2],  x2y2.shape == [N, A, 2]
+    lt = points - x1y1  # lt.shape == [N, A, 2],  预测的lt
+    rb = x2y2 - points  # rb.shape == [N, A, 2],  预测的rb
+    return lt, rb
+
+
+def batch_anchor_is_in_gt(points, gt_bboxes):
+    """
+    Args:
+        points:           [A, 2]  anchor中心点坐标
+        gt_bboxes:   [N, 200, 4]  每个gt的左上角坐标、右下角坐标
+    Returns:
+        anchor_in_gt:      [N, 200, A]  anchor中心点 是否 落在某个gt内部, bool类型
+    """
+    points_ = points.unsqueeze(0).unsqueeze(0)   # [1,   1, A, 2]
+    gt_bboxes_ = gt_bboxes.unsqueeze(2)          # [N, 200, 1, 4]
+    x1y1, x2y2 = torch.split(gt_bboxes_, 2, -1)  # [N, 200, 1, 2], [N, 200, 1, 2]
+    lt = points_ - x1y1  # [N, 200, A, 2]
+    rb = x2y2 - points_  # [N, 200, A, 2]
+    ltrb = torch.cat([lt, rb], -1)  # [N, 200, A, 4]
+    anchor_in_gt = ltrb.min(dim=-1).values > 0.0  # [N, 200, A]
+    anchor_in_gt_mask = anchor_in_gt.float()
+    return anchor_in_gt, anchor_in_gt_mask
+
+
 def iou_similarity(box1, box2, eps=1e-10):
     """Calculate iou of box1 and box2
 

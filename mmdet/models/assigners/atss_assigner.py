@@ -152,16 +152,16 @@ class ATSSAssigner(nn.Module):
 
         # negative batch   这一批全是没有gt的图片
         if num_max_boxes == 0:
-            assigned_labels = torch.full(
-                [batch_size, num_anchors], bg_index, dtype=gt_labels.dtype)
+            assigned_labels = torch.full([batch_size, num_anchors], bg_index, dtype=gt_labels.dtype)
             assigned_bboxes = torch.zeros([batch_size, num_anchors, 4])
-            assigned_scores = torch.zeros(
-                [batch_size, num_anchors, self.num_classes])
+            assigned_scores = torch.zeros([batch_size, num_anchors, self.num_classes])
+            mask_positive = torch.zeros([batch_size, 1, num_anchors])
 
             assigned_labels = assigned_labels.to(gt_bboxes.device)
             assigned_bboxes = assigned_bboxes.to(gt_bboxes.device)
             assigned_scores = assigned_scores.to(gt_bboxes.device)
-            return assigned_labels, assigned_bboxes, assigned_scores
+            mask_positive = mask_positive.to(gt_bboxes.device)
+            return assigned_labels, assigned_bboxes, assigned_scores, mask_positive
         # B=N
         # n=200
         # L=A

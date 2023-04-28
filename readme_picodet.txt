@@ -117,7 +117,7 @@ tail -n 20 picodet_s_416.log
 实测 picodet_s_416 的AP(0.50:0.95)可以到达0.487+、AP(0.50)可以到达0.676+、AP(small)可以到达0.064+。
 
 
-如果修改 exps/picodet/picodet_s_416_voc2012.py 的 self.head['static_assigner_epoch'] = 499，即全程使用ATSS分配正负样本，则
+如果修改 exps/picodet/picodet_s_416_voc2012.py 的 self.head['static_assigner_epoch'] = 499，即全程使用 ATSS 分配正负样本，则
  Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.464
  Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.656
  Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.497
@@ -131,6 +131,24 @@ tail -n 20 picodet_s_416.log
  Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.438
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.720
 
+
+如果修改 exps/picodet/picodet_s_416_voc2012.py 的 self.head['static_assigner_epoch'] = -4，即全程使用 TaskAlignedAssigner 分配正负样本，则
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.493
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.685
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.525
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.067
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.253
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.616
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.434
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.622
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.652
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.197
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.473
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.758
+
+
+
+python tools/train.py -f exps/picodet/picodet_s_416_posass_voc2012.py -d 1 -b 48 -eb 24 -c picodet_s_416_coco_lcnet.pth
 
 
 

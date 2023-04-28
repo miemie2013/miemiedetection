@@ -207,6 +207,7 @@ class PicoHeadV2(GFLHead):
                  loss_bbox='GIoULoss',
                  static_assigner_epoch=60,
                  static_assigner='ATSSAssigner',
+                 assigner_type='',
                  assigner='TaskAlignedAssigner',
                  reg_max=16,
                  feat_in_chan=96,
@@ -241,6 +242,7 @@ class PicoHeadV2(GFLHead):
 
         self.static_assigner_epoch = static_assigner_epoch
         self.static_assigner = static_assigner
+        self.assigner_type = assigner_type
         self.assigner = assigner
 
         self.reg_max = reg_max
@@ -445,16 +447,28 @@ class PicoHeadV2(GFLHead):
                 pred_bboxes=pred_bboxes.detach() * stride_tensor_list)
 
         else:
-            assigned_labels, assigned_bboxes, assigned_scores, _ = self.assigner(
-                pred_scores.detach(),
-                pred_bboxes.detach() * stride_tensor_list,
-                centers,
-                num_anchors_list,
-                gt_labels,
-                gt_bboxes,
-                pad_gt_mask,
-                bg_index=self.num_classes,
-                gt_scores=gt_scores)
+            if self.assigner_type == 'TaskAlignedAssigner':
+                assigned_labels, assigned_bboxes, assigned_scores, _ = self.assigner(
+                    pred_scores.detach(),
+                    pred_bboxes.detach() * stride_tensor_list,
+                    centers,
+                    num_anchors_list,
+                    gt_labels,
+                    gt_bboxes,
+                    pad_gt_mask,
+                    bg_index=self.num_classes,
+                    gt_scores=gt_scores)
+            elif self.assigner_type == 'PositionAssigner':
+                assigned_labels, assigned_bboxes, assigned_scores, _ = self.assigner(
+                    centers,
+                    num_anchors_list,
+                    gt_labels,
+                    gt_bboxes,
+                    pad_gt_mask,
+                    bg_index=self.num_classes,
+                    gt_scores=gt_scores,
+                    pred_bboxes=pred_bboxes.detach() * stride_tensor_list,
+                    pred_scores=pred_scores.detach())
 
         assigned_bboxes /= stride_tensor_list   # [N, A, 4] 每个anchor学习的左上角坐标、右下角坐标；单位是格子边长
 

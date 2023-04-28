@@ -45,4 +45,5 @@ from .architectures.picodet import PicoDet
 
 from .assigners.atss_assigner import ATSSAssigner
 from .assigners.task_aligned_assigner import TaskAlignedAssigner
+from .assigners.position_assigner import PositionAssigner
 
