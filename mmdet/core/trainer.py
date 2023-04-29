@@ -420,6 +420,8 @@ class Trainer:
         )
 
     def before_train(self):
+        self.exp.data_num_workers = self.args.worker_num
+        self.exp.eval_data_num_workers = self.args.eval_worker_num
         logger.info("args: {}".format(self.args))
         logger.info("exp value:\n{}".format(self.exp))
 

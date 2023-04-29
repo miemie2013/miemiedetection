@@ -150,6 +150,9 @@ tail -n 20 picodet_s_416.log
 
 python tools/train.py -f exps/picodet/picodet_s_416_posass_voc2012.py -d 1 -b 48 -eb 24 -c picodet_s_416_coco_lcnet.pth
 
+export NCCL_P2P_DISABLE=1
+export CUDA_VISIBLE_DEVICES=0,1
+python tools/train.py -f exps/picodet/picodet_s_416_posass_voc2012.py -d 2 -b 48 -eb 24 -w 4 -ew 4 -c picodet_s_416_coco_lcnet.pth
 
 
 - - - - - - - - - - - - - - - - - - - - - -

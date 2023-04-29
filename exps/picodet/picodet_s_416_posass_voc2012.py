@@ -37,7 +37,7 @@ class Exp(PicoDet_Method_Exp):
 
         self.max_epoch = 16
         self.print_interval = 20
-        self.eval_interval = 2
+        self.eval_interval = 4
         self.warmup_epochs = 1
         self.cosinedecay_epochs = 20
 
@@ -52,6 +52,7 @@ class Exp(PicoDet_Method_Exp):
         self.head['num_classes'] = self.num_classes
         self.head['static_assigner_epoch'] = 4
         self.head['static_assigner_epoch'] = -99999
+        # self.head['static_assigner_epoch'] = 2
         self.conv_feat['feat_in'] = 96
         self.conv_feat['feat_out'] = 96
         self.conv_feat['num_convs'] = 2

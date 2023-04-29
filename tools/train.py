@@ -38,6 +38,8 @@ def make_parser():
     )
     parser.add_argument("-b", "--batch-size", type=int, default=64, help="batch size")
     parser.add_argument("-eb", "--eval-batch-size", type=int, default=1, help="eval batch size")
+    parser.add_argument("-w", "--worker_num", type=int, default=2, help="train worker num")
+    parser.add_argument("-ew", "--eval_worker_num", type=int, default=1, help="eval worker num")
     parser.add_argument(
         "-d", "--devices", default=None, type=int, help="device for training"
     )
