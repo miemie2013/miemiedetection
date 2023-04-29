@@ -49,16 +49,9 @@ python tools/eval.py -f exps/yolox/yolox_m.py -d 1 -b 8 -w 4 -c yolox_m.pth --co
 
 
 ----------------------- 训练 -----------------------
-python tools/train.py -f exps/yolox/yolox_s.py -d 8 -b 64 --fp16 -o [--cache]
-
-
-python tools/train.py -f exps/yolox/yolox_s.py -d 1 -b 8 --fp16 -o --cache
-
-
-python tools/train.py -f exps/yolox/yolox_s.py -d 1 -b 8 --fp16
-
-
-python train2.py -f exps/yolox/yolox_s.py -d 1 -b 2 --fp16 -o
+复现COCO
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+nohup python tools/train.py -f exps/yolox/yolox_s.py -d 8 -b 64 -eb 64 -w 4 -ew 4 --fp16     > yolox_s_coco.log 2>&1 &
 
 
 
