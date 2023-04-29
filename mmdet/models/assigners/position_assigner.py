@@ -130,6 +130,7 @@ class PositionAssigner(nn.Module):
         cost_fpn = avg_wh[..., 0] / (gt_wh[..., 0] + eps) + gt_wh[..., 0] / (avg_wh[..., 0] + eps) + \
                    avg_wh[..., 1] / (gt_wh[..., 1] + eps) + gt_wh[..., 1] / (avg_wh[..., 1] + eps)
         max_fpn_count = int(2.5 - self.step / (1000 + self.step))  # 最多是2，最少是1
+        # max_fpn_count = 1
         # [N, 200, max_fpn_count]  每个gt被分配到的fpn_level的id
         _, gt_fpn_level = torch.topk(cost_fpn, max_fpn_count, dim=2, largest=False)
         anchor_fpn_id = torch.reshape(anchor_fpn_id, [1, 1, num_anchors])     # [1, 1, A]
@@ -142,6 +143,24 @@ class PositionAssigner(nn.Module):
             gt_select_fpn_mask0 = ((gt_fpn_level0 - anchor_fpn_id) == 0).float()  # [N, 200, A]
             gt_select_fpn_mask1 = ((gt_fpn_level1 - anchor_fpn_id) == 0).float()  # [N, 200, A]
             gt_select_fpn_mask = gt_select_fpn_mask0 + gt_select_fpn_mask1  # [N, 200, A]
+        elif max_fpn_count == 3:
+            gt_fpn_level0 = gt_fpn_level[:, :, 0:1]  # [N, 200, 1]
+            gt_fpn_level1 = gt_fpn_level[:, :, 1:2]  # [N, 200, 1]
+            gt_fpn_level2 = gt_fpn_level[:, :, 2:3]  # [N, 200, 1]
+            gt_select_fpn_mask0 = ((gt_fpn_level0 - anchor_fpn_id) == 0).float()  # [N, 200, A]
+            gt_select_fpn_mask1 = ((gt_fpn_level1 - anchor_fpn_id) == 0).float()  # [N, 200, A]
+            gt_select_fpn_mask2 = ((gt_fpn_level2 - anchor_fpn_id) == 0).float()  # [N, 200, A]
+            gt_select_fpn_mask = gt_select_fpn_mask0 + gt_select_fpn_mask1 + gt_select_fpn_mask2  # [N, 200, A]
+        elif max_fpn_count == 4:
+            gt_fpn_level0 = gt_fpn_level[:, :, 0:1]  # [N, 200, 1]
+            gt_fpn_level1 = gt_fpn_level[:, :, 1:2]  # [N, 200, 1]
+            gt_fpn_level2 = gt_fpn_level[:, :, 2:3]  # [N, 200, 1]
+            gt_fpn_level3 = gt_fpn_level[:, :, 3:4]  # [N, 200, 1]
+            gt_select_fpn_mask0 = ((gt_fpn_level0 - anchor_fpn_id) == 0).float()  # [N, 200, A]
+            gt_select_fpn_mask1 = ((gt_fpn_level1 - anchor_fpn_id) == 0).float()  # [N, 200, A]
+            gt_select_fpn_mask2 = ((gt_fpn_level2 - anchor_fpn_id) == 0).float()  # [N, 200, A]
+            gt_select_fpn_mask3 = ((gt_fpn_level3 - anchor_fpn_id) == 0).float()  # [N, 200, A]
+            gt_select_fpn_mask = gt_select_fpn_mask0 + gt_select_fpn_mask1 + gt_select_fpn_mask2 + gt_select_fpn_mask3  # [N, 200, A]
         else:
             raise NotImplementedError("max_fpn_count == {} is not implemented.".format(max_fpn_count))
         gt_select_fpn_mask *= pad_gt_mask
@@ -174,12 +193,23 @@ class PositionAssigner(nn.Module):
 
 
         # [N, 200, A]  计算总的cost
-        cost = cost_iou + cost_centerness
+        # cost = cost_iou + cost_centerness
+        cost = cost_iou
 
         # [N, A]   对每个anchor，求与其最小cost的gt
         matched_gt_cost, matched_gt_index = cost.min(dim=1)
-        neg_flag = matched_gt_cost > 9000.   # [N, A] 负样本处为True
+        neg_flag = matched_gt_cost > 0.5   # [N, A] 负样本处为True
         neg_mask = neg_flag.float().unsqueeze(-1)   # [N, A, 1] 负样本处为1
+
+        mask_positive = F.one_hot(matched_gt_index, num_max_boxes)   # [N, A, 200]
+        mask_positive = mask_positive.to(torch.float32)
+        mask_positive *= (1. - neg_mask)
+        mask_positive = mask_positive.permute([0, 2, 1])  # [N, 200, A]
+        mask_positive *= pad_gt_mask
+        pos_num_per_gt = mask_positive.sum(2)  # [N, 200]  每个gt的正样本数
+        pppp = pos_num_per_gt.cpu().detach().numpy()
+        print(pppp[:4, :4])
+        print(pad_gt_mask[:4, :4, 0])
 
         # [N, 1]    value=[[0], [1], [2], ..., [N-1]]    图片的下标
         batch_ind = torch.arange(end=batch_size, dtype=gt_labels.dtype).unsqueeze(-1)

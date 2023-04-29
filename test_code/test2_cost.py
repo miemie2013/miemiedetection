@@ -2,11 +2,29 @@
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from mmdet.models.ops import gather_1d
 
 '''
 PositionAssigner 中使用
         假设batch_size=2, 有num_max_boxes=2个gt，A=3个预测框。 
+
+
+每一行：当前gt分配给每个预测框的意愿
+每一列：当前预测框 选择 每个gt的意愿
+
+
+0.01  1333. 1444.
+0.03  0.9   1574.
+
+0.01  1333. 1444. 10000. 10000. 10000. 10000. 10000. 10000. 10000. 10000.
+0.03  0.9   1574. 10000. 10000. 10000. 10000. 10000. 10000. 10000. 10000.
+
+0.01  1333. 1444. 1444. 1444.
+0.03  0.9   1574. 1444. 1444.
+0.03  0.9   1574. 1444. 1444.
+0.03  0.9   1574. 1444. 1444.
+
 '''
 
 batch_size = 2
@@ -30,8 +48,14 @@ ious = ious.repeat([batch_size, 1, 1])
 
 cost = np.array([[[0.07, 1, 123456.], [0.9, 0.02, 123451.]]]).astype(np.float32)
 cost = torch.Tensor(cost).to(torch.float32)
-cost = cost.repeat([batch_size, 1, 1])  # [N, A, 4],  cost
-matched_gt_cost, matched_gt_index = cost.min(dim=1)
+cost = cost.repeat([batch_size, 1, 1])  # [N, 2, A],  cost
+matched_gt_cost, matched_gt_index = cost.min(dim=1)  # [N, A]
+
+mask_positive = F.one_hot(matched_gt_index, num_max_boxes)
+mask_positive = mask_positive.to(torch.float32)
+mask_positive = mask_positive.permute([0, 2, 1])
+aaaaa = mask_positive.sum(2)
+
 neg_flag = matched_gt_cost > 5000.
 neg_mask = neg_flag.float().unsqueeze(-1)
 pos_mask = (1. - neg_mask)
