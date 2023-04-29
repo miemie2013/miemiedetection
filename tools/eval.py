@@ -38,6 +38,7 @@ def make_parser():
         help="url used to set up distributed training",
     )
     parser.add_argument("-b", "--batch-size", type=int, default=64, help="batch size")
+    parser.add_argument("-w", "--worker_num", type=int, default=1, help="worker num")
     parser.add_argument(
         "-d", "--devices", default=None, type=int, help="device for training"
     )
@@ -138,6 +139,8 @@ def main(exp, args, num_gpu):
 
     # 算法名字
     archi_name = exp.archi_name
+    exp.data_num_workers = args.worker_num
+    exp.eval_data_num_workers = args.worker_num
 
     # 新增算法时这里也要增加elif
     if archi_name == 'YOLOX':

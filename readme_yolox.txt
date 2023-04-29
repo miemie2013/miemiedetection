@@ -5,6 +5,8 @@ nvidia-smi
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 
+wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.pth
+
 
 wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_m.pth
 
@@ -12,6 +14,8 @@ wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yo
 
 ----------------------- 预测 -----------------------
 python tools/demo.py image -f exps/yolox/yolox_s.py -c yolox_s.pth --path assets/dog.jpg --conf 0.25 --nms 0.45 --tsize 640 --save_result --device gpu
+
+python tools/demo.py image -f exps/yolox/yolox_s.py -c yolox_s.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
 
 python tools/demo.py image -f exps/yolox/yolox_m.py -c YOLOX_outputs/yolox_m/1.pth --path D://PycharmProjects/Paddle-PPYOLO-master/images/test --conf 0.25 --nms 0.45 --tsize 640 --save_result --device gpu
@@ -22,7 +26,7 @@ python tools/demo.py image -f exps/yolox/yolox_m.py -c YOLOX_outputs/yolox_m/1.p
 
 
 ----------------------- 评估 -----------------------
-python tools/eval.py -f exps/yolox/yolox_s.py -d 1 -b 8 -c yolox_s.pth --conf 0.001
+python tools/eval.py -f exps/yolox/yolox_s.py -d 1 -b 8 -w 4 -c yolox_s.pth --conf 0.001 --tsize 640
 
 
 Average forward time: 10.76 ms, Average NMS time: 2.75 ms, Average inference time: 13.51 ms
@@ -35,13 +39,12 @@ Average forward time: 10.76 ms, Average NMS time: 2.75 ms, Average inference tim
  Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.326
  Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.531
  Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.574
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.366
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.367
  Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.635
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.724
 
 
-
-python tools/eval.py -f exps/yolox/yolox_m.py -d 1 -b 8 -c yolox_m.pth --conf 0.001
+python tools/eval.py -f exps/yolox/yolox_m.py -d 1 -b 8 -w 4 -c yolox_m.pth --conf 0.001 --tsize 640
 
 
 
@@ -61,55 +64,26 @@ python train2.py -f exps/yolox/yolox_s.py -d 1 -b 2 --fp16 -o
 
 
 ----------------------- 迁移学习，带上-c（--ckpt）参数读取预训练模型。 -----------------------
-复现paddle版yolox_m迁移学习:（可以加--fp16， -eb表示验证时的批大小）
-python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 -eb 2 --fp16 -c yolox_m.pth
+迁移学习（不冻结骨干网络）:（可以加--fp16， -eb表示验证时的批大小）
+python tools/train.py -f exps/yolox/yolox_s_voc2012.py -d 1 -b 24 -eb 16 -w 4 -ew 4 -c yolox_s.pth
 
 
-实测yolox_m的AP(0.50:0.95)可以到达0.62+、AP(0.50)可以到达0.84+、AP(small)可以到达0.25+。
+1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
+export CUDA_VISIBLE_DEVICES=0,1
+nohup python tools/train.py -f exps/yolox/yolox_s_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 -c yolox_s.pth     > yolox_s.log 2>&1 &
 
 
-恢复训练：
-python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 -eb 1 --fp16 -c YOLOX_outputs/yolox_m/40.pth --resume
-
-
-python tools/eval.py -f exps/yolox/yolox_m.py -d 1 -b 2 -c YOLOX_outputs/yolox_m/166.pth --conf 0.001
-
-
-python tools/demo.py image -f exps/yolox/yolox_m.py -c YOLOX_outputs/yolox_m/166.pth --path ../yuanshen_wakuang_dataset/images --conf 0.25 --nms 0.45 --tsize 640 --save_result --device gpu
-
-
-
-
-
-
-复现ppdet版yolox_s迁移学习:（可以加--fp16， -eb表示验证时的批大小）
-python tools/train.py -f exps/yolox/yolox_s.py -d 1 -b 8 -eb 2 --fp16 -c yolox_s.pth
-
-
-实测yolox_s的AP(0.50:0.95)可以到达0.53+、AP(0.50)可以到达0.78+、AP(small)可以到达0.21+。
-
-
-
-python tools/train.py -f exps/yolox/nano.py -d 1 -b 32 -eb 8 --fp16 -c yolox_nano.pth
-
-
-实测yolox_nano的AP(0.50:0.95)可以到达0.xx+、AP(0.50)可以到达0.xx+、AP(small)可以到达0.xx+。
-
-
-
-python tools/train.py -f exps/yolox/yolox_tiny.py -d 1 -b 32 -eb 8 --fp16 -c yolox_tiny.pth
-
-
-实测yolox_tiny的AP(0.50:0.95)可以到达0.xx+、AP(0.50)可以到达0.xx+、AP(small)可以到达0.xx+。
-
-
-
+实测 yolox_s 的AP最高可以到达（日志见 train_ppyolo_in_voc2012/yolox_s_voc2012.txt ）
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.509
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.745
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.570
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.194
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.374
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.583
 
 
 
 ----------------------- 恢复训练（加上参数--resume） -----------------------
-python tools/train.py -f exps/yolox/yolox_m.py -d 1 -b 8 -eb 2 --fp16 -c YOLOX_outputs/yolox_m/3.pth --resume
-
 
 
 
