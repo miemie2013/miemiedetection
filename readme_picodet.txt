@@ -99,7 +99,7 @@ nohup xxx     > ppyolo.log 2>&1 &
 
 - - - - - - - - - - - - - - - - - - - - - -
 迁移学习（不冻结骨干网络）:（可以加--fp16， 但是picodet没有用自动混合精度训练。-eb表示验证时的批大小）
-python tools/train.py -f exps/picodet/picodet_s_416_voc2012.py -d 1 -b 48 -eb 24 -c picodet_s_416_coco_lcnet.pth
+python tools/train.py -f exps/picodet/picodet_s_416_voc2012.py -d 1 -b 48 -eb 24 -w 4 -ew 4 -c picodet_s_416_coco_lcnet.pth
 
 python tools/eval.py -f exps/picodet/picodet_s_416_voc2012.py -d 1 -b 8 -c PicoDet_outputs/picodet_s_416_voc2012/16.pth --conf 0.025 --tsize 416
 
@@ -108,7 +108,7 @@ python tools/demo.py image -f exps/picodet/picodet_s_416_voc2012.py -c PicoDet_o
 
 1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train.py -f exps/picodet/picodet_s_416_voc2012.py -d 2 -b 48 -eb 24 -c picodet_s_416_coco_lcnet.pth     > picodet_s_416.log 2>&1 &
+nohup python tools/train.py -f exps/picodet/picodet_s_416_voc2012.py -d 2 -b 48 -eb 24 -w 4 -ew 4 -c picodet_s_416_coco_lcnet.pth     > picodet_s_416.log 2>&1 &
 
 tail -n 20 picodet_s_416.log
 
@@ -148,7 +148,7 @@ tail -n 20 picodet_s_416.log
 
 
 
-python tools/train.py -f exps/picodet/picodet_s_416_posass_voc2012.py -d 1 -b 48 -eb 24 -c picodet_s_416_coco_lcnet.pth
+python tools/train.py -f exps/picodet/picodet_s_416_posass_voc2012.py -d 1 -b 48 -eb 24 -w 4 -ew 4 -c picodet_s_416_coco_lcnet.pth
 
 export NCCL_P2P_DISABLE=1
 export CUDA_VISIBLE_DEVICES=0,1
@@ -159,7 +159,7 @@ python tools/train.py -f exps/picodet/picodet_s_416_posass_voc2012.py -d 2 -b 48
 迁移学习（不冻结骨干网络）:（可以加--fp16， 但是picodet没有用自动混合精度训练。-eb表示验证时的批大小）
 1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train.py -f exps/picodet/picodet_m_640_voc2012.py -d 2 -b 24 -eb 8 -c picodet_m_416_coco_lcnet.pth     > picodet_m_640.log 2>&1 &
+nohup python tools/train.py -f exps/picodet/picodet_m_640_voc2012.py -d 2 -b 24 -eb 8 -w 4 -ew 4 -c picodet_m_416_coco_lcnet.pth     > picodet_m_640.log 2>&1 &
 
 tail -n 20 picodet_m_640.log
 
@@ -280,7 +280,7 @@ Average forward time: 9.52 ms, Average NMS time: 0.00 ms, Average inference time
 
 (1)picodet_s_416_coco_lcnet
 export CUDA_VISIBLE_DEVICES=0,1,2,3
-nohup python tools/train.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 4 -b 192 -eb 16 -c PPLCNet_x0_75_pretrained.pth     > picodet_s_416_coco_lcnet_4gpu.log 2>&1 &
+nohup python tools/train.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 4 -b 192 -eb 16 -w 4 -ew 4 -c PPLCNet_x0_75_pretrained.pth     > picodet_s_416_coco_lcnet_4gpu.log 2>&1 &
 
 训练日志见train_coco/picodet_s_416_coco_lcnet_4gpu.txt
 实测训300 epochs后，最高mAP为31.74，基本上能达到转换的官方权重( Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.320)
@@ -288,7 +288,7 @@ nohup python tools/train.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 4 -b 
 
 from scratch:
 export CUDA_VISIBLE_DEVICES=0,1,2,3
-nohup python tools/train.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 4 -b 192 -eb 16     > picodet_s_416_coco_lcnet_from_scratch_4gpu.log 2>&1 &
+nohup python tools/train.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 4 -b 192 -eb 16 -w 4 -ew 4     > picodet_s_416_coco_lcnet_from_scratch_4gpu.log 2>&1 &
 
 
 python tools/eval.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 1 -b 4 -c PicoDet_outputs/picodet_s_416_coco_lcnet/300.pth --conf 0.025 --tsize 416
@@ -297,7 +297,7 @@ python tools/eval.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 1 -b 4 -c Pi
 
 只有双卡的时候：
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 2 -b 96 -eb 16 -c PPLCNet_x0_75_pretrained.pth     > picodet_s_416_coco_lcnet_2gpu.log 2>&1 &
+nohup python tools/train.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 2 -b 96 -eb 16 -w 4 -ew 4 -c PPLCNet_x0_75_pretrained.pth     > picodet_s_416_coco_lcnet_2gpu.log 2>&1 &
 
 
 

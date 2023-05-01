@@ -25,6 +25,7 @@ class Exp(PPYOLOE_Method_Exp):
         self.fpn['width_mult'] = self.width_mult
         self.head['in_channels'] = [int(768 * self.width_mult), int(384 * self.width_mult), int(192 * self.width_mult)]
         self.static_assigner['num_classes'] = self.num_classes
+        self.print_interval = 100
 
         # ---------------- dataloader config ---------------- #
         # 默认是4。如果报错“OSError: [WinError 1455] 页面文件太小,无法完成操作”，设置为2或0解决。
