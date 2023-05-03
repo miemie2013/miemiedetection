@@ -795,6 +795,7 @@ nohup python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 8 -b 6
 训练日志见 train_coco/ppyoloe_s_8gpu.txt
 实测训300 epochs后，最高mAP为42.10，基本上能达到转换的官方权重( Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.423)
 
+python tools/eval.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 8 -b 64 -c PPYOLOE_outputs/ppyoloe_crn_s_300e_coco/300.pth --conf 0.01 --tsize 640
 
 只有双卡的时候：
 export CUDA_VISIBLE_DEVICES=0,1

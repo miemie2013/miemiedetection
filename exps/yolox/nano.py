@@ -33,7 +33,7 @@ class Exp(YOLOXExp):
         self.val_image_folder = "val2017"
         # self.train_ann = "instances_val2017.json"
         # self.train_image_folder = "val2017"
-        self.print_interval = 50
+        self.print_interval = 100
 
     def get_model(self, sublinear=False):
 

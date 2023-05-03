@@ -520,7 +520,11 @@ class YOLOXHead(nn.Module):
         # pair_wise_cls_loss = pos_loss + neg_loss                     # [N, G, A, 80]
         # del pos_loss, neg_loss, p, gt_clss, one_hots
         # 二值交叉熵
-        pair_wise_cls_loss = F.binary_cross_entropy(p, gt_clss, reduction='none')       # [N, G, A, 80]
+        with torch.cuda.amp.autocast(enabled=False):   # 代表计算二值交叉熵时，不使用自动混合精度amp
+            # print('aaaaaaaaaaaaaaaaaaaa')
+            # print(p.dtype)
+            # print(gt_clss.dtype)
+            pair_wise_cls_loss = F.binary_cross_entropy(p.float(), gt_clss, reduction='none')       # [N, G, A, 80]
         del p, gt_clss, one_hots
 
         pair_wise_cls_loss = pair_wise_cls_loss.sum(-1)    # [N, G, A]  cost越小，越有可能成为最终正样本。
