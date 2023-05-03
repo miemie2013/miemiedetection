@@ -785,15 +785,20 @@ python tools_trt/export_trt.py -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pt
 
 (5)ppyoloe_crn_s_300e_coco
 (
-PaddleDetection-release-2.4 的总批大小是 256=8*32,  批大小太大学习率也更大，实测训练不会收敛。
+PaddleDetection-release-2.4 的总批大小是 256=8*32
 PaddleDetection-release-2.6 的总批大小是 64=8*8
+另外，加上--fp16实测会导致loss出现nan，所以不加，不使用混合精度训练。
 )
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-nohup python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 8 -b 64 -eb 64 -w 4 -ew 4 -c CSPResNetb_s_pretrained.pth --fp16     > ppyoloe_crn_s_300e_coco_8gpu.log 2>&1 &
+nohup python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 8 -b 64 -eb 64 -w 4 -ew 4 -c CSPResNetb_s_pretrained.pth     > ppyoloe_crn_s_300e_coco_8gpu.log 2>&1 &
+
+训练日志见 train_coco/ppyoloe_s_8gpu.txt
+实测训300 epochs后，最高mAP为42.10，基本上能达到转换的官方权重( Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.423)
+
 
 只有双卡的时候：
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 2 -b 64 -eb 64 -w 4 -ew 4 -c CSPResNetb_s_pretrained.pth --fp16     > ppyoloe_crn_s_300e_coco_2gpu.log 2>&1 &
+nohup python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 2 -b 16 -eb 16 -w 4 -ew 4 -c CSPResNetb_s_pretrained.pth     > ppyoloe_crn_s_300e_coco_2gpu.log 2>&1 &
 
 
 

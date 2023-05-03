@@ -291,27 +291,32 @@ python tools/train.py -f exps/ppyolo/ppyolov2_r101vd_365e.py -d 8 -b 96 -eb 16 -
 ```
 
 (5)ppyoloe_crn_s_300e_coco
+(加上--fp16实测会导致loss出现nan，所以不加，不使用混合精度训练。)
 ```
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 8 -b 256 -eb 16 -c CSPResNetb_s_pretrained.pth --fp16
+nohup python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 8 -b 64 -eb 64 -w 4 -ew 4 -c CSPResNetb_s_pretrained.pth     > ppyoloe_crn_s_300e_coco_8gpu.log 2>&1 &
 ```
+
+训练日志见 train_coco/ppyoloe_s_8gpu.txt
+实测训300 epochs后，最高mAP为42.10，基本上能达到转换的官方权重( Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.423)
+
 
 (6)ppyoloe_crn_m_300e_coco
 ```
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-python tools/train.py -f exps/ppyoloe/ppyoloe_crn_m_300e_coco.py -d 8 -b 224 -eb 16 -c CSPResNetb_m_pretrained.pth --fp16
+nohup python tools/train.py -f exps/ppyoloe/ppyoloe_crn_m_300e_coco.py -d 8 -b 64 -eb 64 -w 4 -ew 4 -c CSPResNetb_m_pretrained.pth     > ppyoloe_crn_m_300e_coco_8gpu.log 2>&1 &
 ```
 
 (7)ppyoloe_crn_l_300e_coco
 ```
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-python tools/train.py -f exps/ppyoloe/ppyoloe_crn_l_300e_coco.py -d 8 -b 160 -eb 16 -c CSPResNetb_l_pretrained.pth --fp16
+nohup python tools/train.py -f exps/ppyoloe/ppyoloe_crn_l_300e_coco.py -d 8 -b 64 -eb 64 -w 4 -ew 4 -c CSPResNetb_l_pretrained.pth     > ppyoloe_crn_l_300e_coco_8gpu.log 2>&1 &
 ```
 
 (8)ppyoloe_crn_x_300e_coco
 ```
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-python tools/train.py -f exps/ppyoloe/ppyoloe_crn_x_300e_coco.py -d 8 -b 128 -eb 16 -c CSPResNetb_x_pretrained.pth --fp16
+nohup python tools/train.py -f exps/ppyoloe/ppyoloe_crn_x_300e_coco.py -d 8 -b 64 -eb 64 -w 4 -ew 4 -c CSPResNetb_x_pretrained.pth     > ppyoloe_crn_x_300e_coco_8gpu.log 2>&1 &
 ```
 
 你需要有一台单机8卡的超算，Money is all you need!
