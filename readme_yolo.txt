@@ -568,7 +568,7 @@ Average forward time: 16.42 ms, Average NMS time: 0.00 ms, Average inference tim
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.807
 
 
-python tools/eval.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 1 -b 8 -c ppyoloe_crn_s_300e_coco.pth --conf 0.01 --tsize 640
+python tools/eval.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 1 -b 8 -w 4 -c ppyoloe_crn_s_300e_coco.pth --conf 0.01 --tsize 640
 
  Average forward time: 21.56 ms, Average NMS time: 0.00 ms, Average inference time: 21.56 ms
  Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.423
@@ -585,7 +585,7 @@ python tools/eval.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 1 -b 8 -c ppy
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.756
 
 
-python tools/eval.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 1 -b 8 -c ppyoloe_crn_s_300e_coco.pth --conf 0.01 --tsize 320
+python tools/eval.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 1 -b 8 -w 4 -c ppyoloe_crn_s_300e_coco.pth --conf 0.01 --tsize 320
 
 Average forward time: 14.12 ms, Average NMS time: 0.00 ms, Average inference time: 14.12 ms
  Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.341

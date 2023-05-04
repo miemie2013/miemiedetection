@@ -1,6 +1,7 @@
 # TODO: Update with exact module version
 numpy
 Cython
+matplotlib==3.7.1
 pycocotools
 opencv_python
 loguru

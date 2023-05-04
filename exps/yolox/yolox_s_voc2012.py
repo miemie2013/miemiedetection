@@ -3,6 +3,7 @@
 # Copyright (c) Megvii, Inc. and its affiliates.
 
 import os
+import sys
 
 from mmdet.exp import YOLOXExp
 
@@ -34,3 +35,11 @@ class Exp(YOLOXExp):
         self.min_lr_ratio = 0.05
         self.print_interval = 20
         self.eval_interval = 2
+
+        # 判断是否是调试状态
+        isDebug = True if sys.gettrace() else False
+        if isDebug:
+            print('Debug Mode.')
+            self.data_dir = '../' + self.data_dir
+            self.cls_names = '../' + self.cls_names
+            self.output_dir = '../' + self.output_dir

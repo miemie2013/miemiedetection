@@ -17,6 +17,7 @@ __all__ = [
     "adjust_box_anns",
     "xyxy2xywh",
     "xyxy2cxcywh",
+    "cxcywh2xyxy",
     "bboxes_iou_batch",
 ]
 
@@ -204,6 +205,12 @@ def xyxy2cxcywh(bboxes):
     bboxes[:, 1] = bboxes[:, 1] + bboxes[:, 3] * 0.5
     return bboxes
 
+def cxcywh2xyxy(bboxes):
+    bboxes[:, 0] = bboxes[:, 0] - bboxes[:, 2] * 0.5
+    bboxes[:, 1] = bboxes[:, 1] - bboxes[:, 3] * 0.5
+    bboxes[:, 2] = bboxes[:, 0] + bboxes[:, 2]
+    bboxes[:, 3] = bboxes[:, 1] + bboxes[:, 3]
+    return bboxes
 
 def bboxes_iou_batch(bboxes_a, bboxes_b, xyxy=True):
     """计算两组矩形两两之间的iou
