@@ -93,7 +93,7 @@ nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 2 -b 24 -
 
 python tools/eval.py -f exps/yolox/yolox_s_simple_voc2012.py -d 1 -b 8 -w 4 -c 16.pth --conf 0.01 --tsize 640
 
-python tools/demo.py image -f exps/yolox/yolox_s_simple_voc2012.py -c 16.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
+python tools/demo.py image -f exps/yolox/yolox_s_simple_voc2012.py -c 16.pth --path assets/2008_000073.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
 
 实测 yolox_s_simple 的AP最高可以到达（日志见 train_ppyolo_in_voc2012/yolox_s_simple_voc2012.txt ）

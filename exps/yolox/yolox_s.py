@@ -3,6 +3,7 @@
 # Copyright (c) Megvii, Inc. and its affiliates.
 
 import os
+import sys
 
 from mmdet.exp import YOLOXExp
 
@@ -26,3 +27,11 @@ class Exp(YOLOXExp):
         # self.train_ann = "instances_val2017.json"
         # self.train_image_folder = "val2017"
         self.print_interval = 100
+
+        # 判断是否是调试状态
+        isDebug = True if sys.gettrace() else False
+        if isDebug:
+            print('Debug Mode.')
+            self.data_dir = '../' + self.data_dir
+            self.cls_names = '../' + self.cls_names
+            self.output_dir = '../' + self.output_dir

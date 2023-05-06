@@ -24,6 +24,7 @@ class Exp(YOLOXExp):
         self.train_ann = "voc2012_val2.json"
         self.val_ann = "voc2012_val2.json"
         self.train_ann = "voc2012_train.json"
+        self.val_ann = "voc2012_val_2008_000073.json"
         self.val_ann = "voc2012_val.json"
         self.train_image_folder = "JPEGImages"
         self.val_image_folder = "JPEGImages"
