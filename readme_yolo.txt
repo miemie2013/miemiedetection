@@ -93,7 +93,7 @@ python tools/demo.py image -f exps/ppyoloe/ppyoloe_crn_l_300e_coco.py -c ppyoloe
 
 python tools/demo.py image -f exps/ppyoloe/ppyoloe_crn_x_300e_coco.py -c ppyoloe_crn_x_300e_coco.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
-python tools/demo.py image -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -c PPYOLOE_outputs/ppyoloe_crn_l_voc2012/6.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
+python tools/demo.py image -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -c 6.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
 python tools/demo.py image -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_80e_coco.py -c ppyoloe_plus_crn_s_80e_coco.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
@@ -111,7 +111,7 @@ python tools/demo.py image -f exps/ppyolo/ppyolo_r18vd.py -c ppyolo_r18vd.pth --
 
 
 
-python tools/demo.py image -f exps/ppyolo/ppyolo_r50vd_2x.py -c PPYOLO_outputs/yolox_m/1.pth --path D://PycharmProjects/Paddle-PPYOLO-master/images/test --conf 0.15 --tsize 640 --save_result --device gpu
+python tools/demo.py image -f exps/ppyolo/ppyolo_r50vd_2x.py -c 1.pth --path D://PycharmProjects/Paddle-PPYOLO-master/images/test --conf 0.15 --tsize 640 --save_result --device gpu
 
 
 
@@ -182,7 +182,7 @@ python tools/demo.py ncnn -f exps/ppyoloe/ppyoloe_crn_l_300e_coco.py -c ppyoloe_
 
 python tools/demo.py ncnn -f exps/ppyoloe/ppyoloe_crn_x_300e_coco.py -c ppyoloe_crn_x_300e_coco.pth --ncnn_output_path ppyoloe_crn_x_300e_coco
 
-python tools/demo.py ncnn -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -c PPYOLOE_outputs/ppyoloe_crn_l_voc2012/6.pth --ncnn_output_path ppyoloe_crn_l_voc2012_epoch_6
+python tools/demo.py ncnn -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -c 6.pth --ncnn_output_path ppyoloe_crn_l_voc2012_epoch_6
 
 
 
@@ -232,14 +232,14 @@ PPYOLO把RandomShape、NormalizeImage、Permute、Gt2YoloTarget这4个预处理�
 复现paddle版ppyolo2x迁移学习:（可以加--fp16， -eb表示验证时的批大小）
 python tools/train.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py -d 1 -b 8 -eb 4 -c ppyolo_r50vd_2x.pth
 
-python tools/eval.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py -d 1 -b 4 -c PPYOLO_outputs/ppyolo_r50vd_voc2012/16.pth --conf 0.01 --tsize 608
+python tools/eval.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py -d 1 -b 4 -c 16.pth --conf 0.01 --tsize 608
 
 
 2机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
 export CUDA_VISIBLE_DEVICES=0
 python tools/train.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py --dist-url tcp://192.168.0.107:12312 --num_machines 2 --machine_rank 0 -b 8 -eb 4 -c ppyolo_r50vd_2x.pth
 
-python tools/eval.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py -d 1 -b 8 -c PPYOLO_outputs/ppyolo_r50vd_voc2012/16.pth --conf 0.01 --tsize 608
+python tools/eval.py -f exps/ppyolo/ppyolo_r50vd_voc2012.py -d 1 -b 8 -c 16.pth --conf 0.01 --tsize 608
 
 
 1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
@@ -300,9 +300,9 @@ tail -n 20 ppyolov2.log
 复现paddle版ppyoloe_s迁移学习（不冻结骨干网络）:（可以加--fp16， -eb表示验证时的批大小）
 python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_voc2012.py -d 1 -b 4 -eb 2 -c ppyoloe_crn_s_300e_coco.pth --fp16
 
-python tools/eval.py -f exps/ppyoloe/ppyoloe_crn_s_voc2012.py -d 1 -b 4 -c PPYOLOE_outputs/ppyoloe_crn_s_voc2012/16.pth --conf 0.01 --tsize 640
+python tools/eval.py -f exps/ppyoloe/ppyoloe_crn_s_voc2012.py -d 1 -b 4 -c 16.pth --conf 0.01 --tsize 640
 
-python tools/demo.py image -f exps/ppyoloe/ppyoloe_crn_s_voc2012.py -c PPYOLOE_outputs/ppyoloe_crn_s_voc2012/16.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
+python tools/demo.py image -f exps/ppyoloe/ppyoloe_crn_s_voc2012.py -c 16.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
 
 2机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
@@ -338,9 +338,9 @@ python tools/train.py -f exps/ppyoloe/ppyoloe_crn_xs_voc2012.py -d 1 -b 4 -eb 2 
 复现paddle版ppyoloe_l迁移学习（冻结了骨干网络）:（可以加--fp16， -eb表示验证时的批大小）
 python tools/train.py -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -d 1 -b 8 -eb 2 -c ppyoloe_crn_l_300e_coco.pth --fp16
 
-python tools/eval.py -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -d 1 -b 4 -c PPYOLOE_outputs/ppyoloe_crn_l_voc2012/16.pth --conf 0.01 --tsize 640
+python tools/eval.py -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -d 1 -b 4 -c 16.pth --conf 0.01 --tsize 640
 
-python tools/demo.py image -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -c PPYOLOE_outputs/ppyoloe_crn_l_voc2012/16.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
+python tools/demo.py image -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -c 16.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
 
 1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
@@ -367,9 +367,9 @@ python tools/train.py -f exps/ppyoloe/ppyoloe_crn_l_voc2012.py -d 1 -b 8 -eb 2 -
 - - - - - - - - - - - - - - - - - - - - - -
 ppyoloe_plus_s迁移学习（不冻结骨干网络）:（可以加--fp16， -eb表示验证时的批大小）
 
-python tools/eval.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 1 -b 4 -c PPYOLOEPlus_outputs/ppyoloe_plus_crn_s_voc2012/16.pth --conf 0.01 --tsize 640
+python tools/eval.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 1 -b 4 -c 16.pth --conf 0.01 --tsize 640
 
-python tools/demo.py image -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -c PPYOLOEPlus_outputs/ppyoloe_plus_crn_s_voc2012/16.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
+python tools/demo.py image -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -c 16.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
 
 1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
@@ -429,10 +429,10 @@ nohup python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_pcp.py -d 2 
 
 
 ----------------------- 恢复训练（加上参数--resume） -----------------------
-python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 4 -c PPYOLO_outputs/ppyolo_r50vd_2x/13.pth --resume
+python tools/train.py -f exps/ppyolo/ppyolo_r50vd_2x.py -d 1 -b 8 -eb 4 -c 13.pth --resume
 
 
-python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 1 -b 16 -eb 8 -c PPYOLO_outputs/ppyolo_r18vd/7.pth --resume
+python tools/train.py -f exps/ppyolo/ppyolo_r18vd.py -d 1 -b 16 -eb 8 -c 7.pth --resume
 
 
 
@@ -795,7 +795,7 @@ nohup python tools/train.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 8 -b 6
 训练日志见 train_coco/ppyoloe_s_8gpu.txt
 实测训300 epochs后，最高mAP为42.10，基本上能达到转换的官方权重( Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.423)
 
-python tools/eval.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 8 -b 64 -c PPYOLOE_outputs/ppyoloe_crn_s_300e_coco/300.pth --conf 0.01 --tsize 640
+python tools/eval.py -f exps/ppyoloe/ppyoloe_crn_s_300e_coco.py -d 8 -b 64 -c 300.pth --conf 0.01 --tsize 640
 
 只有双卡的时候：
 export CUDA_VISIBLE_DEVICES=0,1

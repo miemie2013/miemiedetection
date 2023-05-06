@@ -712,6 +712,8 @@ def main(exp, args):
                 ckpt_file = os.path.join(file_name, "best_ckpt.pth")
             else:
                 ckpt_file = args.ckpt
+                if '/' not in ckpt_file and not os.path.exists(ckpt_file):
+                    ckpt_file = os.path.join(file_name, ckpt_file)
             logger.info("loading checkpoint")
             ckpt = torch.load(ckpt_file, map_location="cpu")
             # load the model state dict
@@ -747,6 +749,8 @@ def main(exp, args):
                 ckpt_file = os.path.join(file_name, "best_ckpt.pth")
             else:
                 ckpt_file = args.ckpt
+                if '/' not in ckpt_file and not os.path.exists(ckpt_file):
+                    ckpt_file = os.path.join(file_name, ckpt_file)
             logger.info("loading checkpoint")
             ckpt = torch.load(ckpt_file, map_location="cpu")
             # load the model state dict
@@ -780,6 +784,8 @@ def main(exp, args):
                 ckpt_file = os.path.join(file_name, "best_ckpt.pth")
             else:
                 ckpt_file = args.ckpt
+                if '/' not in ckpt_file and not os.path.exists(ckpt_file):
+                    ckpt_file = os.path.join(file_name, ckpt_file)
             logger.info("loading checkpoint")
             ckpt = torch.load(ckpt_file, map_location="cpu")
             # load the model state dict
@@ -813,6 +819,8 @@ def main(exp, args):
                 ckpt_file = os.path.join(file_name, "best_ckpt.pth")
             else:
                 ckpt_file = args.ckpt
+                if '/' not in ckpt_file and not os.path.exists(ckpt_file):
+                    ckpt_file = os.path.join(file_name, ckpt_file)
             logger.info("loading checkpoint")
             ckpt = torch.load(ckpt_file, map_location="cpu")
             # load the model state dict
@@ -846,6 +854,8 @@ def main(exp, args):
                 ckpt_file = os.path.join(file_name, "best_ckpt.pth")
             else:
                 ckpt_file = args.ckpt
+                if '/' not in ckpt_file and not os.path.exists(ckpt_file):
+                    ckpt_file = os.path.join(file_name, ckpt_file)
             logger.info("loading checkpoint")
             ckpt = torch.load(ckpt_file, map_location="cpu")
             # load the model state dict

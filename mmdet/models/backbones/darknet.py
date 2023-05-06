@@ -101,6 +101,7 @@ class CSPDarknet(nn.Module):
         wid_mul,
         out_features=("dark3", "dark4", "dark5"),
         depthwise=False,
+        use_focus=True,
         act="silu",
         freeze_at=0,
     ):
@@ -115,7 +116,10 @@ class CSPDarknet(nn.Module):
         base_depth = max(round(dep_mul * 3), 1)  # 3
 
         # stem
-        self.stem = Focus(3, base_channels, ksize=3, act=act)
+        if use_focus:
+            self.stem = Focus(3, base_channels, ksize=3, act=act)
+        else:
+            self.stem = BaseConv(3, base_channels, 3, 2, act=act)
 
         # dark2
         self.dark2 = nn.Sequential(

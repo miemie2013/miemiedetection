@@ -218,6 +218,8 @@ def main(exp, args, num_gpu):
             ckpt_file = os.path.join(file_name, "best_ckpt.pth")
         else:
             ckpt_file = args.ckpt
+            if '/' not in ckpt_file and not os.path.exists(ckpt_file):
+                ckpt_file = os.path.join(file_name, ckpt_file)
         logger.info("loading checkpoint from {}".format(ckpt_file))
         loc = "cuda:{}".format(rank)
         ckpt = torch.load(ckpt_file, map_location=loc)

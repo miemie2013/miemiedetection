@@ -74,6 +74,8 @@ python tools/train.py -f exps/yolox/yolox_s_voc2012.py -d 1 -b 24 -eb 16 -w 4 -e
 export CUDA_VISIBLE_DEVICES=0,1
 nohup python tools/train.py -f exps/yolox/yolox_s_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 -c yolox_s.pth     > yolox_s.log 2>&1 &
 
+python tools/eval.py -f exps/yolox/yolox_s_voc2012.py -d 1 -b 8 -w 4 -c 16.pth --conf 0.01 --tsize 640
+
 
 实测 yolox_s 的AP最高可以到达（日志见 train_ppyolo_in_voc2012/yolox_s_voc2012.txt ）
  Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.509
@@ -84,9 +86,35 @@ nohup python tools/train.py -f exps/yolox/yolox_s_voc2012.py -d 2 -b 24 -eb 16 -
  Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.583
 
 
+- - - - - - - - - - - -
+export CUDA_VISIBLE_DEVICES=0,1
+nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 -c yolox_s.pth     > yolox_s_simple.log 2>&1 &
+
+
+python tools/eval.py -f exps/yolox/yolox_s_simple_voc2012.py -d 1 -b 8 -w 4 -c 16.pth --conf 0.01 --tsize 640
+
+python tools/demo.py image -f exps/yolox/yolox_s_simple_voc2012.py -c 16.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
+
+
+实测 yolox_s_simple 的AP最高可以到达（日志见 train_ppyolo_in_voc2012/yolox_s_simple_voc2012.txt ）
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.408
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.633
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.451
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.097
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.275
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.485
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.372
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.542
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.555
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.206
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.440
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.623
+
+
 
 ----------------------- 恢复训练（加上参数--resume） -----------------------
-
+export CUDA_VISIBLE_DEVICES=0,1
+nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 -c 10.pth --resume     > yolox_s_simple.log 2>&1 &
 
 
 

@@ -21,12 +21,13 @@ class YOLOPAFPN(nn.Module):
         in_features=("dark3", "dark4", "dark5"),
         in_channels=[256, 512, 1024],
         depthwise=False,
+        use_focus=True,
         act="silu",
         freeze_at=0,
     ):
         super().__init__()
         assert freeze_at in [0, 1, 2, 3, 4, 5]
-        self.backbone = CSPDarknet(depth, width, depthwise=depthwise, act=act, freeze_at=freeze_at)
+        self.backbone = CSPDarknet(depth, width, depthwise=depthwise, use_focus=use_focus, act=act, freeze_at=freeze_at)
         self.in_features = in_features
         self.in_channels = in_channels
         Conv = DWConv if depthwise else BaseConv

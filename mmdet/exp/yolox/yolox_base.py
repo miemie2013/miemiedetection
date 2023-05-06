@@ -23,6 +23,7 @@ class YOLOXExp(COCOBaseExp):
         self.depth = 1.00
         self.width = 1.00
         self.act = 'silu'
+        self.use_focus = True
 
         # ---------------- dataloader config ---------------- #
         # 默认是4。如果报错“OSError: [WinError 1455] 页面文件太小,无法完成操作”，设置为2或0解决。
@@ -90,7 +91,7 @@ class YOLOXExp(COCOBaseExp):
 
         if getattr(self, "model", None) is None:
             in_channels = [256, 512, 1024]
-            backbone = YOLOPAFPN(self.depth, self.width, in_channels=in_channels, act=self.act, freeze_at=self.freeze_at)
+            backbone = YOLOPAFPN(self.depth, self.width, in_channels=in_channels, use_focus=self.use_focus, act=self.act, freeze_at=self.freeze_at)
             head = YOLOXHead(self.num_classes, self.width, in_channels=in_channels, act=self.act)
             self.model = YOLOX(backbone, head)
 

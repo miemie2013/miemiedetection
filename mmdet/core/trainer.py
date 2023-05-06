@@ -779,6 +779,8 @@ class Trainer:
                 ckpt_file = os.path.join(self.file_name, "last_ckpt.pth")
             else:
                 ckpt_file = self.args.ckpt
+                if '/' not in ckpt_file and not os.path.exists(ckpt_file):
+                    ckpt_file = os.path.join(self.file_name, ckpt_file)
 
             ckpt = torch.load(ckpt_file, map_location=self.device)
             # resume the model/optimizer state dict
