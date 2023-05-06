@@ -47,6 +47,7 @@ def make_parser():
         type=bool,
         help="only convert backbone",
     )
+    parser.add_argument("-pp0", "--private_purpose_0", action='store_true', help='for private purpose 0')
     parser.add_argument('--fyx', action='store_true', help='for YoloX-Pytorch')
     parser.add_argument(
         "--device",
@@ -140,7 +141,25 @@ def main(exp, args):
 
     # 新增算法时这里也要增加elif
     if model_class_name == 'YOLOX':
-        pass
+        if args.private_purpose_0:
+            ckpt_file = args.ckpt
+            ckpt = torch.load(ckpt_file, map_location="cpu")
+            state_dict = ckpt['model']
+            state_dict2 = {}
+            for key, value in state_dict.items():
+                if key.startswith('backbone.backbone.'):
+                    state_dict2[key.replace('backbone.backbone.', 'backbone.')] = state_dict[key]
+                elif key.startswith('backbone.'):
+                    state_dict2[key.replace('backbone.', 'neck.')] = state_dict[key]
+                elif key.startswith('head.'):
+                    state_dict2[key] = state_dict[key]
+                else:
+                    raise NotImplementedError("not implemented.")
+            new_state_dict = {}
+            new_state_dict['state_dict'] = state_dict2
+            torch.save(new_state_dict, args.output_ckpt)
+            logger.info("Done.")
+            return 0
     elif model_class_name == 'PPYOLO':
         with open(args.ckpt, 'rb') as f:
             state_dict = pickle.load(f) if six.PY2 else pickle.load(f, encoding='latin1')

@@ -110,6 +110,8 @@ python tools/demo.py image -f exps/yolox/yolox_s_simple_voc2012.py -c 16.pth --p
  Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.440
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.623
 
+导出给私有仓库：
+python tools/convert_weights.py -f exps/yolox/yolox_s_simple_voc2012.py -c YOLOX_outputs/yolox_s_simple_voc2012/16.pth -oc new_16.pth -nc 20 -pp0
 
 
 ----------------------- 恢复训练（加上参数--resume） -----------------------
