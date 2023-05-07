@@ -1,0 +1,175 @@
+----------------------- os 模块 -----------------------
+1.遍历某个目录下所有文件名和文件夹名（对caffe有用）：
+import os
+path_dir = os.listdir('D://')
+for name in path_dir:
+    print(name)
+
+os.path.join()
+os.path.basename()
+
+----------------------- numpy 模块 -----------------------
+1.numpy 保存和读取数据。比较两个ndarray是否相等
+import numpy as np
+dic = {}
+dic['img'] = a
+np.savez('data', **dic)
+
+dic2 = np.load('data.npz')
+a2 = dic2['img']
+
+ddd = np.mean((a - a2) ** 2)
+print('ddd=%.6f' % ddd)
+
+----------------------- cv2 模块 -----------------------
+
+2.以cv2打开图片，同时变成灰度图片
+import cv2
+
+path = 'Images/AF333.jpg'
+img = cv2.imread(path)    # img是numpy数组，shape是(350, 350, 3)
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)    # gray是numpy数组，shape是(350, 350)，已经转换成灰度
+
+
+import cv2
+# 涉及resize
+# cv2打开图片，先是高再是宽
+img = cv2.imread(file_dir)  # img是numpy数组，shape是(h, w, 3)
+img = cv2.resize(img, (100, 50), interpolation=cv2.INTER_CUBIC)  # 调整宽度变成100，高度变成50。img的shape是(50, 100, 3)
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # gray是numpy数组，shape是(50, 100)，已经转换成灰度。
+gray = gray.reshape((50, 100, 1))  # gray是numpy数组，shape是(50, 100, 1)
+# 保存resize后的图片
+cv2.imwrite('D://aaaaa.jpg', gray)
+
+
+10.cv2给图片画点
+import cv2
+
+path = "a.jpg"
+img = cv2.imread(path)
+
+# 画2点，可以用循环画多个点
+pt_pos = (50, 10)
+cv2.circle(img, pt_pos, 2, (0, 255, 0), 1)
+pt_pos = (100, 20)
+cv2.circle(img, pt_pos, 2, (0, 255, 0), 1)
+
+
+cv2.imshow("image", img)
+
+# 保存画点后的图片
+cv2.imwrite('aaaaa.jpg', img)
+
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
+
+
+
+
+----------------------- PIL 模块 -----------------------
+1.以Image打开图片
+from PIL import Image
+import numpy as np
+
+image = Image.open('Images/AF333.jpg')
+image_arr = np.array(image)      # image_arr是numpy数组，shape是(350, 350, 3)
+
+
+
+
+----------------------- 读写文件 -----------------------
+1.后接写文件：
+with open('lishangyin.txt', 'a', encoding='utf-8') as f:
+	f.write(content)
+	f.close()
+
+2.一行一行读文件
+with open('myferp/samples.txt', 'r', encoding='utf-8') as f:
+	for line in f:
+		line = line.strip()
+		print(line)
+
+3.读json注解文件
+import json
+
+with open('instances_val2017.json', 'r', encoding='utf-8') as f:
+    for line in f:
+        line = line.strip()
+        new_dict = json.loads(line)
+        print()
+
+
+
+----------------------- 随机数 -----------------------
+1.随机整数
+import random
+import numpy as np
+aa1 = random.randint(0, 2)
+aa2 = np.random.randint(0, 2)
+
+aa1可以取到0, 1, 2
+aa2可以取到0, 1
+请留意这个差别。
+
+
+6.随机抽
+import random
+
+batch_size = 3
+total_size = 4
+# 生成不重复的batch_size个下标，随机一批样本
+index_list = random.sample(range(0, total_size), batch_size)
+index_list = sorted(index_list)
+print(index_list)
+
+
+----------------------- Linux命令 -----------------------
+1.远程连接linux服务器(windows终端也可用ssh命令)，假设用户名是abc，ip是192.168.0.1，端口是123，则
+ssh abc@192.168.0.1 -p 123
+
+再输入密码即可。
+
+2.查看磁盘空间
+df -h
+
+3.查看显存
+nvidia-smi
+
+watch -n 0.1 nvidia-smi
+
+4.nuhup启动
+nohup xxx     > xx.log 2>&1 &
+
+5.Anaconda管理虚拟环境
+创建python3.9（或者python3.8、3.7）的虚拟环境
+conda create --name python39 python==3.9
+conda create --name python38 python==3.8
+conda create --name python37 python==3.7
+
+激活虚拟环境
+conda activate python37
+conda activate base
+
+查看所有虚拟环境
+conda env list
+
+删除虚拟环境
+conda remove --name 需要删除的环境名 --all
+conda remove --name python39 --all
+
+
+6.用vim编辑文件(好垃圾，我的评价是不如vscode)
+vim /opt/conda/envs/python35-paddle120-env/lib/python3.7/site-packages/pycocotools/__init__.py
+
+from .mask import *
+esc + :wq
+
+7.复制文件
+cp ./ou*/yo*/25000.pdopt ./25000.pdopt
+
+8.压缩文件
+zip -r a.zip ./weights
+
+
+
