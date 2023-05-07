@@ -131,11 +131,14 @@ class COCOEvaluator:
             model = model.half()
         ids = []
         data_list = []
-        progress_bar = tqdm if is_main_process() else iter
+        progress_bar = iter if is_main_process() else iter
 
         inference_time = 0
         nms_time = 0
         n_samples = max(len(self.dataloader) - 1, 1)
+        steps = len(self.dataloader)
+        print_interval = max(steps // 5, 1) + 1
+        num_imgs = len(self.dataloader.dataset.ids)
 
         if trt_file is not None:
             from torch2trt import TRTModule
@@ -147,6 +150,7 @@ class COCOEvaluator:
             model(x)
             model = model_trt
 
+        eval_start = time.time()
         for cur_iter, (imgs, _, info_imgs, ids) in enumerate(
             progress_bar(self.dataloader)
         ):
@@ -172,8 +176,13 @@ class COCOEvaluator:
                 if is_time_record:
                     nms_end = time_synchronized()
                     nms_time += nms_end - infer_end
+                if cur_iter % print_interval == 0:
+                    progress_str = "Eval iter: {}/{}".format(cur_iter + 1, steps)
+                    logger.info(progress_str)
 
             data_list.extend(self.convert_to_coco_format(outputs, info_imgs, ids))
+        cost = time.time() - eval_start
+        logger.info('Eval time: %.1f s;  Speed: %.1f FPS.'%(cost, (num_imgs / cost)))
 
         statistics = torch.cuda.FloatTensor([inference_time, nms_time, n_samples])
         if distributed:

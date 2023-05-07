@@ -12,6 +12,37 @@ wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yo
 
 
 
+----------------------- 预处理 -----------------------
+原版中YOLOX预处理：
+1.读图片
+img = cv2.imread(img)
+2.填充成正方形，填充值是114,
+    if len(img.shape) == 3:
+        padded_img = np.ones((input_size[0], input_size[1], 3), dtype=np.uint8) * 114
+    else:
+        padded_img = np.ones(input_size, dtype=np.uint8) * 114
+    r = min(input_size[0] / img.shape[0], input_size[1] / img.shape[1])
+3.保持宽高比把图片最长的边放缩到640，
+    resized_img = cv2.resize(
+        img,
+        (int(img.shape[1] * r), int(img.shape[0] * r)),
+        interpolation=cv2.INTER_LINEAR,
+    ).astype(np.uint8)
+    padded_img[: int(img.shape[0] * r), : int(img.shape[1] * r)] = resized_img
+4.transpose操作，HWC变成CHW
+padded_img = padded_img.transpose(swap)
+5.元素类型由int8转float32
+padded_img = np.ascontiguousarray(padded_img, dtype=np.float32)
+6.如果是旧版本，还需要这样（BGR转RGB，归一化）：
+        if self.legacy:
+            img = img[::-1, :, :].copy()
+            img /= 255.0
+            img -= np.array([0.485, 0.456, 0.406]).reshape(3, 1, 1)
+            img /= np.array([0.229, 0.224, 0.225]).reshape(3, 1, 1)
+7.转Tensor:
+img = torch.from_numpy(img).unsqueeze(0)
+
+
 ----------------------- 预测 -----------------------
 python tools/demo.py image -f exps/yolox/yolox_s.py -c yolox_s.pth --path assets/dog.jpg --conf 0.25 --nms 0.45 --tsize 640 --save_result --device gpu
 
@@ -96,19 +127,19 @@ python tools/eval.py -f exps/yolox/yolox_s_simple_voc2012.py -d 1 -b 8 -w 4 -c 1
 python tools/demo.py image -f exps/yolox/yolox_s_simple_voc2012.py -c 16.pth --path assets/2008_000073.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
 
-实测 yolox_s_simple 的AP最高可以到达（日志见 train_ppyolo_in_voc2012/yolox_s_simple_voc2012.txt ）
+实测 yolox_s_simple 的AP最后可以到达（日志见 train_ppyolo_in_voc2012/yolox_s_simple_voc2012.txt ）
  Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.408
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.633
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.629
  Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.451
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.097
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.275
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.485
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.102
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.268
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.488
  Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.372
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.542
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.555
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.206
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.440
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.623
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.545
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.556
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.217
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.429
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.630
 
 导出给私有仓库：
 python tools/convert_weights.py -f exps/yolox/yolox_s_simple_voc2012.py -c YOLOX_outputs/yolox_s_simple_voc2012/16.pth -oc new_16.pth -nc 20 -pp0

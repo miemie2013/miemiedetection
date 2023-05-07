@@ -113,7 +113,11 @@ class Trainer:
             #     if self.rank == 0:
             #         self.save_ckpt(ckpt_name="000")
             self.before_epoch()
+            train_start = time.time()
             self.train_in_iter()
+            if self.rank == 0:
+                cost = time.time() - train_start
+                logger.info('Train epoch %d cost time: %.1f s.' % (self.epoch + 1, cost))
             # if self.save_npz:
             #     break
             # else:
