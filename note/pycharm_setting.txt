@@ -6,5 +6,24 @@ File -> Settings -> Editor -> Font -> 字体选JetBrains Mono, 大小15, 行距0
 File -> Settings -> Editor -> Color Scheme -> Python -> Line Comment -> 设置为6A8759
 
 
+filezilla:
+(关掉启动更新弹窗)
+编辑 -> 设置 -> 更新 -> 从不
+关掉启动更新弹窗：
+https://zhidao.baidu.com/question/1515830201539655460.html
+帮助 -> 关于 -> 查看并打开"设置文件目录"
+编辑"设置文件目录"里面的filezilla.xml文件(删除1个节点，修改1个节点)。先关掉filezilla。
+删掉这个节点：
+<Setting name="Update Check New Version" platform="win">...
+</Setting>
+这个Setting节点里包含了启动软件时更新弹窗显示的文本。很好辨认。
+查找"Update Check Interval"，将这个Setting节点里的值设为0，即
+		<Setting name="Update Check Interval">0</Setting>
+保存。启动filezilla就没有弹窗了。
+
+(支持同时连接多个服务器)
+编辑 -> 设置 -> 界面 -> 已连接服务器的情况下，需要创建一个新的连接 -> 在新标签中连接
+(关掉上传下载文件覆盖提醒)
+编辑 -> 设置 -> 对已存在文件的操作 -> 都选择"覆盖文件"
 
 
