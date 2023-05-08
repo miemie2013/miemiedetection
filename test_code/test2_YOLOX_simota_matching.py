@@ -2,6 +2,7 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
+import time
 
 
 def simota_matching(cost, pair_wise_ious, num_gt):
@@ -29,7 +30,6 @@ def simota_matching(cost, pair_wise_ious, num_gt):
     anchor_matching_gt = matching_matrix.sum(0)
     # deal with the case that one anchor matches multiple ground-truths
     if anchor_matching_gt.max() > 1:
-        print('anchor_matching_gt.max() > 1')
         multiple_match_mask = anchor_matching_gt > 1  # [M, ]  M个候选正样本 一对多 处为1
         matching_matrix[:, multiple_match_mask] *= 0  # 一对多的候选正样本，不匹配任何gt
         _, cost_argmin = torch.min(cost[:, multiple_match_mask], dim=0)
@@ -55,38 +55,23 @@ def simota_matching2(cost, pair_wise_ious, num_gt):
     topk_ious, _ = torch.topk(pair_wise_ious, n_candidate_k, dim=1)  # [num_gt, 10]  每个gt取10个最大iou的候选正样本。
     dynamic_ks = torch.clamp(topk_ious.sum(1).int(), min=1)  # [num_gt, ]  iou求和作为正样本数。
 
-
-
-
-
-
-
-    max_k = dynamic_ks.max()
-    aaaaaaaaaa = torch.ones((max_k, max_k))
-    aaaaaaa = aaaaaaaaaa.tril(diagonal=0)
-    ii = dynamic_ks - 1
-    aa = aaaaaaa[ii]
-
-    _, pppppp = torch.topk(cost, k=max_k, largest=False)
-    batch_ind = torch.arange(end=max_k, dtype=max_k.dtype).unsqueeze(0).repeat([num_gt, 1])
-    dynamic_ks___ = dynamic_ks.unsqueeze(1).repeat([1, max_k])
-    mmm = (batch_ind < dynamic_ks___).to(torch.uint8)
-
-
-
-    matching_matrix[pppppp] = mmm
-    print()
     # 对每个gt，取cost最小的k个候选正样本去学习。
-    for gt_idx in range(num_gt):
-        _, pos_idx = torch.topk(cost[gt_idx], k=dynamic_ks[gt_idx], largest=False)
-        matching_matrix[gt_idx][pos_idx] = 1
-    del topk_ious, dynamic_ks, pos_idx
+    max_k = dynamic_ks.max()
+    masks = torch.ones((max_k, max_k), dtype=torch.uint8, device=cost.device).tril(diagonal=0)
+    fill_value = masks[(dynamic_ks - 1).long(), :]
+    _, pos_idx = torch.topk(cost, k=max_k, largest=False)
+    M = cost.shape[1]
+    offset = torch.arange(start=0, end=M*num_gt, step=M, dtype=torch.int64, device=cost.device).unsqueeze(-1)
+    pos_idx_1d = (pos_idx + offset).flatten()
+    matching_matrix = matching_matrix.flatten()
+    matching_matrix[pos_idx_1d] = fill_value.flatten()
+    matching_matrix = matching_matrix.reshape(cost.shape)
+    del topk_ious, dynamic_ks, max_k, masks, fill_value, pos_idx, offset, pos_idx_1d
 
     # [M, ]  M个候选正样本匹配的gt数
     anchor_matching_gt = matching_matrix.sum(0)
     # deal with the case that one anchor matches multiple ground-truths
     if anchor_matching_gt.max() > 1:
-        print('anchor_matching_gt.max() > 1')
         multiple_match_mask = anchor_matching_gt > 1  # [M, ]  M个候选正样本 一对多 处为1
         matching_matrix[:, multiple_match_mask] *= 0  # 一对多的候选正样本，不匹配任何gt
         _, cost_argmin = torch.min(cost[:, multiple_match_mask], dim=0)
@@ -120,22 +105,49 @@ matching_matrix1 = simota_matching(cost, pair_wise_ious, num_gt)
 print('\n\n\n')
 print('====================================================================')
 
-num_gt = 3
-M = 12
-for i in range(10):
-    print('==================== test %d =====================' % (i+1,))
+num_gt = 27
+M = 283
+
+costs1 = []
+costs2 = []
+for i in range(1000):
+    # print('==================== test %d =====================' % (i+1,))
     cost = np.random.random((num_gt, M)).astype(np.float32)
     pair_wise_ious = np.random.random((num_gt, M)).astype(np.float32)
     # 保留2位小数
     cost = np.around(cost, decimals=2)
     pair_wise_ious = np.around(pair_wise_ious, decimals=2)
-    print(cost)
-    print(pair_wise_ious)
+    # print(cost)
+    # print(pair_wise_ious)
     cost = torch.Tensor(cost).to(torch.float32)
     pair_wise_ious = torch.Tensor(pair_wise_ious).to(torch.float32)
-    matching_matrix1 = simota_matching(cost, pair_wise_ious, num_gt)
-    matching_matrix2 = simota_matching2(cost, pair_wise_ious, num_gt)
+    cost = cost.cuda()
+    pair_wise_ious = pair_wise_ious.cuda()
 
+
+    train_start1 = time.time()
+    matching_matrix1 = simota_matching(cost, pair_wise_ious, num_gt)
+    cost1 = time.time() - train_start1
+
+    train_start2 = time.time()
+    matching_matrix2 = simota_matching2(cost, pair_wise_ious, num_gt)
+    cost2 = time.time() - train_start2
+
+
+    matching_matrix1 = matching_matrix1.cpu().detach().numpy().astype(np.float32)
+    matching_matrix2 = matching_matrix2.cpu().detach().numpy().astype(np.float32)
+    ddd = np.sum((matching_matrix1 - matching_matrix2) ** 2)
+    assert ddd < 0.0001
+    costs1.append(cost1)
+    costs2.append(cost2)
+    # print('ddd=%.6f' % ddd)
+    # print('cost1=%.6f s, cost2=%.6f s' % (cost1, cost2))
+
+costs1 = np.array(costs1)
+costs2 = np.array(costs2)
+costs1 = np.mean(costs1)
+costs2 = np.mean(costs2)
+print('costs1=%.6f s, costs2=%.6f s' % (costs1, costs2))
 
 print()
 
