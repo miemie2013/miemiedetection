@@ -141,8 +141,9 @@ class YOLOXHead(nn.Module):
     def forward(self, xin, labels=None, imgs=None):
         outputs = []
         origin_preds = []
-        grids = []
-        strides = []
+        x_shifts = []
+        y_shifts = []
+        expanded_strides = []
 
         for k, (cls_conv, reg_conv, stride_this_level, x) in enumerate(
             zip(self.cls_convs, self.reg_convs, self.strides, xin)
@@ -160,26 +161,40 @@ class YOLOXHead(nn.Module):
 
             if self.training:
                 output = torch.cat([reg_output, obj_output, cls_output], 1)
-                output, grid = self.get_output_and_grid(output, k, stride_this_level, xin[0].type())
-                grids.append(grid)
-                strides.append(
-                    torch.zeros(1, grid.shape[1]).fill_(stride_this_level).type_as(xin[0])
+                output, grid = self.get_output_and_grid(
+                    output, k, stride_this_level, xin[0].type()
+                )
+                x_shifts.append(grid[:, :, 0])
+                y_shifts.append(grid[:, :, 1])
+                expanded_strides.append(
+                    torch.zeros(1, grid.shape[1])
+                    .fill_(stride_this_level)
+                    .type_as(xin[0])
                 )
                 if self.use_l1:
                     batch_size = reg_output.shape[0]
                     hsize, wsize = reg_output.shape[-2:]
-                    reg_output = reg_output.view(batch_size, 1, 4, hsize, wsize)
-                    reg_output = reg_output.permute(0, 1, 3, 4, 2).reshape(batch_size, -1, 4)
+                    reg_output = reg_output.view(
+                        batch_size, 1, 4, hsize, wsize
+                    )
+                    reg_output = reg_output.permute(0, 1, 3, 4, 2).reshape(
+                        batch_size, -1, 4
+                    )
                     origin_preds.append(reg_output.clone())
+
             else:
-                output = torch.cat([reg_output, obj_output.sigmoid(), cls_output.sigmoid()], 1)
+                output = torch.cat(
+                    [reg_output, obj_output.sigmoid(), cls_output.sigmoid()], 1
+                )
 
             outputs.append(output)
 
         if self.training:
             return self.get_losses(
-                grids,
-                strides,
+                imgs,
+                x_shifts,
+                y_shifts,
+                expanded_strides,
                 labels,
                 torch.cat(outputs, 1),
                 origin_preds,
@@ -207,7 +222,10 @@ class YOLOXHead(nn.Module):
             grid = torch.stack((xv, yv), 2).view(1, 1, hsize, wsize, 2).type(dtype)
             self.grids[k] = grid
 
-        output = output.permute(0, 2, 3, 1).reshape(batch_size, hsize * wsize, -1)
+        output = output.view(batch_size, 1, n_ch, hsize, wsize)
+        output = output.permute(0, 1, 3, 4, 2).reshape(
+            batch_size, hsize * wsize, -1
+        )
         grid = grid.view(1, -1, 2)
         output[..., :2] = (output[..., :2] + grid) * stride
         output[..., 2:4] = torch.exp(output[..., 2:4]) * stride
@@ -235,29 +253,26 @@ class YOLOXHead(nn.Module):
 
     def get_losses(
         self,
-        grids,
-        strides,
+        imgs,
+        x_shifts,
+        y_shifts,
+        expanded_strides,
         labels,
         outputs,
         origin_preds,
         dtype,
     ):
-        '''
-        grids        格子左上角xy坐标，单位是格子边长
-        strides      格子边长，单位是像素
-        labels       [N, G, 5]   gt的cid、cxcywh, 单位是像素
-        outputs      [N, A, 5+n_cls]
-        '''
-        bbox_preds = outputs[:, :, :4]  # [N, A, 4]   预测的cxcywh, 单位是像素
-        obj_preds = outputs[:, :, 4:5]  # [N, A, 1]       未经过sigmoid激活
-        cls_preds = outputs[:, :, 5:]   # [N, A, n_cls]   未经过sigmoid激活
+        bbox_preds = outputs[:, :, :4]  # [batch, n_anchors_all, 4]
+        obj_preds = outputs[:, :, 4:5]  # [batch, n_anchors_all, 1]
+        cls_preds = outputs[:, :, 5:]  # [batch, n_anchors_all, n_cls]
 
         # calculate targets
-        nlabel = (labels.sum(dim=2) > 0).sum(dim=1)  # [N, ]  每张图片gt数
+        nlabel = (labels.sum(dim=2) > 0).sum(dim=1)  # number of objects
 
-        A = outputs.shape[1]
-        grids = torch.cat(grids, 1)  # [1, A, 2]  格子左上角xy坐标，单位是格子边长
-        strides = torch.cat(strides, 1)  # [1, A]  格子边长，单位是像素
+        total_num_anchors = outputs.shape[1]
+        x_shifts = torch.cat(x_shifts, 1)  # [1, n_anchors_all]
+        y_shifts = torch.cat(y_shifts, 1)  # [1, n_anchors_all]
+        expanded_strides = torch.cat(expanded_strides, 1)
         if self.use_l1:
             origin_preds = torch.cat(origin_preds, 1)
 
@@ -277,14 +292,12 @@ class YOLOXHead(nn.Module):
                 cls_target = outputs.new_zeros((0, self.num_classes))
                 reg_target = outputs.new_zeros((0, 4))
                 l1_target = outputs.new_zeros((0, 4))
-                obj_target = outputs.new_zeros((A, 1))
-                fg_mask = outputs.new_zeros(A).bool()
+                obj_target = outputs.new_zeros((total_num_anchors, 1))
+                fg_mask = outputs.new_zeros(total_num_anchors).bool()
             else:
-                gt_bboxes_per_image = labels[batch_idx, :num_gt, 1:5]   # [num_gt, 4]  gt的cxcywh, 单位是像素
-                gt_classes = labels[batch_idx, :num_gt, 0]              # [num_gt, ]   gt的cid
-                bbox_preds_ = bbox_preds[batch_idx]        # [A, 4]   预测的cxcywh, 单位是像素
-                cls_preds_ = cls_preds[batch_idx]          # [A, n_cls]   未经过sigmoid激活
-                obj_preds_ = obj_preds[batch_idx]          # [A, 1]       未经过sigmoid激活
+                gt_bboxes_per_image = labels[batch_idx, :num_gt, 1:5]
+                gt_classes = labels[batch_idx, :num_gt, 0]
+                bboxes_preds_per_image = bbox_preds[batch_idx]
 
                 try:
                     (
@@ -294,14 +307,16 @@ class YOLOXHead(nn.Module):
                         matched_gt_inds,
                         num_fg_img,
                     ) = self.get_assignments(  # noqa
+                        batch_idx,
                         num_gt,
                         gt_bboxes_per_image,
                         gt_classes,
-                        bbox_preds_,
-                        cls_preds_,
-                        obj_preds_,
-                        grids,
-                        strides,
+                        bboxes_preds_per_image,
+                        expanded_strides,
+                        x_shifts,
+                        y_shifts,
+                        cls_preds,
+                        obj_preds,
                     )
                 except RuntimeError as e:
                     # TODO: the string might change, consider a better way
@@ -321,14 +336,16 @@ class YOLOXHead(nn.Module):
                         matched_gt_inds,
                         num_fg_img,
                     ) = self.get_assignments(  # noqa
+                        batch_idx,
                         num_gt,
                         gt_bboxes_per_image,
                         gt_classes,
-                        bbox_preds_,
-                        cls_preds_,
-                        obj_preds_,
-                        grids,
-                        strides,
+                        bboxes_preds_per_image,
+                        expanded_strides,
+                        x_shifts,
+                        y_shifts,
+                        cls_preds,
+                        obj_preds,
                         "cpu",
                     )
 
@@ -341,12 +358,10 @@ class YOLOXHead(nn.Module):
                 obj_target = fg_mask.unsqueeze(-1)
                 reg_target = gt_bboxes_per_image[matched_gt_inds]
                 if self.use_l1:
-                    x_shifts = grids[:, :, 0]  # [1, A]
-                    y_shifts = grids[:, :, 1]  # [1, A]
                     l1_target = self.get_l1_target(
                         outputs.new_zeros((num_fg_img, 4)),
                         gt_bboxes_per_image[matched_gt_inds],
-                        strides[0][fg_mask],
+                        expanded_strides[0][fg_mask],
                         x_shifts=x_shifts[0][fg_mask],
                         y_shifts=y_shifts[0][fg_mask],
                     )
@@ -406,73 +421,59 @@ class YOLOXHead(nn.Module):
     @torch.no_grad()
     def get_assignments(
         self,
+        batch_idx,
         num_gt,
         gt_bboxes_per_image,
         gt_classes,
-        bbox_preds,
+        bboxes_preds_per_image,
+        expanded_strides,
+        x_shifts,
+        y_shifts,
         cls_preds,
         obj_preds,
-        grids,
-        strides,
         mode="gpu",
     ):
-        '''
-        num_gt     当前图片gt数量
-        gt_bboxes_per_image      [num_gt, 4]  gt的cxcywh, 单位是像素
-        gt_classes               [num_gt, ]   gt的cid
-        bbox_preds               [A, 4]   预测的cxcywh, 单位是像素
-        cls_preds                [A, n_cls]   未经过sigmoid激活
-        obj_preds                [A, 1]       未经过sigmoid激活
-        grids                    [1, A, 2]  格子左上角xy坐标，单位是格子边长
-        strides                  [1, A]  格子边长，单位是像素
-        '''
+
         if mode == "cpu":
             print("-----------Using CPU for the Current Batch-------------")
             gt_bboxes_per_image = gt_bboxes_per_image.cpu().float()
+            bboxes_preds_per_image = bboxes_preds_per_image.cpu().float()
             gt_classes = gt_classes.cpu().float()
-            bbox_preds = bbox_preds.cpu().float()
-            cls_preds = cls_preds.cpu().float()
-            obj_preds = obj_preds.cpu().float()
-            grids = grids.cpu()
-            strides = strides.cpu().float()
+            expanded_strides = expanded_strides.cpu().float()
+            x_shifts = x_shifts.cpu()
+            y_shifts = y_shifts.cpu()
 
-        # fg_mask             [A, ]         anchor至少落在1个"范围框"内时, 为True
-        # geometry_relation   [num_gt, M]   只保留那些至少落在1个"范围框"内的M个anchor
         fg_mask, geometry_relation = self.get_geometry_constraint(
             gt_bboxes_per_image,
-            strides,
-            grids,
+            expanded_strides,
+            x_shifts,
+            y_shifts,
         )
 
-        # 抽出候选正样本
-        bbox_preds = bbox_preds[fg_mask]  # [M, 4]  候选正样本预测的cxcywh, 单位是像素
-        cls_preds_ = cls_preds[fg_mask]   # [M, n_cls]   候选正样本cls, 未经过sigmoid激活
-        obj_preds_ = obj_preds[fg_mask]   # [M, 1]       候选正样本obj, 未经过sigmoid激活
-        num_in_boxes_anchor = bbox_preds.shape[0]   # M, 在"范围框"内的anchor数量(候选正样本数量)
+        bboxes_preds_per_image = bboxes_preds_per_image[fg_mask]
+        cls_preds_ = cls_preds[batch_idx][fg_mask]
+        obj_preds_ = obj_preds[batch_idx][fg_mask]
+        num_in_boxes_anchor = bboxes_preds_per_image.shape[0]
 
         if mode == "cpu":
             gt_bboxes_per_image = gt_bboxes_per_image.cpu()
-            bbox_preds = bbox_preds.cpu()
+            bboxes_preds_per_image = bboxes_preds_per_image.cpu()
 
-        # [num_gt, M]  gt和候选正样本两两之间的iou
-        pair_wise_ious = bboxes_iou(gt_bboxes_per_image, bbox_preds, False)
+        pair_wise_ious = bboxes_iou(gt_bboxes_per_image, bboxes_preds_per_image, False)
 
-        # [num_gt, n_cls]   gt的one_hot向量
-        gt_cls_per_image = F.one_hot(gt_classes.to(torch.int64), self.num_classes).float()
-        # [num_gt, M]  iou的cost，iou越大cost越小
+        gt_cls_per_image = (
+            F.one_hot(gt_classes.to(torch.int64), self.num_classes)
+            .float()
+        )
         pair_wise_ious_loss = -torch.log(pair_wise_ious + 1e-8)
 
         if mode == "cpu":
             cls_preds_, obj_preds_ = cls_preds_.cpu(), obj_preds_.cpu()
 
-        with torch.cuda.amp.autocast(enabled=False):   # 不使用fp16，因为 F.binary_cross_entropy 对fp16不安全
-            # [M, n_cls]   M个候选正样本预测的各类别分数, 开了根号
+        with torch.cuda.amp.autocast(enabled=False):
             cls_preds_ = (
                 cls_preds_.float().sigmoid_() * obj_preds_.float().sigmoid_()
             ).sqrt()
-            # 二值交叉熵。input形状是 [num_gt, M, n_cls]，M个候选正样本预测的各类别分数，重复num_gt次
-            # target形状是          [num_gt, M, n_cls]，num_gt个gt的one_hot向量，重复M次
-            # 计算的是gt和候选正样本两两之间的二值交叉熵cost。pair_wise_cls_loss形状为 [num_gt, M]
             pair_wise_cls_loss = F.binary_cross_entropy(
                 cls_preds_.unsqueeze(0).repeat(num_gt, 1, 1),
                 gt_cls_per_image.unsqueeze(1).repeat(1, num_in_boxes_anchor, 1),
@@ -480,15 +481,12 @@ class YOLOXHead(nn.Module):
             ).sum(-1)
         del cls_preds_
 
-        # [num_gt, M]  总的cost，iou cost的权重是3。
         cost = (
             pair_wise_cls_loss
             + 3.0 * pair_wise_ious_loss
             + float(1e6) * (~geometry_relation)
         )
 
-        '''
-        '''
         (
             num_fg,
             gt_matched_classes,
@@ -512,49 +510,41 @@ class YOLOXHead(nn.Module):
         )
 
     def get_geometry_constraint(
-        self, gt_bboxes_per_image, strides, grids,
+        self, gt_bboxes_per_image, expanded_strides, x_shifts, y_shifts,
     ):
         """
         Calculate whether the center of an object is located in a fixed range of
         an anchor. This is used to avert inappropriate matching. It can also reduce
         the number of candidate anchors so that the GPU memory is saved.
         """
-        '''
-        gt_bboxes_per_image      [num_gt, 4]  gt的cxcywh, 单位是像素
-        strides                  [1, A]  格子边长，单位是像素
-        grids                    [1, A, 2]  格子左上角xy坐标，单位是格子边长
-        '''
+        expanded_strides_per_image = expanded_strides[0]
+        x_centers_per_image = ((x_shifts[0] + 0.5) * expanded_strides_per_image).unsqueeze(0)
+        y_centers_per_image = ((y_shifts[0] + 0.5) * expanded_strides_per_image).unsqueeze(0)
+
         # in fixed center
         center_radius = 1.5
-        center_dist = strides * center_radius   # [1, A]  格子边长*1.5倍，单位是像素。每个gt中心点形成一个"范围框"，里面框住的格子中心点作为候选正样本。
-        gt_bboxes_ = gt_bboxes_per_image.unsqueeze(1)    # [num_gt, 1, 4]
-        center_dist = center_dist.unsqueeze(2)           # [     1, A, 1]
-        gt_x1y1 = gt_bboxes_[:, :, :2] - center_dist     # [num_gt, A, 2]   "范围框"的x1y1, 单位是像素
-        gt_x2y2 = gt_bboxes_[:, :, :2] + center_dist     # [num_gt, A, 2]   "范围框"的x2y2, 单位是像素
+        center_dist = expanded_strides_per_image.unsqueeze(0) * center_radius
+        gt_bboxes_per_image_l = (gt_bboxes_per_image[:, 0:1]) - center_dist
+        gt_bboxes_per_image_r = (gt_bboxes_per_image[:, 0:1]) + center_dist
+        gt_bboxes_per_image_t = (gt_bboxes_per_image[:, 1:2]) - center_dist
+        gt_bboxes_per_image_b = (gt_bboxes_per_image[:, 1:2]) + center_dist
 
-        points_ = (grids + 0.5) * strides.unsqueeze(2)   # [1, A, 2]  格子中心点xy坐标，单位是像素
-        lt = points_ - gt_x1y1  # [num_gt, A, 2]
-        rb = gt_x2y2 - points_  # [num_gt, A, 2]
-        ltrb = torch.cat([lt, rb], -1)  # [num_gt, A, 4]
-        is_in_centers = ltrb.min(dim=-1).values > 0.0  # [num_gt, A]  若某个格子中心点落在某个"范围框"内, 值为True
-        anchor_filter = is_in_centers.sum(dim=0) > 0   # [A, ]        anchor至少落在1个"范围框"内时, 为True
-        geometry_relation = is_in_centers[:, anchor_filter]   # [num_gt, M]   只保留那些至少落在1个"范围框"内的M个anchor
+        c_l = x_centers_per_image - gt_bboxes_per_image_l
+        c_r = gt_bboxes_per_image_r - x_centers_per_image
+        c_t = y_centers_per_image - gt_bboxes_per_image_t
+        c_b = gt_bboxes_per_image_b - y_centers_per_image
+        center_deltas = torch.stack([c_l, c_t, c_r, c_b], 2)
+        is_in_centers = center_deltas.min(dim=-1).values > 0.0
+        anchor_filter = is_in_centers.sum(dim=0) > 0
+        geometry_relation = is_in_centers[:, anchor_filter]
+
         return anchor_filter, geometry_relation
 
     def simota_matching(self, cost, pair_wise_ious, gt_classes, num_gt, fg_mask):
-        '''
-        为每个gt动态分配不同的正样本数。
-        cost             [num_gt, M]  总的cost
-        pair_wise_ious   [num_gt, M]  gt和候选正样本两两之间的iou
-        gt_classes       [num_gt, ]   gt的cid
-        num_gt           当前图片gt数目
-        fg_mask          [A, ]     anchor至少落在1个"范围框"内时, 为True
-        '''
-        # [num_gt, M]  全是0，类型是uint8省内存
         matching_matrix = torch.zeros_like(cost, dtype=torch.uint8)
 
-        n_candidate_k = min(10, pair_wise_ious.size(1))   # 选10个候选正样本，如果M < 10，选M个。下面假设M>10，n_candidate_k==10
-        topk_ious, _ = torch.topk(pair_wise_ious, n_candidate_k, dim=1)   # [num_gt, 10]  每个gt取10个最大iou的候选正样本。
+        n_candidate_k = min(10, pair_wise_ious.size(1))
+        topk_ious, _ = torch.topk(pair_wise_ious, n_candidate_k, dim=1)
         dynamic_ks = torch.clamp(topk_ious.sum(1).int(), min=1)
         for gt_idx in range(num_gt):
             _, pos_idx = torch.topk(
@@ -583,3 +573,68 @@ class YOLOXHead(nn.Module):
             fg_mask_inboxes
         ]
         return num_fg, gt_matched_classes, pred_ious_this_matching, matched_gt_inds
+
+    def visualize_assign_result(self, xin, labels=None, imgs=None, save_prefix="assign_vis_"):
+        # original forward logic
+        outputs, x_shifts, y_shifts, expanded_strides = [], [], [], []
+        # TODO: use forward logic here.
+
+        for k, (cls_conv, reg_conv, stride_this_level, x) in enumerate(
+            zip(self.cls_convs, self.reg_convs, self.strides, xin)
+        ):
+            x = self.stems[k](x)
+            cls_x = x
+            reg_x = x
+
+            cls_feat = cls_conv(cls_x)
+            cls_output = self.cls_preds[k](cls_feat)
+            reg_feat = reg_conv(reg_x)
+            reg_output = self.reg_preds[k](reg_feat)
+            obj_output = self.obj_preds[k](reg_feat)
+
+            output = torch.cat([reg_output, obj_output, cls_output], 1)
+            output, grid = self.get_output_and_grid(output, k, stride_this_level, xin[0].type())
+            x_shifts.append(grid[:, :, 0])
+            y_shifts.append(grid[:, :, 1])
+            expanded_strides.append(
+                torch.full((1, grid.shape[1]), stride_this_level).type_as(xin[0])
+            )
+            outputs.append(output)
+
+        outputs = torch.cat(outputs, 1)
+        bbox_preds = outputs[:, :, :4]  # [batch, n_anchors_all, 4]
+        obj_preds = outputs[:, :, 4:5]  # [batch, n_anchors_all, 1]
+        cls_preds = outputs[:, :, 5:]  # [batch, n_anchors_all, n_cls]
+
+        # calculate targets
+        total_num_anchors = outputs.shape[1]
+        x_shifts = torch.cat(x_shifts, 1)  # [1, n_anchors_all]
+        y_shifts = torch.cat(y_shifts, 1)  # [1, n_anchors_all]
+        expanded_strides = torch.cat(expanded_strides, 1)
+
+        nlabel = (labels.sum(dim=2) > 0).sum(dim=1)  # number of objects
+        for batch_idx, (img, num_gt, label) in enumerate(zip(imgs, nlabel, labels)):
+            img = imgs[batch_idx].permute(1, 2, 0).to(torch.uint8)
+            num_gt = int(num_gt)
+            if num_gt == 0:
+                fg_mask = outputs.new_zeros(total_num_anchors).bool()
+            else:
+                gt_bboxes_per_image = label[:num_gt, 1:5]
+                gt_classes = label[:num_gt, 0]
+                bboxes_preds_per_image = bbox_preds[batch_idx]
+                _, fg_mask, _, matched_gt_inds, _ = self.get_assignments(  # noqa
+                    batch_idx, num_gt, gt_bboxes_per_image, gt_classes,
+                    bboxes_preds_per_image, expanded_strides, x_shifts,
+                    y_shifts, cls_preds, obj_preds,
+                )
+
+            img = img.cpu().numpy().copy()  # copy is crucial here
+            coords = torch.stack([
+                ((x_shifts + 0.5) * expanded_strides).flatten()[fg_mask],
+                ((y_shifts + 0.5) * expanded_strides).flatten()[fg_mask],
+            ], 1)
+
+            xyxy_boxes = cxcywh2xyxy(gt_bboxes_per_image)
+            save_name = save_prefix + str(batch_idx) + ".png"
+            img = visualize_assign(img, xyxy_boxes, coords, matched_gt_inds, save_name)
+            logger.info(f"save img to {save_name}")
