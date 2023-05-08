@@ -555,31 +555,28 @@ class YOLOXHead(nn.Module):
 
         n_candidate_k = min(10, pair_wise_ious.size(1))   # 选10个候选正样本，如果M < 10，选M个。下面假设M>10，n_candidate_k==10
         topk_ious, _ = torch.topk(pair_wise_ious, n_candidate_k, dim=1)   # [num_gt, 10]  每个gt取10个最大iou的候选正样本。
-        dynamic_ks = torch.clamp(topk_ious.sum(1).int(), min=1)
+        dynamic_ks = torch.clamp(topk_ious.sum(1).int(), min=1)           # [num_gt, ]  iou求和作为正样本数。
+        # 对每个gt，取cost最小的k个候选正样本去学习。
         for gt_idx in range(num_gt):
-            _, pos_idx = torch.topk(
-                cost[gt_idx], k=dynamic_ks[gt_idx], largest=False
-            )
+            _, pos_idx = torch.topk(cost[gt_idx], k=dynamic_ks[gt_idx], largest=False)
             matching_matrix[gt_idx][pos_idx] = 1
-
         del topk_ious, dynamic_ks, pos_idx
 
+        # [M, ]  M个候选正样本匹配的gt数
         anchor_matching_gt = matching_matrix.sum(0)
         # deal with the case that one anchor matches multiple ground-truths
         if anchor_matching_gt.max() > 1:
-            multiple_match_mask = anchor_matching_gt > 1
+            multiple_match_mask = anchor_matching_gt > 1  # [M, ]  M个候选正样本 一对多 处为1
+            matching_matrix[:, multiple_match_mask] *= 0  # 一对多的候选正样本，不匹配任何gt
             _, cost_argmin = torch.min(cost[:, multiple_match_mask], dim=0)
-            matching_matrix[:, multiple_match_mask] *= 0
-            matching_matrix[cost_argmin, multiple_match_mask] = 1
-        fg_mask_inboxes = anchor_matching_gt > 0
-        num_fg = fg_mask_inboxes.sum().item()
+            matching_matrix[cost_argmin, multiple_match_mask] = 1  # 一对多的候选正样本，匹配cost最小的gt
+        fg_mask_inboxes = anchor_matching_gt > 0    # 可能有的候选正样本匹配了0个gt。将匹配多于0个gt的候选正样本作为最终正样本。
+        num_fg = fg_mask_inboxes.sum().item()       # anchor前景数
 
         fg_mask[fg_mask.clone()] = fg_mask_inboxes
 
         matched_gt_inds = matching_matrix[:, fg_mask_inboxes].argmax(0)
         gt_matched_classes = gt_classes[matched_gt_inds]
 
-        pred_ious_this_matching = (matching_matrix * pair_wise_ious).sum(0)[
-            fg_mask_inboxes
-        ]
+        pred_ious_this_matching = (matching_matrix * pair_wise_ious).sum(0)[fg_mask_inboxes]
         return num_fg, gt_matched_classes, pred_ious_this_matching, matched_gt_inds
