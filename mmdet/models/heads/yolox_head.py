@@ -183,7 +183,6 @@ class YOLOXHead(nn.Module):
                 labels,
                 torch.cat(outputs, 1),
                 origin_preds,
-                dtype=xin[0].dtype,
             )
         else:
             self.hw = [x.shape[-2:] for x in outputs]
@@ -240,7 +239,6 @@ class YOLOXHead(nn.Module):
         labels,
         outputs,
         origin_preds,
-        dtype,
     ):
         '''
         grids        格子左上角xy坐标，单位是格子边长
@@ -256,114 +254,20 @@ class YOLOXHead(nn.Module):
         nlabel = (labels.sum(dim=2) > 0).sum(dim=1)  # [N, ]  每张图片gt数
 
         A = outputs.shape[1]
-        grids = torch.cat(grids, 1)  # [1, A, 2]  格子左上角xy坐标，单位是格子边长
+        grids = torch.cat(grids, 1)      # [1, A, 2]  格子左上角xy坐标，单位是格子边长
         strides = torch.cat(strides, 1)  # [1, A]  格子边长，单位是像素
         if self.use_l1:
             origin_preds = torch.cat(origin_preds, 1)
 
-        cls_targets = []
-        reg_targets = []
-        l1_targets = []
-        obj_targets = []
-        fg_masks = []
-
-        num_fg = 0.0
-        num_gts = 0.0
-
-        for batch_idx in range(outputs.shape[0]):
-            num_gt = int(nlabel[batch_idx])
-            num_gts += num_gt
-            if num_gt == 0:
-                cls_target = outputs.new_zeros((0, self.num_classes))
-                reg_target = outputs.new_zeros((0, 4))
-                l1_target = outputs.new_zeros((0, 4))
-                obj_target = outputs.new_zeros((A, 1))
-                fg_mask = outputs.new_zeros(A).bool()
-            else:
-                gt_bboxes_per_image = labels[batch_idx, :num_gt, 1:5]   # [num_gt, 4]  gt的cxcywh, 单位是像素
-                gt_classes = labels[batch_idx, :num_gt, 0]              # [num_gt, ]   gt的cid
-                bbox_preds_ = bbox_preds[batch_idx]        # [A, 4]   预测的cxcywh, 单位是像素
-                cls_preds_ = cls_preds[batch_idx]          # [A, n_cls]   未经过sigmoid激活
-                obj_preds_ = obj_preds[batch_idx]          # [A, 1]       未经过sigmoid激活
-
-                try:
-                    (
-                        gt_matched_classes,
-                        fg_mask,
-                        pred_ious_this_matching,
-                        matched_gt_inds,
-                        num_fg_img,
-                    ) = self.get_assignments(  # noqa
-                        num_gt,
-                        gt_bboxes_per_image,
-                        gt_classes,
-                        bbox_preds_,
-                        cls_preds_,
-                        obj_preds_,
-                        grids,
-                        strides,
-                    )
-                except RuntimeError as e:
-                    # TODO: the string might change, consider a better way
-                    if "CUDA out of memory. " not in str(e):
-                        raise  # RuntimeError might not caused by CUDA OOM
-
-                    logger.error(
-                        "OOM RuntimeError is raised due to the huge memory cost during label assignment. \
-                           CPU mode is applied in this batch. If you want to avoid this issue, \
-                           try to reduce the batch size or image size."
-                    )
-                    torch.cuda.empty_cache()
-                    (
-                        gt_matched_classes,
-                        fg_mask,
-                        pred_ious_this_matching,
-                        matched_gt_inds,
-                        num_fg_img,
-                    ) = self.get_assignments(  # noqa
-                        num_gt,
-                        gt_bboxes_per_image,
-                        gt_classes,
-                        bbox_preds_,
-                        cls_preds_,
-                        obj_preds_,
-                        grids,
-                        strides,
-                        "cpu",
-                    )
-
-                torch.cuda.empty_cache()
-                num_fg += num_fg_img
-
-                cls_target = F.one_hot(
-                    gt_matched_classes.to(torch.int64), self.num_classes
-                ) * pred_ious_this_matching.unsqueeze(-1)
-                obj_target = fg_mask.unsqueeze(-1)
-                reg_target = gt_bboxes_per_image[matched_gt_inds]
-                if self.use_l1:
-                    x_shifts = grids[:, :, 0]  # [1, A]
-                    y_shifts = grids[:, :, 1]  # [1, A]
-                    l1_target = self.get_l1_target(
-                        outputs.new_zeros((num_fg_img, 4)),
-                        gt_bboxes_per_image[matched_gt_inds],
-                        strides[0][fg_mask],
-                        x_shifts=x_shifts[0][fg_mask],
-                        y_shifts=y_shifts[0][fg_mask],
-                    )
-
-            cls_targets.append(cls_target)
-            reg_targets.append(reg_target)
-            obj_targets.append(obj_target.to(dtype))
-            fg_masks.append(fg_mask)
-            if self.use_l1:
-                l1_targets.append(l1_target)
-
-        cls_targets = torch.cat(cls_targets, 0)
-        reg_targets = torch.cat(reg_targets, 0)
-        obj_targets = torch.cat(obj_targets, 0)
-        fg_masks = torch.cat(fg_masks, 0)
-        if self.use_l1:
-            l1_targets = torch.cat(l1_targets, 0)
+        '''
+        fg_masks      [N*A, ]          前景的mask, bool类型
+        obj_targets   [N*A, 1]         前景的mask, float类型
+        reg_targets   [num_fg, 4]      前景学习的gt的cxcywh, 单位是像素
+        cls_targets   [num_fg, n_cls]  前景学习的one_hot向量，学习的类别处 不是1 而是 与匹配到的gt的iou
+        l1_targets    [num_fg, 4]      前景学习的gt的cxcywh, 是未解码的cxcywh
+        '''
+        num_gts, num_fg, fg_masks, obj_targets, reg_targets, cls_targets, l1_targets = \
+            self.single_assign(bbox_preds, obj_preds, cls_preds, labels, nlabel, A, grids, strides)
 
         num_fg = max(num_fg, 1)
         loss_iou = (
@@ -402,6 +306,120 @@ class YOLOXHead(nn.Module):
         l1_target[:, 2] = torch.log(gt[:, 2] / stride + eps)
         l1_target[:, 3] = torch.log(gt[:, 3] / stride + eps)
         return l1_target
+
+    def single_assign(self, bbox_preds, obj_preds, cls_preds, labels, nlabel, A, grids, strides):
+        # 这是即将返回的值
+        num_gts = 0.0
+        num_fg = 0.0
+        fg_masks = []
+        obj_targets = []
+        reg_targets = []
+        cls_targets = []
+        l1_targets = []
+
+        for batch_idx in range(bbox_preds.shape[0]):
+            num_gt = int(nlabel[batch_idx])
+            num_gts += num_gt
+            if num_gt == 0:
+                fg_mask = bbox_preds.new_zeros(A).bool()
+                obj_target = bbox_preds.new_zeros((A, 1))
+                reg_target = bbox_preds.new_zeros((0, 4))
+                cls_target = bbox_preds.new_zeros((0, self.num_classes))
+                l1_target = bbox_preds.new_zeros((0, 4))
+            else:
+                gt_bboxes_per_image = labels[batch_idx, :num_gt, 1:5]   # [num_gt, 4]  gt的cxcywh, 单位是像素
+                gt_classes = labels[batch_idx, :num_gt, 0]              # [num_gt, ]   gt的cid
+                bbox_preds_ = bbox_preds[batch_idx]        # [A, 4]   预测的cxcywh, 单位是像素
+                cls_preds_ = cls_preds[batch_idx]          # [A, n_cls]   未经过sigmoid激活
+                obj_preds_ = obj_preds[batch_idx]          # [A, 1]       未经过sigmoid激活
+
+                try:
+                    (
+                        fg_mask,
+                        num_fg_img,
+                        matched_gt_inds,
+                        gt_matched_classes,
+                        pred_ious_this_matching,
+                    ) = self.get_assignments(  # noqa
+                        num_gt,
+                        gt_bboxes_per_image,
+                        gt_classes,
+                        bbox_preds_,
+                        cls_preds_,
+                        obj_preds_,
+                        grids,
+                        strides,
+                    )
+                except RuntimeError as e:
+                    # TODO: the string might change, consider a better way
+                    if "CUDA out of memory. " not in str(e):
+                        raise  # RuntimeError might not caused by CUDA OOM
+
+                    logger.error(
+                        "OOM RuntimeError is raised due to the huge memory cost during label assignment. \
+                           CPU mode is applied in this batch. If you want to avoid this issue, \
+                           try to reduce the batch size or image size."
+                    )
+                    torch.cuda.empty_cache()
+                    (
+                        fg_mask,
+                        num_fg_img,
+                        matched_gt_inds,
+                        gt_matched_classes,
+                        pred_ious_this_matching,
+                    ) = self.get_assignments(  # noqa
+                        num_gt,
+                        gt_bboxes_per_image,
+                        gt_classes,
+                        bbox_preds_,
+                        cls_preds_,
+                        obj_preds_,
+                        grids,
+                        strides,
+                        "cpu",
+                    )
+                '''
+                fg_mask                     [A, ]       前景的mask
+                num_fg_img                  anchor前景数
+                matched_gt_inds             [num_fg_img, ]  前景匹配到的gt的下标
+                gt_matched_classes          [num_fg_img, ]  前景匹配到的gt的cid
+                pred_ious_this_matching     [num_fg_img, ]  前景匹配到的gt，与该gt的iou
+                '''
+                torch.cuda.empty_cache()
+                num_fg += num_fg_img
+
+                # [num_fg_img, n_cls]  前景学习的one_hot向量，学习的类别处 不是1 而是 与匹配到的gt的iou
+                cls_target = F.one_hot(
+                    gt_matched_classes.to(torch.int64), self.num_classes
+                ) * pred_ious_this_matching.unsqueeze(-1)
+                obj_target = fg_mask.unsqueeze(-1)   # [A, 1]       前景的mask
+                reg_target = gt_bboxes_per_image[matched_gt_inds]   # [num_fg_img, 4]  前景匹配到的gt的cxcywh, 单位是像素
+                if self.use_l1:
+                    x_shifts = grids[:, :, 0]  # [1, A]
+                    y_shifts = grids[:, :, 1]  # [1, A]
+                    # [num_fg_img, 4]  用来监督前景未解码的cxcywh
+                    l1_target = self.get_l1_target(
+                        bbox_preds.new_zeros((num_fg_img, 4)),
+                        reg_target,
+                        strides[0][fg_mask],
+                        x_shifts=x_shifts[0][fg_mask],
+                        y_shifts=y_shifts[0][fg_mask],
+                    )
+
+            fg_masks.append(fg_mask)
+            obj_targets.append(obj_target.to(obj_preds.dtype))
+            reg_targets.append(reg_target)
+            cls_targets.append(cls_target)
+            if self.use_l1:
+                l1_targets.append(l1_target)
+
+        fg_masks = torch.cat(fg_masks, 0)         # [N*A, ]          前景的mask, bool类型
+        obj_targets = torch.cat(obj_targets, 0)   # [N*A, 1]         前景的mask, float类型
+        reg_targets = torch.cat(reg_targets, 0)   # [num_fg, 4]      前景学习的gt的cxcywh, 单位是像素
+        cls_targets = torch.cat(cls_targets, 0)   # [num_fg, n_cls]  前景学习的one_hot向量，学习的类别处 不是1 而是 与匹配到的gt的iou
+        if self.use_l1:
+            l1_targets = torch.cat(l1_targets, 0)   # [num_fg, 4]    前景学习的gt的cxcywh, 是未解码的cxcywh
+        return num_gts, num_fg, fg_masks, obj_targets, reg_targets, cls_targets, l1_targets
 
     @torch.no_grad()
     def get_assignments(
@@ -488,12 +506,16 @@ class YOLOXHead(nn.Module):
         )
 
         '''
+        num_fg                      anchor前景数
+        matched_gt_inds             [num_fg, ]  前景匹配到的gt的下标
+        gt_matched_classes          [num_fg, ]  前景匹配到的gt的cid
+        pred_ious_this_matching     [num_fg, ]  前景匹配到的gt，与该gt的iou
         '''
         (
             num_fg,
+            matched_gt_inds,
             gt_matched_classes,
             pred_ious_this_matching,
-            matched_gt_inds,
         ) = self.simota_matching(cost, pair_wise_ious, gt_classes, num_gt, fg_mask)
         del pair_wise_cls_loss, cost, pair_wise_ious, pair_wise_ious_loss
 
@@ -504,11 +526,11 @@ class YOLOXHead(nn.Module):
             matched_gt_inds = matched_gt_inds.cuda()
 
         return (
-            gt_matched_classes,
             fg_mask,
-            pred_ious_this_matching,
-            matched_gt_inds,
             num_fg,
+            matched_gt_inds,
+            gt_matched_classes,
+            pred_ious_this_matching,
         )
 
     def get_geometry_constraint(
@@ -557,10 +579,21 @@ class YOLOXHead(nn.Module):
         topk_ious, _ = torch.topk(pair_wise_ious, n_candidate_k, dim=1)   # [num_gt, 10]  每个gt取10个最大iou的候选正样本。
         dynamic_ks = torch.clamp(topk_ious.sum(1).int(), min=1)           # [num_gt, ]  iou求和作为正样本数。
         # 对每个gt，取cost最小的k个候选正样本去学习。
-        for gt_idx in range(num_gt):
-            _, pos_idx = torch.topk(cost[gt_idx], k=dynamic_ks[gt_idx], largest=False)
-            matching_matrix[gt_idx][pos_idx] = 1
-        del topk_ious, dynamic_ks, pos_idx
+        # for gt_idx in range(num_gt):
+        #     _, pos_idx = torch.topk(cost[gt_idx], k=dynamic_ks[gt_idx], largest=False)
+        #     matching_matrix[gt_idx][pos_idx] = 1
+        # del topk_ious, dynamic_ks, pos_idx
+        max_k = dynamic_ks.max()
+        masks = torch.ones((max_k, max_k), dtype=torch.uint8, device=cost.device).tril(diagonal=0)
+        fill_value = masks[(dynamic_ks - 1).long(), :]
+        _, pos_idx = torch.topk(cost, k=max_k, largest=False)
+        M = cost.shape[1]
+        offset = torch.arange(start=0, end=M * num_gt, step=M, dtype=torch.int64, device=cost.device).unsqueeze(-1)
+        pos_idx_1d = (pos_idx + offset).flatten()
+        matching_matrix = matching_matrix.flatten()
+        matching_matrix[pos_idx_1d] = fill_value.flatten()
+        matching_matrix = matching_matrix.reshape(cost.shape)
+        del topk_ious, dynamic_ks, max_k, masks, fill_value, pos_idx, offset, pos_idx_1d
 
         # [M, ]  M个候选正样本匹配的gt数
         anchor_matching_gt = matching_matrix.sum(0)
@@ -575,8 +608,8 @@ class YOLOXHead(nn.Module):
 
         fg_mask[fg_mask.clone()] = fg_mask_inboxes
 
-        matched_gt_inds = matching_matrix[:, fg_mask_inboxes].argmax(0)
-        gt_matched_classes = gt_classes[matched_gt_inds]
+        matched_gt_inds = matching_matrix[:, fg_mask_inboxes].argmax(0)  # [num_fg, ]  前景匹配到的gt的下标
+        gt_matched_classes = gt_classes[matched_gt_inds]                 # [num_fg, ]  前景匹配到的gt的cid
 
-        pred_ious_this_matching = (matching_matrix * pair_wise_ious).sum(0)[fg_mask_inboxes]
-        return num_fg, gt_matched_classes, pred_ious_this_matching, matched_gt_inds
+        pred_ious_this_matching = (matching_matrix * pair_wise_ious).sum(0)[fg_mask_inboxes]  # [num_fg, ]  前景匹配到的gt，与该gt的iou
+        return num_fg, matched_gt_inds, gt_matched_classes, pred_ious_this_matching
