@@ -5,13 +5,15 @@
 import math
 from loguru import logger
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from mmdet.models.losses.losses import IOUloss
 from mmdet.models.network_blocks import BaseConv, DWConv
-from mmdet.utils import bboxes_iou, cxcywh2xyxy, meshgrid, visualize_assign
+from mmdet.utils import bboxes_iou, cxcywh2xyxy, meshgrid, visualize_assign, yolox_batch_bboxes_iou
+from mmdet.utils.boxes import bboxes_iou_batch
 
 
 class YOLOXHead(nn.Module):
@@ -243,7 +245,7 @@ class YOLOXHead(nn.Module):
         '''
         grids        格子左上角xy坐标，单位是格子边长
         strides      格子边长，单位是像素
-        labels       [N, G, 5]   gt的cid、cxcywh, 单位是像素
+        labels       [N, 120, 5]   gt的cid、cxcywh, 单位是像素
         outputs      [N, A, 5+n_cls]
         '''
         bbox_preds = outputs[:, :, :4]  # [N, A, 4]   预测的cxcywh, 单位是像素
@@ -268,6 +270,8 @@ class YOLOXHead(nn.Module):
         '''
         num_gts, num_fg, fg_masks, obj_targets, reg_targets, cls_targets, l1_targets = \
             self.single_assign(bbox_preds, obj_preds, cls_preds, labels, nlabel, A, grids, strides)
+        # num_gts, num_fg, fg_masks, obj_targets, reg_targets, cls_targets, l1_targets = \
+        #     self.batch_assign(bbox_preds, obj_preds, cls_preds, labels, nlabel, A, grids, strides)
 
         num_fg = max(num_fg, 1)
         loss_iou = (
@@ -421,6 +425,128 @@ class YOLOXHead(nn.Module):
             l1_targets = torch.cat(l1_targets, 0)   # [num_fg, 4]    前景学习的gt的cxcywh, 是未解码的cxcywh
         return num_gts, num_fg, fg_masks, obj_targets, reg_targets, cls_targets, l1_targets
 
+    def batch_assign(self, bbox_preds, obj_preds, cls_preds, labels, nlabel, A, grids, strides):
+        # 这是即将返回的值
+        l1_targets = []
+
+        # 截掉填充的gt
+        G = nlabel.max()
+        labels = labels[:, :G, :]    # [N, G, 5]   gt的cid、cxcywh, 单位是像素
+        masks = torch.ones((G+1, G+1), dtype=torch.uint8, device=obj_preds.device).tril(diagonal=-1)
+        masks = masks[:, :-1]   # [G+1, G]
+        pad_gt_mask = masks[nlabel, :].unsqueeze(-1)   # [N, G, 1]  是真gt还是填充的假gt
+        pad_gt_mask = pad_gt_mask.float()
+        num_gts = pad_gt_mask.sum()
+        has_gt = nlabel > 0
+        # has_gt = nlabel > 20
+
+        '''
+        if (~has_gt).sum() > 0:  # 存在没有gt的图片时
+            bbox_preds0 = bbox_preds[~has_gt]   # [N1, A, 4]       预测的cxcywh, 单位是像素
+            cls_preds0 = cls_preds[~has_gt]     # [N1, A, n_cls]   未经过sigmoid激活
+            obj_preds0 = obj_preds[~has_gt]     # [N1, A, 1]       未经过sigmoid激活
+
+            bbox_preds1 = bbox_preds[has_gt]   # [N2, A, 4]       预测的cxcywh, 单位是像素
+            cls_preds1 = cls_preds[has_gt]     # [N2, A, n_cls]   未经过sigmoid激活
+            obj_preds1 = obj_preds[has_gt]     # [N2, A, 1]       未经过sigmoid激活
+            labels1 = labels[has_gt]           # [N2, G, 5]       gt的cid、cxcywh, 单位是像素
+            pad_gt_mask1 = pad_gt_mask[has_gt]  # [N2, G, 1]  是真gt还是填充的假gt
+            raise NotImplementedError("not implemented.")
+        else:
+            bbox_preds0 = None
+            cls_preds0 = None
+            obj_preds0 = None
+
+            bbox_preds1 = bbox_preds   # [N2, A, 4]       预测的cxcywh, 单位是像素
+            cls_preds1 = cls_preds     # [N2, A, n_cls]   未经过sigmoid激活
+            obj_preds1 = obj_preds     # [N2, A, 1]       未经过sigmoid激活
+            labels1 = labels           # [N2, G, 5]       gt的cid、cxcywh, 单位是像素
+            pad_gt_mask1 = pad_gt_mask   # [N2, G, 1]  是真gt还是填充的假gt
+        '''
+        bbox_preds1 = bbox_preds   # [N2, A, 4]       预测的cxcywh, 单位是像素
+        cls_preds1 = cls_preds     # [N2, A, n_cls]   未经过sigmoid激活
+        obj_preds1 = obj_preds     # [N2, A, 1]       未经过sigmoid激活
+        labels1 = labels           # [N2, G, 5]       gt的cid、cxcywh, 单位是像素
+        pad_gt_mask1 = pad_gt_mask   # [N2, G, 1]  是真gt还是填充的假gt
+
+
+        gt_bboxes = labels1[:, :, 1:5]             # [N2, G, 4]  gt的cxcywh, 单位是像素
+        gt_classes = labels1[:, :, 0]              # [N2, G]     gt的cid
+        try:
+            (
+                fg_mask,
+                num_fg,
+                matched_gt_inds,
+                gt_matched_classes,
+                pred_ious_this_matching,
+            ) = self.get_batch_assignments(  # noqa
+                gt_bboxes,
+                gt_classes,
+                bbox_preds1,
+                cls_preds1,
+                obj_preds1,
+                grids,
+                strides,
+                pad_gt_mask1,
+            )
+        except RuntimeError as e:
+            # TODO: the string might change, consider a better way
+            if "CUDA out of memory. " not in str(e):
+                raise  # RuntimeError might not caused by CUDA OOM
+
+            logger.error(
+                "OOM RuntimeError is raised due to the huge memory cost during label assignment. \
+                   CPU mode is applied in this batch. If you want to avoid this issue, \
+                   try to reduce the batch size or image size."
+            )
+            torch.cuda.empty_cache()
+            (
+                fg_mask,
+                num_fg,
+                matched_gt_inds,
+                gt_matched_classes,
+                pred_ious_this_matching,
+            ) = self.get_batch_assignments(  # noqa
+                gt_bboxes,
+                gt_classes,
+                bbox_preds1,
+                cls_preds1,
+                obj_preds1,
+                grids,
+                strides,
+                pad_gt_mask1,
+                "cpu",
+            )
+        '''
+        fg_mask                     [N, A]      前景mask, bool类型
+        num_fg                      anchor前景数
+        matched_gt_inds             [num_fg, ]  前景匹配到的gt的下标。已经加上了图片偏移
+        gt_matched_classes          [num_fg, ]  前景匹配到的gt的cid
+        pred_ious_this_matching     [num_fg, ]  前景匹配到的gt，与该gt的iou
+        '''
+        torch.cuda.empty_cache()
+
+        # [num_fg, n_cls]  前景学习的one_hot向量，学习的类别处 不是1 而是 与匹配到的gt的iou
+        cls_targets = F.one_hot(
+            gt_matched_classes.to(torch.int64), self.num_classes
+        ) * pred_ious_this_matching.unsqueeze(-1)
+        reg_targets = gt_bboxes.reshape([-1, 4])[matched_gt_inds]   # [num_fg, 4]  前景匹配到的gt的cxcywh, 单位是像素
+        if self.use_l1:
+            x_shifts = grids[:, :, 0]  # [1, A]
+            y_shifts = grids[:, :, 1]  # [1, A]
+            # [num_fg, 4]  用来监督前景未解码的cxcywh
+            l1_targets = self.get_l1_target(
+                bbox_preds.new_zeros((num_fg, 4)),
+                reg_targets,
+                strides[0][fg_mask],
+                x_shifts=x_shifts[0][fg_mask],
+                y_shifts=y_shifts[0][fg_mask],
+            )
+
+        fg_masks = fg_mask.flatten()         # [N*A, ]          前景的mask, bool类型
+        obj_targets = fg_masks.unsqueeze(-1).to(obj_preds.dtype)   # [N*A, 1]         前景的mask, float类型
+        return num_gts, num_fg, fg_masks, obj_targets, reg_targets, cls_targets, l1_targets
+
     @torch.no_grad()
     def get_assignments(
         self,
@@ -533,6 +659,116 @@ class YOLOXHead(nn.Module):
             pred_ious_this_matching,
         )
 
+    @torch.no_grad()
+    def get_batch_assignments(
+        self,
+        gt_bboxes,
+        gt_classes,
+        bbox_preds,
+        cls_preds,
+        obj_preds,
+        grids,
+        strides,
+        pad_gt_mask,
+        mode="gpu",
+    ):
+        '''
+        gt_bboxes      [N, G, 4]  gt的cxcywh, 单位是像素
+        gt_classes     [N, G]     gt的cid
+        bbox_preds     [N, A, 4]       预测的cxcywh, 单位是像素
+        cls_preds      [N, A, n_cls]   未经过sigmoid激活
+        obj_preds      [N, A, 1]       未经过sigmoid激活
+        grids          [1, A, 2]  格子左上角xy坐标，单位是格子边长
+        strides        [1, A]  格子边长，单位是像素
+        pad_gt_mask    [N, G, 1]  是真gt还是填充的假gt, float类型
+        '''
+        G = gt_bboxes.shape[1]
+        A = bbox_preds.shape[1]
+        if mode == "cpu":
+            print("-----------Using CPU for the Current Batch-------------")
+            gt_bboxes = gt_bboxes.cpu().float()
+            gt_classes = gt_classes.cpu().float()
+            bbox_preds = bbox_preds.cpu().float()
+            cls_preds = cls_preds.cpu().float()
+            obj_preds = obj_preds.cpu().float()
+            grids = grids.cpu()
+            strides = strides.cpu().float()
+
+        # is_in_centers    [N, G, A]  若某个格子中心点落在某个"范围框"内, 值为True
+        is_in_centers = self.get_batch_geometry_constraint(
+            gt_bboxes,
+            strides,
+            grids,
+        )
+        if mode == "cpu":
+            gt_bboxes = gt_bboxes.cpu()
+            bbox_preds = bbox_preds.cpu()
+        # [N, G, A]  计算 gt和预测框 两组矩形两两之间的iou
+        pair_wise_ious = yolox_batch_bboxes_iou(gt_bboxes, bbox_preds, xyxy=False)  # [N, G, A]  两组矩形两两之间的iou
+        # 假gt 和 所有anchor 的iou都是 0.0
+        pair_wise_ious = pair_wise_ious * pad_gt_mask + (1. - pad_gt_mask) * 0.0
+        # [N, G, A]  iou的cost，iou越大cost越小
+        pair_wise_ious_loss = -torch.log(pair_wise_ious + 1e-8)
+
+        # [N, G, n_cls]   gt的one_hot向量
+        gt_cls = F.one_hot(gt_classes.to(torch.int64), self.num_classes).float()
+        if mode == "cpu":
+            cls_preds, obj_preds = cls_preds.cpu(), obj_preds.cpu()
+
+        with torch.cuda.amp.autocast(enabled=False):   # 不使用fp16，因为 F.binary_cross_entropy 对fp16不安全
+            # [N, A, n_cls]   anchor预测的各类别分数, 开了根号
+            cls_preds_ = (
+                cls_preds.float().sigmoid_() * obj_preds.float().sigmoid_()
+            ).sqrt()
+            # 二值交叉熵。input形状是 [N, G, A, n_cls]，anchor预测的各类别分数，重复G次
+            # target形状是          [N, G, A, n_cls]，gt的one_hot向量，重复A次
+            # 计算的是gt和anchor两两之间的二值交叉熵cost。pair_wise_cls_loss形状为 [N, G, A]
+            pair_wise_cls_loss = F.binary_cross_entropy(
+                cls_preds_.unsqueeze(1).repeat(1, G, 1, 1),
+                gt_cls.unsqueeze(2).repeat(1, 1, A, 1),
+                reduction="none"
+            ).sum(-1)
+        del cls_preds_
+
+        # [N, G, A]  总的cost，iou cost的权重是3。
+        cost = (
+            pair_wise_cls_loss
+            + 3.0 * pair_wise_ious_loss
+            + float(1e6) * (~is_in_centers)
+        )
+        # 假gt 和 所有anchor 的cost都是 float(1e6)
+        cost = cost * pad_gt_mask + (1. - pad_gt_mask) * float(1e6)
+
+        '''
+        fg_mask                     [N, A]      前景mask, bool类型
+        num_fg                      anchor前景数
+        matched_gt_inds             [num_fg, ]  前景匹配到的gt的下标。已经加上了图片偏移
+        gt_matched_classes          [num_fg, ]  前景匹配到的gt的cid
+        pred_ious_this_matching     [num_fg, ]  前景匹配到的gt，与该gt的iou
+        '''
+        (
+            fg_mask,
+            num_fg,
+            matched_gt_inds,
+            gt_matched_classes,
+            pred_ious_this_matching,
+        ) = self.batch_simota_matching(cost, pair_wise_ious, gt_classes, is_in_centers, pad_gt_mask)
+        del pair_wise_cls_loss, cost, pair_wise_ious, pair_wise_ious_loss
+
+        if mode == "cpu":
+            gt_matched_classes = gt_matched_classes.cuda()
+            fg_mask = fg_mask.cuda()
+            pred_ious_this_matching = pred_ious_this_matching.cuda()
+            matched_gt_inds = matched_gt_inds.cuda()
+
+        return (
+            fg_mask,
+            num_fg,
+            matched_gt_inds,
+            gt_matched_classes,
+            pred_ious_this_matching,
+        )
+
     def get_geometry_constraint(
         self, gt_bboxes_per_image, strides, grids,
     ):
@@ -562,6 +798,37 @@ class YOLOXHead(nn.Module):
         anchor_filter = is_in_centers.sum(dim=0) > 0   # [A, ]        anchor至少落在1个"范围框"内时, 为True
         geometry_relation = is_in_centers[:, anchor_filter]   # [num_gt, M]   只保留那些至少落在1个"范围框"内的M个anchor
         return anchor_filter, geometry_relation
+
+    def get_batch_geometry_constraint(
+        self, gt_bboxes, strides, grids,
+    ):
+        """
+        Calculate whether the center of an object is located in a fixed range of
+        an anchor. This is used to avert inappropriate matching. It can also reduce
+        the number of candidate anchors so that the GPU memory is saved.
+        """
+        '''
+        gt_bboxes                [N, G, 4]  gt的cxcywh, 单位是像素
+        strides                  [1, A]  格子边长，单位是像素
+        grids                    [1, A, 2]  格子左上角xy坐标，单位是格子边长
+        '''
+        # in fixed center
+        center_radius = 1.5
+        center_dist = strides * center_radius   # [1, A]  格子边长*1.5倍，单位是像素。每个gt中心点形成一个"范围框"，里面框住的格子中心点作为候选正样本。
+        gt_bboxes_ = gt_bboxes.unsqueeze(2)                    # [N, G, 1, 4]
+        center_dist = center_dist.unsqueeze(0).unsqueeze(-1)   # [1, 1, A, 1]
+        gt_x1y1 = gt_bboxes_[:, :, :, :2] - center_dist     # [N, G, A, 2]   "范围框"的x1y1, 单位是像素
+        gt_x2y2 = gt_bboxes_[:, :, :, :2] + center_dist     # [N, G, A, 2]   "范围框"的x2y2, 单位是像素
+
+        points_ = (grids + 0.5) * strides.unsqueeze(2)   # [1, A, 2]  格子中心点xy坐标，单位是像素
+        points_ = points_.unsqueeze(0)    # [1, 1, A, 2]
+        lt = points_ - gt_x1y1  # [N, G, A, 2]
+        rb = gt_x2y2 - points_  # [N, G, A, 2]
+        ltrb = torch.cat([lt, rb], -1)  # [N, G, A, 4]
+        is_in_centers = ltrb.min(dim=-1).values > 0.0  # [N, G, A]  若某个格子中心点落在某个"范围框"内, 值为True
+        # anchor_filter = is_in_centers.sum(dim=1) > 0   # [N, A]        anchor至少落在1个"范围框"内时, 为True
+        # geometry_relation = is_in_centers[:, anchor_filter]   # [num_gt, M]   只保留那些至少落在1个"范围框"内的M个anchor
+        return is_in_centers
 
     def simota_matching(self, cost, pair_wise_ious, gt_classes, num_gt, fg_mask):
         '''
@@ -613,3 +880,79 @@ class YOLOXHead(nn.Module):
 
         pred_ious_this_matching = (matching_matrix * pair_wise_ious).sum(0)[fg_mask_inboxes]  # [num_fg, ]  前景匹配到的gt，与该gt的iou
         return num_fg, matched_gt_inds, gt_matched_classes, pred_ious_this_matching
+
+    def batch_simota_matching(self, cost, pair_wise_ious, gt_classes, is_in_centers, pad_gt_mask):
+        '''
+        为每个gt动态分配不同的正样本数。
+        cost             [N, G, A]  总的cost
+        pair_wise_ious   [N, G, A]  gt和 所有anchor 两两之间的iou
+        gt_classes       [N, G]     gt的cid
+        is_in_centers    [N, G, A]  若某个格子中心点落在某个"范围框"内, 值为True
+        pad_gt_mask      [N, G, 1]  是真gt还是填充的假gt, float类型
+        '''
+        # [N, G, A]  全是0，类型是uint8省内存
+        N, G, A = cost.shape
+        matching_matrix = torch.zeros_like(cost, dtype=torch.uint8)
+
+        n_candidate_k = 10    # 选10个候选样本
+        topk_ious, _ = torch.topk(pair_wise_ious, n_candidate_k, dim=2)   # [N, G, 10]  每个gt取10个最大iou的anchor。
+        # aa0 = pad_gt_mask.cpu().detach().numpy()
+        # aa1 = topk_ious.cpu().detach().numpy()
+        dynamic_ks = torch.clamp(topk_ious.sum(2).int(), min=1)           # [N, G, ]  iou求和作为正样本数。
+        dynamic_ks *= pad_gt_mask[:, :, 0].int()    # [N, G, ]  假gt正样本数为0。
+        # aa2 = dynamic_ks.cpu().detach().numpy()
+        # 对每个gt，取cost最小的k个anchor去学习。
+        for b_idx in range(N):
+            for gt_idx in range(G):
+                if dynamic_ks[b_idx, gt_idx] == 0:   # 假gt跳过
+                    continue
+                _, pos_idx = torch.topk(cost[b_idx, gt_idx], k=dynamic_ks[b_idx, gt_idx], largest=False)
+                matching_matrix[b_idx, gt_idx][pos_idx] = 1
+        # aa3 = matching_matrix.cpu().detach().numpy()
+        del topk_ious, dynamic_ks, pos_idx
+
+        # [N, A]  anchor匹配的gt数
+        anchor_matching_gt = matching_matrix.sum(1)
+        matching_matrix = matching_matrix.permute((0, 2, 1))   # [N, A, G]
+        # deal with the case that one anchor matches multiple ground-truths
+        if anchor_matching_gt.max() > 1:
+            multiple_match_mask = anchor_matching_gt > 1  # [N, A]  anchor 一对多 处为1
+
+            # multiple_match_mask_aaaa = multiple_match_mask.cpu().detach().numpy()
+            # matching_matrix222222 = matching_matrix.cpu().detach().numpy().astype(np.float32)
+            # cost2222 = cost.cpu().detach().numpy().astype(np.float32)
+            # for ii in range(multiple_match_mask_aaaa.shape[0]):
+            #     for jj in range(multiple_match_mask_aaaa.shape[1]):
+            #         aaa = multiple_match_mask_aaaa[ii][jj]
+            #         if aaa:
+            #             for kk in range(matching_matrix222222.shape[1]):
+            #                 matching_matrix222222[ii][kk][jj] = 0.0
+            #             cur_cost = cost2222[ii, :, jj]
+            #             aaaaaaaaa = np.argmin(cur_cost)
+            #             matching_matrix222222[ii][aaaaaaaaa][jj] = 1.0
+
+
+            matching_matrix[multiple_match_mask] *= 0  # 一对多的anchor，不匹配任何gt
+            cost = cost.permute((0, 2, 1))   # [N, A, G]
+            multiple_match_cost = cost[multiple_match_mask]
+            _, cost_argmin = torch.min(multiple_match_cost, dim=1)
+            matching_matrix[multiple_match_mask, cost_argmin] = 1  # 一对多的anchor，匹配cost最小的gt
+            # matching_matrix = matching_matrix.permute((0, 2, 1))   # [N, G, A]
+            # matching_matrix1 = matching_matrix.cpu().detach().numpy().astype(np.float32)
+            # ddd = np.sum((matching_matrix1 - matching_matrix222222) ** 2)
+            # assert ddd < 0.0001
+        fg_mask = anchor_matching_gt > 0    # [N, A]  可能有的anchor匹配了0个gt。将匹配多于0个gt的anchor作为最终正样本。
+        num_fg = fg_mask.sum().item()       # anchor前景数
+
+        # [N, A]    图片的下标
+        image_ind = torch.arange(end=N, dtype=torch.int64, device=gt_classes.device).unsqueeze(-1).repeat([1, A])
+        matched_image_inds = image_ind[fg_mask]   # [num_fg, ]  前景匹配到的gt所在图片的下标
+        del image_ind
+
+        matched_gt_inds = matching_matrix[fg_mask].argmax(1)           # [num_fg, ]  前景匹配到的gt的下标
+        matched_gt_inds += matched_image_inds * G                      # [num_fg, ]  前景匹配到的gt的下标。加上图片偏移
+        gt_matched_classes = gt_classes.flatten()[matched_gt_inds]     # [num_fg, ]  前景匹配到的gt的cid
+
+        pair_wise_ious = pair_wise_ious.permute((0, 2, 1))   # [N, A, G]
+        pred_ious_this_matching = (matching_matrix * pair_wise_ious).sum(2)[fg_mask]  # [num_fg, ]  前景匹配到的gt，与该gt的iou
+        return fg_mask, num_fg, matched_gt_inds, gt_matched_classes, pred_ious_this_matching

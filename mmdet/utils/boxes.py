@@ -13,6 +13,7 @@ __all__ = [
     "postprocess",
     "my_multiclass_nms",
     "bboxes_iou",
+    "yolox_batch_bboxes_iou",
     "matrix_iou",
     "adjust_box_anns",
     "xyxy2xywh",
@@ -171,6 +172,27 @@ def bboxes_iou(bboxes_a, bboxes_b, xyxy=True):
     en = (tl < br).type(tl.type()).prod(dim=2)
     area_i = torch.prod(br - tl, 2) * en  # * ((tl < br).all())
     return area_i / (area_a[:, None] + area_b - area_i)
+
+def yolox_batch_bboxes_iou(bboxes_a, bboxes_b, xyxy=True, eps=1e-9):
+    if xyxy:
+        box1 = bboxes_a
+        box2 = bboxes_b
+    else:
+        # 变成左上角坐标、右下角坐标
+        box1 = torch.cat([bboxes_a[:, :, :2] - bboxes_a[:, :, 2:] * 0.5, bboxes_a[:, :, :2] + bboxes_a[:, :, 2:] * 0.5], axis=-1)
+        box2 = torch.cat([bboxes_b[:, :, :2] - bboxes_b[:, :, 2:] * 0.5, bboxes_b[:, :, :2] + bboxes_b[:, :, 2:] * 0.5], axis=-1)
+
+    box1 = box1.unsqueeze(2)   # [N, A, 4] -> [N, A, 1, 4]
+    box2 = box2.unsqueeze(1)   # [N, B, 4] -> [N, 1, B, 4]
+    px1y1, px2y2 = box1[:, :, :, 0:2], box1[:, :, :, 2:4]
+    gx1y1, gx2y2 = box2[:, :, :, 0:2], box2[:, :, :, 2:4]
+    x1y1 = torch.maximum(px1y1, gx1y1)   # [N, A, B, 2]
+    x2y2 = torch.minimum(px2y2, gx2y2)   # [N, A, B, 2]
+    overlap = torch.clamp(x2y2 - x1y1, min=0.).prod(-1)
+    area1 = torch.clamp(px2y2 - px1y1, min=0.).prod(-1)
+    area2 = torch.clamp(gx2y2 - gx1y1, min=0.).prod(-1)
+    union = area1 + area2 - overlap + eps
+    return overlap / union
 
 
 def matrix_iou(a, b):
