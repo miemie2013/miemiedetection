@@ -122,6 +122,20 @@ python tools/eval.py -f exps/yolox/yolox_s_voc2012.py -d 1 -b 8 -w 4 -c 16.pth -
 export CUDA_VISIBLE_DEVICES=0,1
 nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 --fp16 -c yolox_s.pth     > yolox_s_simple.log 2>&1 &
 
+(测速。极速体验)
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 8 -b 64 -eb 64 -w 4 -ew 4 --fp16 -c yolox_s.pth     > yolox_s_simple.log 2>&1 &
+
+
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5
+nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 6 -b 48 -eb 48 -w 4 -ew 4 --fp16 -c yolox_s.pth     > yolox_s_simple.log 2>&1 &
+
+
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 4 -b 32 -eb 32 -w 4 -ew 4 --fp16 -c yolox_s.pth     > yolox_s_simple.log 2>&1 &
+
+
+
 (单卡调试用)
 python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 1 -b 8 -eb 4 -w 1 -ew 0 --fp16 -c yolox_s.pth
 

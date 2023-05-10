@@ -680,7 +680,11 @@ class Trainer:
                     self.model.module.head.use_l1 = True
                 else:
                     self.model.head.use_l1 = True
-                self.exp.eval_interval = 1
+                if self.exp.num_classes == 80 and self.exp.val_ann == "instances_val2017.json":
+                    self.exp.eval_interval = 1
+                    logger.info("--->For COCO dataset, we modify eval_interval==1 now!")
+                else:
+                    logger.info("--->For other dataset, we dont modify eval_interval!")
                 if not self.no_aug:
                     self.save_ckpt(ckpt_name="last_mosaic_epoch")
         elif self.archi_name == 'PPYOLO':

@@ -70,6 +70,10 @@ N = 2
 G = 2
 A = 7
 
+N = 24
+G = 33
+A = 8400
+
 pad_gt_mask = np.ones((N, G, 1)).astype(np.float32)
 pad_gt_mask[0][1][0] = 0.
 pad_gt_mask = torch.Tensor(pad_gt_mask).to(torch.float32)
@@ -78,7 +82,7 @@ pad_gt_mask = pad_gt_mask.cuda()
 
 costs1 = []
 costs2 = []
-for i in range(1000):
+for i in range(100):
     print('==================== test %d =====================' % (i+1,))
     cost = np.random.random((N, G, A)).astype(np.float32)
     pair_wise_ious = np.random.random((N, G, A)).astype(np.float32)
