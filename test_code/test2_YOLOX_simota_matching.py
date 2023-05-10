@@ -57,12 +57,12 @@ def simota_matching2(cost, pair_wise_ious, num_gt):
 
     # 对每个gt，取cost最小的k个候选正样本去学习。
     max_k = dynamic_ks.max()
-    masks = torch.ones((max_k, max_k), dtype=torch.uint8, device=cost.device).tril(diagonal=0)
-    fill_value = masks[(dynamic_ks - 1).long(), :]
-    _, pos_idx = torch.topk(cost, k=max_k, largest=False)
+    masks = torch.ones((max_k, max_k), dtype=torch.uint8, device=cost.device).tril(diagonal=0)   # [max_k, max_k]
+    fill_value = masks[(dynamic_ks - 1).long(), :]   # [num_gt, max_k]   每个gt要填入 matching_matrix[num_gt, M]  的值
+    _, pos_idx = torch.topk(cost, k=max_k, largest=False)   # [num_gt, max_k]   每个gt前max_k个cost最小的下标
     M = cost.shape[1]
-    offset = torch.arange(start=0, end=M*num_gt, step=M, dtype=torch.int64, device=cost.device).unsqueeze(-1)
-    pos_idx_1d = (pos_idx + offset).flatten()
+    offset = torch.arange(start=0, end=M*num_gt, step=M, dtype=torch.int64, device=cost.device).unsqueeze(-1)  # [num_gt, 1]
+    pos_idx_1d = (pos_idx + offset).flatten()   # [num_gt*max_k, ]
     matching_matrix = matching_matrix.flatten()
     matching_matrix[pos_idx_1d] = fill_value.flatten()
     matching_matrix = matching_matrix.reshape(cost.shape)
@@ -105,8 +105,10 @@ matching_matrix1 = simota_matching(cost, pair_wise_ious, num_gt)
 print('\n\n\n')
 print('====================================================================')
 
-num_gt = 27
-M = 283
+num_gt = 2
+M = 12
+# num_gt = 27
+# M = 283
 
 costs1 = []
 costs2 = []
@@ -115,8 +117,8 @@ for i in range(1000):
     cost = np.random.random((num_gt, M)).astype(np.float32)
     pair_wise_ious = np.random.random((num_gt, M)).astype(np.float32)
     # 保留2位小数
-    cost = np.around(cost, decimals=2)
-    pair_wise_ious = np.around(pair_wise_ious, decimals=2)
+    # cost = np.around(cost, decimals=2)
+    # pair_wise_ious = np.around(pair_wise_ious, decimals=2)
     # print(cost)
     # print(pair_wise_ious)
     cost = torch.Tensor(cost).to(torch.float32)

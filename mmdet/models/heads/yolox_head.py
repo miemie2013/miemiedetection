@@ -123,6 +123,7 @@ class YOLOXHead(nn.Module):
             )
 
         self.use_l1 = False
+        self.parallel_matching = True
         self.use_batch_assign = True
         # self.use_batch_assign = False
         self.l1_loss = nn.L1Loss(reduction="none")
@@ -872,22 +873,26 @@ class YOLOXHead(nn.Module):
         n_candidate_k = min(10, pair_wise_ious.size(1))   # 选10个候选正样本，如果M < 10，选M个。下面假设M>10，n_candidate_k==10
         topk_ious, _ = torch.topk(pair_wise_ious, n_candidate_k, dim=1)   # [num_gt, 10]  每个gt取10个最大iou的候选正样本。
         dynamic_ks = torch.clamp(topk_ious.sum(1).int(), min=1)           # [num_gt, ]  iou求和作为正样本数。
+
         # 对每个gt，取cost最小的k个候选正样本去学习。
-        # for gt_idx in range(num_gt):
-        #     _, pos_idx = torch.topk(cost[gt_idx], k=dynamic_ks[gt_idx], largest=False)
-        #     matching_matrix[gt_idx][pos_idx] = 1
-        # del topk_ious, dynamic_ks, pos_idx
-        max_k = dynamic_ks.max()
-        masks = torch.ones((max_k, max_k), dtype=torch.uint8, device=cost.device).tril(diagonal=0)
-        fill_value = masks[(dynamic_ks - 1).long(), :]
-        _, pos_idx = torch.topk(cost, k=max_k, largest=False)
-        M = cost.shape[1]
-        offset = torch.arange(start=0, end=M * num_gt, step=M, dtype=torch.int64, device=cost.device).unsqueeze(-1)
-        pos_idx_1d = (pos_idx + offset).flatten()
-        matching_matrix = matching_matrix.flatten()
-        matching_matrix[pos_idx_1d] = fill_value.flatten()
-        matching_matrix = matching_matrix.reshape(cost.shape)
-        del topk_ious, dynamic_ks, max_k, masks, fill_value, pos_idx, offset, pos_idx_1d
+        if self.parallel_matching:
+            max_k = dynamic_ks.max()
+            masks = torch.ones((max_k, max_k), dtype=torch.uint8, device=cost.device).tril(diagonal=0)   # [max_k, max_k]
+            fill_value = masks[(dynamic_ks - 1).long(), :]   # [num_gt, max_k]   每个gt要填入 matching_matrix[num_gt, M]  的值
+            _, pos_idx = torch.topk(cost, k=max_k, largest=False)   # [num_gt, max_k]   每个gt前max_k个cost最小的下标
+            M = cost.shape[1]
+            offset = torch.arange(start=0, end=M*num_gt, step=M, dtype=torch.int64, device=cost.device).unsqueeze(-1)  # [num_gt, 1]
+            pos_idx_1d = (pos_idx + offset).flatten()   # [num_gt*max_k, ]
+            matching_matrix = matching_matrix.flatten()
+            matching_matrix[pos_idx_1d] = fill_value.flatten()
+            matching_matrix = matching_matrix.reshape(cost.shape)
+            del topk_ious, dynamic_ks, max_k, masks, fill_value, pos_idx, offset, pos_idx_1d
+        else:
+            # naive implementation.
+            for gt_idx in range(num_gt):
+                _, pos_idx = torch.topk(cost[gt_idx], k=dynamic_ks[gt_idx], largest=False)
+                matching_matrix[gt_idx][pos_idx] = 1
+            del topk_ious, dynamic_ks, pos_idx
 
         # [M, ]  M个候选正样本匹配的gt数
         anchor_matching_gt = matching_matrix.sum(0)
@@ -925,16 +930,30 @@ class YOLOXHead(nn.Module):
         topk_ious, _ = torch.topk(pair_wise_ious, n_candidate_k, dim=2)   # [N, G, 10]  每个gt取10个最大iou的anchor。
         dynamic_ks = torch.clamp(topk_ious.sum(2).int(), min=1)           # [N, G]  iou求和作为正样本数。
         dynamic_ks *= pad_gt_mask[:, :, 0].int()    # [N, G]  假gt正样本数为0。
-        # aa2 = dynamic_ks.cpu().detach().numpy()
+
         # 对每个gt，取cost最小的k个anchor去学习。
-        for b_idx in range(N):
-            for gt_idx in range(G):
-                if dynamic_ks[b_idx, gt_idx] == 0:   # 假gt跳过
-                    continue
-                _, pos_idx = torch.topk(cost[b_idx, gt_idx], k=dynamic_ks[b_idx, gt_idx], largest=False)
-                matching_matrix[b_idx, gt_idx][pos_idx] = 1
-        # aa3 = matching_matrix.cpu().detach().numpy()
-        del topk_ious, dynamic_ks, pos_idx
+        if self.parallel_matching:
+            max_k = dynamic_ks.max()
+            masks = torch.ones((max_k + 1, max_k + 1), dtype=torch.uint8, device=cost.device).tril(diagonal=-1)
+            masks = masks[:, :-1]  # [max_k+1, max_k]
+            fill_value = masks[dynamic_ks.long(), :]  # [N, G, max_k]
+            _, pos_idx = torch.topk(cost, k=max_k, largest=False)  # [N, G, max_k]
+            offset = torch.arange(start=0, end=N * G * A, step=A, dtype=torch.int64, device=cost.device).unsqueeze(-1)  # [N*G, 1]
+            pos_idx = pos_idx.reshape([N * G, -1])  # [N*G, max_k]
+            pos_idx_1d = (pos_idx + offset).flatten()  # [N*G*max_k, ]
+            matching_matrix = matching_matrix.flatten()
+            matching_matrix[pos_idx_1d] = fill_value.flatten()
+            matching_matrix = matching_matrix.reshape(cost.shape)
+            del topk_ious, dynamic_ks, max_k, masks, fill_value, pos_idx, offset, pos_idx_1d
+        else:
+            # naive implementation.
+            for b_idx in range(N):
+                for gt_idx in range(G):
+                    if dynamic_ks[b_idx, gt_idx] == 0:   # 假gt跳过
+                        continue
+                    _, pos_idx = torch.topk(cost[b_idx, gt_idx], k=dynamic_ks[b_idx, gt_idx], largest=False)
+                    matching_matrix[b_idx, gt_idx][pos_idx] = 1
+            del topk_ious, dynamic_ks, pos_idx
 
         # [N, A]  anchor匹配的gt数
         anchor_matching_gt = matching_matrix.sum(1)
