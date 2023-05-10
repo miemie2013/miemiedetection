@@ -123,6 +123,8 @@ class YOLOXHead(nn.Module):
             )
 
         self.use_l1 = False
+        self.use_batch_assign = True
+        self.use_batch_assign = False
         self.l1_loss = nn.L1Loss(reduction="none")
         self.bcewithlog_loss = nn.BCEWithLogitsLoss(reduction="none")
         self.iou_loss = IOUloss(reduction="none")
@@ -268,10 +270,42 @@ class YOLOXHead(nn.Module):
         cls_targets   [num_fg, n_cls]  前景学习的one_hot向量，学习的类别处 不是1 而是 与匹配到的gt的iou
         l1_targets    [num_fg, 4]      前景学习的gt的cxcywh, 是未解码的cxcywh
         '''
-        num_gts, num_fg, fg_masks, obj_targets, reg_targets, cls_targets, l1_targets = \
-            self.single_assign(bbox_preds, obj_preds, cls_preds, labels, nlabel, A, grids, strides)
+        if self.use_batch_assign:
+            num_gts, num_fg, fg_masks, obj_targets, reg_targets, cls_targets, l1_targets = \
+                self.batch_assign(bbox_preds, obj_preds, cls_preds, labels, nlabel, grids, strides)
+        else:
+            num_gts, num_fg, fg_masks, obj_targets, reg_targets, cls_targets, l1_targets = \
+                self.single_assign(bbox_preds, obj_preds, cls_preds, labels, nlabel, A, grids, strides)
+
         # num_gts, num_fg, fg_masks, obj_targets, reg_targets, cls_targets, l1_targets = \
-        #     self.batch_assign(bbox_preds, obj_preds, cls_preds, labels, nlabel, A, grids, strides)
+        #     self.single_assign(bbox_preds, obj_preds, cls_preds, labels, nlabel, A, grids, strides)
+        # num_gts2, num_fg2, fg_masks2, obj_targets2, reg_targets2, cls_targets2, l1_targets2 = \
+        #     self.batch_assign(bbox_preds, obj_preds, cls_preds, labels, nlabel, grids, strides)
+        # debug = False
+        # debug = True
+        # if debug:
+        #     ddd = abs(num_gts - num_gts2)
+        #     assert ddd < 0.0001
+        #     ddd = abs(num_fg - num_fg2)
+        #     assert ddd < 0.0001
+        #     aaaaaaa1 = obj_targets.cpu().detach().numpy()
+        #     aaaaaaa2 = obj_targets2.cpu().detach().numpy()
+        #     ddd = np.sum((aaaaaaa1 - aaaaaaa2) ** 2)
+        #     assert ddd < 0.0001
+        #     aaaaaaa1 = reg_targets.cpu().detach().numpy()
+        #     aaaaaaa2 = reg_targets2.cpu().detach().numpy()
+        #     ddd = np.sum((aaaaaaa1 - aaaaaaa2) ** 2)
+        #     assert ddd < 0.0001
+        #     aaaaaaa1 = cls_targets.cpu().detach().numpy()
+        #     aaaaaaa2 = cls_targets2.cpu().detach().numpy()
+        #     ddd = np.sum((aaaaaaa1 - aaaaaaa2) ** 2)
+        #     assert ddd < 0.0001
+        #     if self.use_l1:
+        #         aaaaaaa1 = l1_targets.cpu().detach().numpy()
+        #         aaaaaaa2 = l1_targets2.cpu().detach().numpy()
+        #         ddd = np.sum((aaaaaaa1 - aaaaaaa2) ** 2)
+        #         assert ddd < 0.0001
+
 
         num_fg = max(num_fg, 1)
         loss_iou = (
@@ -425,7 +459,7 @@ class YOLOXHead(nn.Module):
             l1_targets = torch.cat(l1_targets, 0)   # [num_fg, 4]    前景学习的gt的cxcywh, 是未解码的cxcywh
         return num_gts, num_fg, fg_masks, obj_targets, reg_targets, cls_targets, l1_targets
 
-    def batch_assign(self, bbox_preds, obj_preds, cls_preds, labels, nlabel, A, grids, strides):
+    def batch_assign(self, bbox_preds, obj_preds, cls_preds, labels, nlabel, grids, strides):
         # 这是即将返回的值
         l1_targets = []
 
@@ -436,7 +470,7 @@ class YOLOXHead(nn.Module):
         masks = masks[:, :-1]   # [G+1, G]
         pad_gt_mask = masks[nlabel, :].unsqueeze(-1)   # [N, G, 1]  是真gt还是填充的假gt
         pad_gt_mask = pad_gt_mask.float()
-        num_gts = pad_gt_mask.sum()
+        num_gts = float(pad_gt_mask.sum())
         has_gt = nlabel > 0
         # has_gt = nlabel > 20
 
@@ -525,6 +559,8 @@ class YOLOXHead(nn.Module):
         pred_ious_this_matching     [num_fg, ]  前景匹配到的gt，与该gt的iou
         '''
         torch.cuda.empty_cache()
+        fg_masks = fg_mask.flatten()         # [N*A, ]          前景的mask, bool类型
+        fg_masks.requires_grad_(False)
 
         # [num_fg, n_cls]  前景学习的one_hot向量，学习的类别处 不是1 而是 与匹配到的gt的iou
         cls_targets = F.one_hot(
@@ -534,17 +570,26 @@ class YOLOXHead(nn.Module):
         if self.use_l1:
             x_shifts = grids[:, :, 0]  # [1, A]
             y_shifts = grids[:, :, 1]  # [1, A]
+            N = obj_preds.shape[0]
+            x_shifts = x_shifts.repeat([N, 1]).flatten()  # [N*A, ]
+            y_shifts = y_shifts.repeat([N, 1]).flatten()  # [N*A, ]
+            strides_ = strides.repeat([N, 1]).flatten()   # [N*A, ]
             # [num_fg, 4]  用来监督前景未解码的cxcywh
             l1_targets = self.get_l1_target(
                 bbox_preds.new_zeros((num_fg, 4)),
                 reg_targets,
-                strides[0][fg_mask],
-                x_shifts=x_shifts[0][fg_mask],
-                y_shifts=y_shifts[0][fg_mask],
+                strides_[fg_masks],
+                x_shifts=x_shifts[fg_masks],
+                y_shifts=y_shifts[fg_masks],
             )
 
-        fg_masks = fg_mask.flatten()         # [N*A, ]          前景的mask, bool类型
         obj_targets = fg_masks.unsqueeze(-1).to(obj_preds.dtype)   # [N*A, 1]         前景的mask, float类型
+        num_fg = float(num_fg)
+        obj_targets.requires_grad_(False)
+        reg_targets.requires_grad_(False)
+        cls_targets.requires_grad_(False)
+        if self.use_l1:
+            l1_targets.requires_grad_(False)
         return num_gts, num_fg, fg_masks, obj_targets, reg_targets, cls_targets, l1_targets
 
     @torch.no_grad()
@@ -705,10 +750,15 @@ class YOLOXHead(nn.Module):
             bbox_preds = bbox_preds.cpu()
         # [N, G, A]  计算 gt和预测框 两组矩形两两之间的iou
         pair_wise_ious = yolox_batch_bboxes_iou(gt_bboxes, bbox_preds, xyxy=False)  # [N, G, A]  两组矩形两两之间的iou
-        # 假gt 和 所有anchor 的iou都是 0.0
-        pair_wise_ious = pair_wise_ious * pad_gt_mask + (1. - pad_gt_mask) * 0.0
+        candidate_pos = is_in_centers.sum(1) > 0  # [N, A]  候选正样本。若anchor落在任意gt中心内部则为True
+        candidate_pos = candidate_pos.unsqueeze(1).repeat([1, G, 1])  # [N, G, A]  候选正样本。若anchor落在任意gt中心内部则为True, 重复G次
+        # 非候选正样本 与 所有gt 的iou置为0
+        pair_wise_ious *= candidate_pos.float()
+        # 假gt 和 所有anchor 的iou置为0
+        pair_wise_ious *= pad_gt_mask
         # [N, G, A]  iou的cost，iou越大cost越小
         pair_wise_ious_loss = -torch.log(pair_wise_ious + 1e-8)
+        pair_wise_ious_loss += float(1e6) * (~candidate_pos)
 
         # [N, G, n_cls]   gt的one_hot向量
         gt_cls = F.one_hot(gt_classes.to(torch.int64), self.num_classes).float()
@@ -717,8 +767,9 @@ class YOLOXHead(nn.Module):
 
         with torch.cuda.amp.autocast(enabled=False):   # 不使用fp16，因为 F.binary_cross_entropy 对fp16不安全
             # [N, A, n_cls]   anchor预测的各类别分数, 开了根号
+            # 和 get_assignments()不同！！tensor.sigmoid_()是inplace的！！！会改变原来的cls_preds和obj_preds, 所以这两个张量先clone()新建副本
             cls_preds_ = (
-                cls_preds.float().sigmoid_() * obj_preds.float().sigmoid_()
+                cls_preds.clone().float().sigmoid_() * obj_preds.clone().float().sigmoid_()
             ).sqrt()
             # 二值交叉熵。input形状是 [N, G, A, n_cls]，anchor预测的各类别分数，重复G次
             # target形状是          [N, G, A, n_cls]，gt的one_hot向量，重复A次
@@ -728,6 +779,7 @@ class YOLOXHead(nn.Module):
                 gt_cls.unsqueeze(2).repeat(1, 1, A, 1),
                 reduction="none"
             ).sum(-1)
+            pair_wise_cls_loss += float(1e6) * (~candidate_pos)
         del cls_preds_
 
         # [N, G, A]  总的cost，iou cost的权重是3。
@@ -735,6 +787,7 @@ class YOLOXHead(nn.Module):
             pair_wise_cls_loss
             + 3.0 * pair_wise_ious_loss
             + float(1e6) * (~is_in_centers)
+            + float(1e6) * (~candidate_pos)
         )
         # 假gt 和 所有anchor 的cost都是 float(1e6)
         cost = cost * pad_gt_mask + (1. - pad_gt_mask) * float(1e6)

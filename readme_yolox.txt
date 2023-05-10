@@ -93,17 +93,19 @@ nohup python tools/train.py -f exps/yolox/yolox_s.py -d 8 -b 64 -eb 64 -w 4 -ew 
 
 python tools/eval.py -f exps/yolox/yolox_s.py -d 1 -b 16 -w 4 -c YOLOX_outputs/yolox_s/300.pth --conf 0.01 --tsize 640
 
+(单卡调试用)
+python tools/train.py -f exps/yolox/yolox_s.py -d 1 -b 8 -eb 4 -w 1 -ew 0 --fp16 -c yolox_s.pth
 
 
 
 ----------------------- 迁移学习，带上-c（--ckpt）参数读取预训练模型。 -----------------------
 迁移学习（不冻结骨干网络）:（可以加--fp16， -eb表示验证时的批大小）
-python tools/train.py -f exps/yolox/yolox_s_voc2012.py -d 1 -b 24 -eb 16 -w 4 -ew 4 -c yolox_s.pth
+python tools/train.py -f exps/yolox/yolox_s_voc2012.py -d 1 -b 24 -eb 16 -w 4 -ew 4 --fp16 -c yolox_s.pth
 
 
 1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train.py -f exps/yolox/yolox_s_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 -c yolox_s.pth     > yolox_s.log 2>&1 &
+nohup python tools/train.py -f exps/yolox/yolox_s_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 --fp16 -c yolox_s.pth     > yolox_s.log 2>&1 &
 
 python tools/eval.py -f exps/yolox/yolox_s_voc2012.py -d 1 -b 8 -w 4 -c 16.pth --conf 0.01 --tsize 640
 
@@ -119,7 +121,10 @@ python tools/eval.py -f exps/yolox/yolox_s_voc2012.py -d 1 -b 8 -w 4 -c 16.pth -
 
 - - - - - - - - - - - -
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 -c yolox_s.pth     > yolox_s_simple.log 2>&1 &
+nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 --fp16 -c yolox_s.pth     > yolox_s_simple.log 2>&1 &
+
+(单卡调试用)
+python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 1 -b 8 -eb 4 -w 1 -ew 0 --fp16 -c yolox_s.pth
 
 
 python tools/eval.py -f exps/yolox/yolox_s_simple_voc2012.py -d 1 -b 8 -w 4 -c 16.pth --conf 0.01 --tsize 640
@@ -147,7 +152,7 @@ python tools/convert_weights.py -f exps/yolox/yolox_s_simple_voc2012.py -c YOLOX
 
 ----------------------- 恢复训练（加上参数--resume） -----------------------
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 -c 10.pth --resume     > yolox_s_simple.log 2>&1 &
+nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 --fp16 -c 10.pth --resume     > yolox_s_simple.log 2>&1 &
 
 
 

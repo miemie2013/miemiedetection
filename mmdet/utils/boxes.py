@@ -179,8 +179,8 @@ def yolox_batch_bboxes_iou(bboxes_a, bboxes_b, xyxy=True, eps=1e-9):
         box2 = bboxes_b
     else:
         # 变成左上角坐标、右下角坐标
-        box1 = torch.cat([bboxes_a[:, :, :2] - bboxes_a[:, :, 2:] * 0.5, bboxes_a[:, :, :2] + bboxes_a[:, :, 2:] * 0.5], axis=-1)
-        box2 = torch.cat([bboxes_b[:, :, :2] - bboxes_b[:, :, 2:] * 0.5, bboxes_b[:, :, :2] + bboxes_b[:, :, 2:] * 0.5], axis=-1)
+        box1 = torch.cat([bboxes_a[:, :, :2] - bboxes_a[:, :, 2:] * 0.5, bboxes_a[:, :, :2] + bboxes_a[:, :, 2:] * 0.5], -1)
+        box2 = torch.cat([bboxes_b[:, :, :2] - bboxes_b[:, :, 2:] * 0.5, bboxes_b[:, :, :2] + bboxes_b[:, :, 2:] * 0.5], -1)
 
     box1 = box1.unsqueeze(2)   # [N, A, 4] -> [N, A, 1, 4]
     box2 = box2.unsqueeze(1)   # [N, B, 4] -> [N, 1, B, 4]
