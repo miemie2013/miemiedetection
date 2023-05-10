@@ -124,7 +124,7 @@ class YOLOXHead(nn.Module):
 
         self.use_l1 = False
         self.use_batch_assign = True
-        self.use_batch_assign = False
+        # self.use_batch_assign = False
         self.l1_loss = nn.L1Loss(reduction="none")
         self.bcewithlog_loss = nn.BCEWithLogitsLoss(reduction="none")
         self.iou_loss = IOUloss(reduction="none")
@@ -460,6 +460,12 @@ class YOLOXHead(nn.Module):
         return num_gts, num_fg, fg_masks, obj_targets, reg_targets, cls_targets, l1_targets
 
     def batch_assign(self, bbox_preds, obj_preds, cls_preds, labels, nlabel, grids, strides):
+        '''
+        bbox_preds   [N, A, 4]       预测的cxcywh, 单位是像素
+        cls_preds    [N, A, n_cls]   未经过sigmoid激活
+        obj_preds    [N, A, 1]       未经过sigmoid激活
+        labels       [N, G, 5]       gt的cid、cxcywh, 单位是像素
+        '''
         # 这是即将返回的值
         l1_targets = []
 
@@ -471,41 +477,9 @@ class YOLOXHead(nn.Module):
         pad_gt_mask = masks[nlabel, :].unsqueeze(-1)   # [N, G, 1]  是真gt还是填充的假gt
         pad_gt_mask = pad_gt_mask.float()
         num_gts = float(pad_gt_mask.sum())
-        has_gt = nlabel > 0
-        # has_gt = nlabel > 20
 
-        '''
-        if (~has_gt).sum() > 0:  # 存在没有gt的图片时
-            bbox_preds0 = bbox_preds[~has_gt]   # [N1, A, 4]       预测的cxcywh, 单位是像素
-            cls_preds0 = cls_preds[~has_gt]     # [N1, A, n_cls]   未经过sigmoid激活
-            obj_preds0 = obj_preds[~has_gt]     # [N1, A, 1]       未经过sigmoid激活
-
-            bbox_preds1 = bbox_preds[has_gt]   # [N2, A, 4]       预测的cxcywh, 单位是像素
-            cls_preds1 = cls_preds[has_gt]     # [N2, A, n_cls]   未经过sigmoid激活
-            obj_preds1 = obj_preds[has_gt]     # [N2, A, 1]       未经过sigmoid激活
-            labels1 = labels[has_gt]           # [N2, G, 5]       gt的cid、cxcywh, 单位是像素
-            pad_gt_mask1 = pad_gt_mask[has_gt]  # [N2, G, 1]  是真gt还是填充的假gt
-            raise NotImplementedError("not implemented.")
-        else:
-            bbox_preds0 = None
-            cls_preds0 = None
-            obj_preds0 = None
-
-            bbox_preds1 = bbox_preds   # [N2, A, 4]       预测的cxcywh, 单位是像素
-            cls_preds1 = cls_preds     # [N2, A, n_cls]   未经过sigmoid激活
-            obj_preds1 = obj_preds     # [N2, A, 1]       未经过sigmoid激活
-            labels1 = labels           # [N2, G, 5]       gt的cid、cxcywh, 单位是像素
-            pad_gt_mask1 = pad_gt_mask   # [N2, G, 1]  是真gt还是填充的假gt
-        '''
-        bbox_preds1 = bbox_preds   # [N2, A, 4]       预测的cxcywh, 单位是像素
-        cls_preds1 = cls_preds     # [N2, A, n_cls]   未经过sigmoid激活
-        obj_preds1 = obj_preds     # [N2, A, 1]       未经过sigmoid激活
-        labels1 = labels           # [N2, G, 5]       gt的cid、cxcywh, 单位是像素
-        pad_gt_mask1 = pad_gt_mask   # [N2, G, 1]  是真gt还是填充的假gt
-
-
-        gt_bboxes = labels1[:, :, 1:5]             # [N2, G, 4]  gt的cxcywh, 单位是像素
-        gt_classes = labels1[:, :, 0]              # [N2, G]     gt的cid
+        gt_bboxes = labels[:, :, 1:5]             # [N2, G, 4]  gt的cxcywh, 单位是像素
+        gt_classes = labels[:, :, 0]              # [N2, G]     gt的cid
         try:
             (
                 fg_mask,
@@ -516,12 +490,12 @@ class YOLOXHead(nn.Module):
             ) = self.get_batch_assignments(  # noqa
                 gt_bboxes,
                 gt_classes,
-                bbox_preds1,
-                cls_preds1,
-                obj_preds1,
+                bbox_preds,
+                cls_preds,
+                obj_preds,
                 grids,
                 strides,
-                pad_gt_mask1,
+                pad_gt_mask,
             )
         except RuntimeError as e:
             # TODO: the string might change, consider a better way
@@ -543,12 +517,12 @@ class YOLOXHead(nn.Module):
             ) = self.get_batch_assignments(  # noqa
                 gt_bboxes,
                 gt_classes,
-                bbox_preds1,
-                cls_preds1,
-                obj_preds1,
+                bbox_preds,
+                cls_preds,
+                obj_preds,
                 grids,
                 strides,
-                pad_gt_mask1,
+                pad_gt_mask,
                 "cpu",
             )
         '''
@@ -750,7 +724,7 @@ class YOLOXHead(nn.Module):
             bbox_preds = bbox_preds.cpu()
         # [N, G, A]  计算 gt和预测框 两组矩形两两之间的iou
         pair_wise_ious = yolox_batch_bboxes_iou(gt_bboxes, bbox_preds, xyxy=False)  # [N, G, A]  两组矩形两两之间的iou
-        candidate_pos = is_in_centers.sum(1) > 0  # [N, A]  候选正样本。若anchor落在任意gt中心内部则为True
+        candidate_pos = is_in_centers.sum(1) > 0                      # [N, A]  候选正样本。若anchor落在任意gt中心内部则为True
         candidate_pos = candidate_pos.unsqueeze(1).repeat([1, G, 1])  # [N, G, A]  候选正样本。若anchor落在任意gt中心内部则为True, 重复G次
         # 非候选正样本 与 所有gt 的iou置为0
         pair_wise_ious *= candidate_pos.float()
@@ -758,7 +732,7 @@ class YOLOXHead(nn.Module):
         pair_wise_ious *= pad_gt_mask
         # [N, G, A]  iou的cost，iou越大cost越小
         pair_wise_ious_loss = -torch.log(pair_wise_ious + 1e-8)
-        pair_wise_ious_loss += float(1e6) * (~candidate_pos)
+        pair_wise_ious_loss += float(1e6) * (~candidate_pos)   # 非候选正样本+float(1e6)
 
         # [N, G, n_cls]   gt的one_hot向量
         gt_cls = F.one_hot(gt_classes.to(torch.int64), self.num_classes).float()
@@ -779,7 +753,7 @@ class YOLOXHead(nn.Module):
                 gt_cls.unsqueeze(2).repeat(1, 1, A, 1),
                 reduction="none"
             ).sum(-1)
-            pair_wise_cls_loss += float(1e6) * (~candidate_pos)
+            pair_wise_cls_loss += float(1e6) * (~candidate_pos)   # 非候选正样本+float(1e6)
         del cls_preds_
 
         # [N, G, A]  总的cost，iou cost的权重是3。
@@ -943,16 +917,14 @@ class YOLOXHead(nn.Module):
         is_in_centers    [N, G, A]  若某个格子中心点落在某个"范围框"内, 值为True
         pad_gt_mask      [N, G, 1]  是真gt还是填充的假gt, float类型
         '''
-        # [N, G, A]  全是0，类型是uint8省内存
         N, G, A = cost.shape
+        # [N, G, A]  全是0，类型是uint8省内存
         matching_matrix = torch.zeros_like(cost, dtype=torch.uint8)
 
         n_candidate_k = 10    # 选10个候选样本
         topk_ious, _ = torch.topk(pair_wise_ious, n_candidate_k, dim=2)   # [N, G, 10]  每个gt取10个最大iou的anchor。
-        # aa0 = pad_gt_mask.cpu().detach().numpy()
-        # aa1 = topk_ious.cpu().detach().numpy()
-        dynamic_ks = torch.clamp(topk_ious.sum(2).int(), min=1)           # [N, G, ]  iou求和作为正样本数。
-        dynamic_ks *= pad_gt_mask[:, :, 0].int()    # [N, G, ]  假gt正样本数为0。
+        dynamic_ks = torch.clamp(topk_ious.sum(2).int(), min=1)           # [N, G]  iou求和作为正样本数。
+        dynamic_ks *= pad_gt_mask[:, :, 0].int()    # [N, G]  假gt正样本数为0。
         # aa2 = dynamic_ks.cpu().detach().numpy()
         # 对每个gt，取cost最小的k个anchor去学习。
         for b_idx in range(N):
@@ -970,30 +942,11 @@ class YOLOXHead(nn.Module):
         # deal with the case that one anchor matches multiple ground-truths
         if anchor_matching_gt.max() > 1:
             multiple_match_mask = anchor_matching_gt > 1  # [N, A]  anchor 一对多 处为1
-
-            # multiple_match_mask_aaaa = multiple_match_mask.cpu().detach().numpy()
-            # matching_matrix222222 = matching_matrix.cpu().detach().numpy().astype(np.float32)
-            # cost2222 = cost.cpu().detach().numpy().astype(np.float32)
-            # for ii in range(multiple_match_mask_aaaa.shape[0]):
-            #     for jj in range(multiple_match_mask_aaaa.shape[1]):
-            #         aaa = multiple_match_mask_aaaa[ii][jj]
-            #         if aaa:
-            #             for kk in range(matching_matrix222222.shape[1]):
-            #                 matching_matrix222222[ii][kk][jj] = 0.0
-            #             cur_cost = cost2222[ii, :, jj]
-            #             aaaaaaaaa = np.argmin(cur_cost)
-            #             matching_matrix222222[ii][aaaaaaaaa][jj] = 1.0
-
-
             matching_matrix[multiple_match_mask] *= 0  # 一对多的anchor，不匹配任何gt
             cost = cost.permute((0, 2, 1))   # [N, A, G]
-            multiple_match_cost = cost[multiple_match_mask]
-            _, cost_argmin = torch.min(multiple_match_cost, dim=1)
+            multiple_match_cost = cost[multiple_match_mask]   # [?, G]   一对多的anchor对所有gt的cost
+            _, cost_argmin = torch.min(multiple_match_cost, dim=1)   # [?, ]   一对多的anchor最小cost的gt下标
             matching_matrix[multiple_match_mask, cost_argmin] = 1  # 一对多的anchor，匹配cost最小的gt
-            # matching_matrix = matching_matrix.permute((0, 2, 1))   # [N, G, A]
-            # matching_matrix1 = matching_matrix.cpu().detach().numpy().astype(np.float32)
-            # ddd = np.sum((matching_matrix1 - matching_matrix222222) ** 2)
-            # assert ddd < 0.0001
         fg_mask = anchor_matching_gt > 0    # [N, A]  可能有的anchor匹配了0个gt。将匹配多于0个gt的anchor作为最终正样本。
         num_fg = fg_mask.sum().item()       # anchor前景数
 
