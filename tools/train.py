@@ -40,6 +40,7 @@ def make_parser():
     parser.add_argument("-eb", "--eval-batch-size", type=int, default=1, help="eval batch size")
     parser.add_argument("-w", "--worker_num", type=int, default=2, help="train worker num")
     parser.add_argument("-ew", "--eval_worker_num", type=int, default=1, help="eval worker num")
+    parser.add_argument("-lrs", "--lr_scale", type=float, default=1., help="lr_scale will mul exp.basic_lr_per_img")
     parser.add_argument(
         "-d", "--devices", default=None, type=int, help="device for training"
     )
