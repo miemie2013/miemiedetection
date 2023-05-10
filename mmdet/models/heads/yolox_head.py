@@ -125,7 +125,7 @@ class YOLOXHead(nn.Module):
         self.use_l1 = False
         self.parallel_matching = True
         self.use_batch_assign = True
-        # self.use_batch_assign = False
+        self.use_batch_assign = False
         self.l1_loss = nn.L1Loss(reduction="none")
         self.bcewithlog_loss = nn.BCEWithLogitsLoss(reduction="none")
         self.iou_loss = IOUloss(reduction="none")
@@ -713,6 +713,7 @@ class YOLOXHead(nn.Module):
             obj_preds = obj_preds.cpu().float()
             grids = grids.cpu()
             strides = strides.cpu().float()
+            pad_gt_mask = pad_gt_mask.cpu()
 
         # is_in_centers    [N, G, A]  若某个格子中心点落在某个"范围框"内, 值为True
         is_in_centers = self.get_batch_geometry_constraint(

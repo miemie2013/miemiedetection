@@ -83,6 +83,8 @@ python tools/eval.py -f exps/yolox/yolox_m.py -d 1 -b 8 -w 4 -c yolox_m.pth --co
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 nohup python tools/train.py -f exps/yolox/yolox_s.py -d 8 -b 64 -eb 64 -w 4 -ew 4 --fp16     > yolox_s_coco.log 2>&1 &
 
+nohup python tools/train.py -f exps/yolox/yolox_s.py -d 4 -b 64 -eb 64 -w 4 -ew 4 --fp16     > yolox_s_coco.log 2>&1 &
+
 日志见 train_coco/yolox_s_8gpu.txt
  Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.399
  Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.588
