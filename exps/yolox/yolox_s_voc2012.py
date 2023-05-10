@@ -34,7 +34,7 @@ class Exp(YOLOXExp):
         self.no_aug_epochs = 5
         self.min_lr_ratio = 0.05
         self.print_interval = 20
-        self.eval_interval = 2
+        self.eval_interval = 4
 
         # 判断是否是调试状态
         isDebug = True if sys.gettrace() else False
