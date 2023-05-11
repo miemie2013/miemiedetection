@@ -121,10 +121,11 @@ python tools/eval.py -f exps/yolox/yolox_s_voc2012.py -d 1 -b 8 -w 4 -c 16.pth -
  Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.597
 
 - - - - - - - - - - - -
+(迁移学习，发现使用更小的学习率才更好，所以指定 -lrs 参数。这个参数会乘到 basic_lr_per_img)
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 --fp16 -c yolox_s.pth     > yolox_s_simple.log 2>&1 &
+nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 -lrs 0.1 --fp16 -c yolox_s.pth     > yolox_s_simple.log 2>&1 &
 
-(测速。极速体验。当总的批大小增大，又遇上迁移学习，发现使用更小的学习率才更好，所以指定 -lrs 参数。这个参数会乘到 basic_lr_per_img)
+(测速。极速体验。)
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 8 -b 64 -eb 64 -w 4 -ew 4 -lrs 0.1 --fp16 -c yolox_s.pth     > yolox_s_simple.log 2>&1 &
 
@@ -148,12 +149,12 @@ python tools/demo.py image -f exps/yolox/yolox_s_simple_voc2012.py -c 16.pth --p
 
 
 实测 yolox_s_simple 的AP最后可以到达（head.use_batch_assign = False, 日志见 train_ppyolo_in_voc2012/yolox_s_simple_voc2012.txt ）
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.411
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.635
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.450
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.093
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.275
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.488
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.493
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.722
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.552
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.146
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.358
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.576
 
 导出给私有仓库：
 python tools/convert_weights.py -f exps/yolox/yolox_s_simple_voc2012.py -c YOLOX_outputs/yolox_s_simple_voc2012/16.pth -oc new_16.pth -nc 20 -pp0
