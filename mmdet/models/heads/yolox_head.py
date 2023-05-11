@@ -816,12 +816,12 @@ class YOLOXHead(nn.Module):
         center_dist = strides * center_radius   # [1, A]  格子边长*1.5倍，单位是像素。每个gt中心点形成一个"范围框"，里面框住的格子中心点作为候选正样本。
         gt_bboxes_ = gt_bboxes_per_image.unsqueeze(1)    # [num_gt, 1, 4]
         center_dist = center_dist.unsqueeze(2)           # [     1, A, 1]
-        gt_x1y1 = gt_bboxes_[:, :, :2] - center_dist     # [num_gt, A, 2]   "范围框"的x1y1, 单位是像素
-        gt_x2y2 = gt_bboxes_[:, :, :2] + center_dist     # [num_gt, A, 2]   "范围框"的x2y2, 单位是像素
+        center_x1y1 = gt_bboxes_[:, :, :2] - center_dist     # [num_gt, A, 2]   "范围框"的x1y1, 单位是像素
+        center_x2y2 = gt_bboxes_[:, :, :2] + center_dist     # [num_gt, A, 2]   "范围框"的x2y2, 单位是像素
 
         points_ = (grids + 0.5) * strides.unsqueeze(2)   # [1, A, 2]  格子中心点xy坐标，单位是像素
-        lt = points_ - gt_x1y1  # [num_gt, A, 2]
-        rb = gt_x2y2 - points_  # [num_gt, A, 2]
+        lt = points_ - center_x1y1  # [num_gt, A, 2]
+        rb = center_x2y2 - points_  # [num_gt, A, 2]
         ltrb = torch.cat([lt, rb], -1)  # [num_gt, A, 4]
         is_in_centers = ltrb.min(dim=-1).values > 0.0  # [num_gt, A]  若某个格子中心点落在某个"范围框"内, 值为True
         anchor_filter = is_in_centers.sum(dim=0) > 0   # [A, ]        anchor至少落在1个"范围框"内时, 为True
@@ -846,13 +846,13 @@ class YOLOXHead(nn.Module):
         center_dist = strides * center_radius   # [1, A]  格子边长*1.5倍，单位是像素。每个gt中心点形成一个"范围框"，里面框住的格子中心点作为候选正样本。
         gt_bboxes_ = gt_bboxes.unsqueeze(2)                    # [N, G, 1, 4]
         center_dist = center_dist.unsqueeze(0).unsqueeze(-1)   # [1, 1, A, 1]
-        gt_x1y1 = gt_bboxes_[:, :, :, :2] - center_dist     # [N, G, A, 2]   "范围框"的x1y1, 单位是像素
-        gt_x2y2 = gt_bboxes_[:, :, :, :2] + center_dist     # [N, G, A, 2]   "范围框"的x2y2, 单位是像素
+        center_x1y1 = gt_bboxes_[:, :, :, :2] - center_dist     # [N, G, A, 2]   "范围框"的x1y1, 单位是像素
+        center_x2y2 = gt_bboxes_[:, :, :, :2] + center_dist     # [N, G, A, 2]   "范围框"的x2y2, 单位是像素
 
         points_ = (grids + 0.5) * strides.unsqueeze(2)   # [1, A, 2]  格子中心点xy坐标，单位是像素
         points_ = points_.unsqueeze(0)    # [1, 1, A, 2]
-        lt = points_ - gt_x1y1  # [N, G, A, 2]
-        rb = gt_x2y2 - points_  # [N, G, A, 2]
+        lt = points_ - center_x1y1  # [N, G, A, 2]
+        rb = center_x2y2 - points_  # [N, G, A, 2]
         ltrb = torch.cat([lt, rb], -1)  # [N, G, A, 4]
         is_in_centers = ltrb.min(dim=-1).values > 0.0  # [N, G, A]  若某个格子中心点落在某个"范围框"内, 值为True
         # anchor_filter = is_in_centers.sum(dim=1) > 0   # [N, A]        anchor至少落在1个"范围框"内时, 为True
