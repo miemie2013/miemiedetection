@@ -52,9 +52,17 @@ def make_parser():
         help="plz input your experiment description file",
     )
     parser.add_argument(
+        "-sf",
+        "--slim_exp_file",
+        default=None,
+        type=str,
+        help="plz input your slim experiment description file",
+    )
+    parser.add_argument(
         "--resume", default=False, action="store_true", help="resume training"
     )
     parser.add_argument("-c", "--ckpt", default=None, type=str, help="checkpoint file")
+    parser.add_argument("-sc", "--slim_ckpt", default=None, type=str, help="slim checkpoint file")
     parser.add_argument(
         "--num_machines", default=1, type=int, help="num of node for training"
     )
@@ -127,8 +135,18 @@ if __name__ == "__main__":
         args.exp_file = '../' + args.exp_file
         if args.ckpt is not None:
             args.ckpt = '../' + args.ckpt   # 如果是绝对路径，把这一行注释掉
+        if args.slim_exp_file is not None:
+            args.slim_exp_file = '../' + args.slim_exp_file   # 如果是绝对路径，把这一行注释掉
+        if args.slim_ckpt is not None:
+            args.slim_ckpt = '../' + args.slim_ckpt   # 如果是绝对路径，把这一行注释掉
     exp = get_exp(args.exp_file, args.name)
     exp.merge(args.opts)
+    if args.slim_exp_file is not None:
+        slim_exp = get_exp(args.slim_exp_file, None)
+        slim_exp.merge(args.opts)
+        exp.slim_exp = slim_exp
+    else:
+        exp.slim_exp = None
 
     if not args.experiment_name:
         args.experiment_name = exp.exp_name

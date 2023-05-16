@@ -238,6 +238,11 @@ class PPYOLOEPlus_Method_Exp(COCOBaseExp):
             self.model = PPYOLOE(backbone, fpn, head)
         return self.model
 
+    def get_distill_loss(self):
+        from mmdet.slim import DistillPPYOLOELoss
+        distill_loss = DistillPPYOLOELoss(**self.distill_loss_cfg)
+        return distill_loss
+
     def get_data_loader(
         self, batch_size, is_distributed, num_gpus, cache_img=False
     ):

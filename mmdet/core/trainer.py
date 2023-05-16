@@ -16,6 +16,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from mmdet.data import DataPrefetcher, PPYOLODataPrefetcher, PPYOLOEDataPrefetcher, SOLODataPrefetcher
 from mmdet.data.data_prefetcher import FCOSDataPrefetcher
+from mmdet.slim import PPYOLOEDistillModel
 from mmdet.utils import (
     MeterBuffer,
     ModelEMA,
@@ -46,6 +47,7 @@ class Trainer:
         # init function only defines some basic attr, other attrs like model, optimizer are built in
         # before_train methods.
         self.exp = exp
+        self.slim_exp = exp.slim_exp
         # 算法名字
         self.archi_name = self.exp.archi_name
         self.args = args
@@ -441,6 +443,14 @@ class Trainer:
         model = self.exp.get_model()
         logger.info("Model Summary: {}".format(get_model_info(self.archi_name, model, self.exp.test_size)))
         model.to(self.device)
+        slim_model = None
+        distill_loss = None
+        if self.slim_exp:
+            self.exp.__delattr__('slim_exp')
+            slim_model = self.slim_exp.get_model()
+            slim_model.to(self.device)
+            distill_loss = self.slim_exp.get_distill_loss()
+            distill_loss.to(self.device)
 
         # 是否进行梯度裁剪
         self.need_clip = False
@@ -509,6 +519,9 @@ class Trainer:
 
             # value of epoch will be set in `resume_train`
             model = self.resume_train(model)
+            if self.slim_exp:
+                slim_model = self.resume_slim_model(slim_model)
+                model = PPYOLOEDistillModel(model, slim_model, distill_loss)
 
 
             self.train_loader = self.exp.get_data_loader(
@@ -811,6 +824,14 @@ class Trainer:
                 model = load_ckpt(model, ckpt)
             self.start_epoch = 0
 
+        return model
+
+    def resume_slim_model(self, model):
+        if self.args.slim_ckpt is not None:
+            logger.info("loading slim checkpoint!!!")
+            ckpt_file = self.args.slim_ckpt
+            ckpt = torch.load(ckpt_file, map_location=self.device)["model"]
+            model = load_ckpt(model, ckpt)
         return model
 
     def evaluate_and_save_model(self):

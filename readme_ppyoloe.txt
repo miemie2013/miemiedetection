@@ -145,7 +145,7 @@ python tools/demo.py image -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -c
 
 1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 2 -b 16 -eb 8 -c ppyoloe_crn_s_obj365_pretrained.pth --fp16     > ppyoloe_plus_s_from_obj365.log 2>&1 &
+nohup python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 2 -b 16 -eb 8 -w 4 -ew 4 -lrs 1.0 -c ppyoloe_crn_s_obj365_pretrained.pth --fp16     > ppyoloe_plus_s_from_obj365.log 2>&1 &
 
 tail -n 20 ppyoloe_plus_s_from_obj365.log
 
@@ -156,7 +156,7 @@ tail -n 20 ppyoloe_plus_s_from_obj365.log
 - - - - - - -
 读 COCO 预训练模型（实际上由obj365 fine-tune 得到）进行fine-tune：
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 2 -b 16 -eb 8 -c ppyoloe_plus_crn_s_80e_coco.pth --fp16     > ppyoloe_plus_s_from_coco.log 2>&1 &
+nohup python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 2 -b 16 -eb 8 -w 4 -ew 4 -lrs 1.0 -c ppyoloe_plus_crn_s_80e_coco.pth --fp16     > ppyoloe_plus_s_from_coco.log 2>&1 &
 
 实测 ppyoloe_plus_s_from_coco 的AP(0.50:0.95)可以到达0.62+、AP(0.50)可以到达0.81+、AP(small)可以到达0.24+。
 日志见 train_ppyolo_in_voc2012/mmdet_ppyoloe_plus_s_from_obj365(to_coco)_2gpu.txt
@@ -165,7 +165,7 @@ nohup python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -
 - - - - - - -
 做 ppyoloe_s 的对比实验（读 ppyoloe 的模型）：
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 2 -b 16 -eb 8 -c ppyoloe_crn_s_300e_coco.pth --fp16     > ppyoloe_s_from_coco.log 2>&1 &
+nohup python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 2 -b 16 -eb 8 -w 4 -ew 4 -lrs 1.0 -c ppyoloe_crn_s_300e_coco.pth --fp16     > ppyoloe_s_from_coco.log 2>&1 &
 
 实测 ppyoloe_s_from_coco 的AP(0.50:0.95)可以到达0.61+、AP(0.50)可以到达0.80+、AP(small)可以到达0.23+。
 日志见 train_ppyolo_in_voc2012/mmdet_ppyoloe_plus_s_from_coco_2gpu.txt
@@ -196,6 +196,30 @@ nohup python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_pcp.py -d 2 
 
 实测 ppyoloe_s_from_coco 的AP(0.50:0.95)可以到达0.xx+、AP(0.50)可以到达0.xx+、AP(small)可以到达0.xx+。
 日志见 train_ppyolo_in_voc2012/xxxxxxxxxx.txt
+
+
+
+----------------------- 知识蒸馏 -----------------------
+1.先训练老师模型:
+读 COCO 预训练模型（实际上由obj365 fine-tune 得到）进行fine-tune：
+export CUDA_VISIBLE_DEVICES=0,1
+nohup python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_l_voc2012.py -d 2 -b 16 -eb 8 -w 4 -ew 4 -lrs 1.0 -c ppyoloe_plus_crn_l_80e_coco.pth --fp16     > ppyoloe_plus_l_from_coco.log 2>&1 &
+
+实测 ppyoloe_plus_l_from_coco 的AP(0.50:0.95)可以到达0.xxx+、AP(0.50)可以到达0.xxx+、AP(small)可以到达0.xxx+。
+日志见 train_ppyolo_in_voc2012/ppyoloe_plus_l_from_obj365(to_coco)_2gpu.txt
+
+
+2.蒸馏:
+读 COCO 预训练模型（实际上由obj365 fine-tune 得到）进行fine-tune：
+export CUDA_VISIBLE_DEVICES=0,1
+nohup python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 2 -b 16 -eb 8 -w 4 -ew 4 -lrs 1.0 -c ppyoloe_plus_crn_s_80e_coco.pth --fp16 -sf exps/slim/distill/ppyoloe_plus_crn_l_voc2012_l2s.py -sc PPYOLOEPlus_outputs/ppyoloe_plus_crn_l_voc2012/1.pth     > ppyoloe_plus_s_from_coco.log 2>&1 &
+
+(单卡调试)
+python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 1 -b 4 -eb 4 -w 1 -ew 1 -lrs 1.0 -c ppyoloe_plus_crn_s_80e_coco.pth --fp16 -sf exps/slim/distill/ppyoloe_plus_crn_l_voc2012_l2s.py -sc PPYOLOEPlus_outputs/ppyoloe_plus_crn_l_voc2012/1.pth
+
+
+实测 ppyoloe_plus_s_from_coco 的AP(0.50:0.95)可以到达0.62+、AP(0.50)可以到达0.81+、AP(small)可以到达0.24+。
+日志见 train_ppyolo_in_voc2012/mmdet_ppyoloe_plus_s_from_obj365(to_coco)_2gpu.txt
 
 
 
