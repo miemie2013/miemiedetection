@@ -13,33 +13,21 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from paddle import ParamAttr
 
+from mmdet.models.initializer import kaiming_uniform_, constant_
 from mmdet.models.losses.iou_losses import GIoULoss
 
-
-
-def parameter_init(mode="kaiming", value=0.):
-    if mode == "kaiming":
-        weight_attr = paddle.nn.initializer.KaimingUniform()
-    elif mode == "constant":
-        weight_attr = paddle.nn.initializer.Constant(value=value)
-    else:
-        weight_attr = paddle.nn.initializer.KaimingUniform()
-
-    weight_init = ParamAttr(initializer=weight_attr)
-    return weight_init
 
 
 def feature_norm(feat):
     # Normalize the feature maps to have zero mean and unit variances.
     assert len(feat.shape) == 4
     N, C, H, W = feat.shape
-    feat = feat.transpose([1, 0, 2, 3]).reshape([C, -1])
-    mean = feat.mean(axis=-1, keepdim=True)
-    std = feat.std(axis=-1, keepdim=True)
+    feat = feat.permute([1, 0, 2, 3]).reshape([C, -1])
+    mean = feat.mean(-1, keepdim=True)
+    std = feat.std(-1, keepdim=True)
     feat = (feat - mean) / (std + 1e-6)
-    return feat.reshape([C, N, H, W]).transpose([1, 0, 2, 3])
+    return feat.reshape([C, N, H, W]).permute([1, 0, 2, 3])
 
 
 
@@ -74,13 +62,13 @@ class KnowledgeDistillationKLDivLoss(nn.Module):
             detach_target (bool): Remove soft_label from automatic differentiation
         """
         assert pred.shape == soft_label.shape
-        target = F.softmax(soft_label / T, axis=1)
+        target = F.softmax(soft_label / T, dim=1)
         if detach_target:
             target = target.detach()
 
         kd_loss = F.kl_div(
             F.log_softmax(
-                pred / T, axis=1), target, reduction='none').mean(1) * (T * T)
+                pred / T, dim=1), target, reduction='none').mean(1) * (T * T)
 
         return kd_loss
 
@@ -137,15 +125,11 @@ class KnowledgeDistillationKLDivLoss(nn.Module):
 class DistillPPYOLOELoss(nn.Module):
     def __init__(
             self,
-            loss_weight={'logits': 4.0,
-                         'feat': 1.0},
+            loss_weight={'logits': 4.0, 'feat': 1.0},
             logits_distill=True,
-            logits_loss_weight={'class': 1.0,
-                                'iou': 2.5,
-                                'dfl': 0.5},
+            logits_loss_weight={'class': 1.0, 'iou': 2.5, 'dfl': 0.5},
             logits_ld_distill=False,
-            logits_ld_params={'weight': 20000,
-                              'T': 10},
+            logits_ld_params={'weight': 20000, 'T': 10},
             feat_distill=True,
             feat_distiller='fgd',
             feat_distill_place='neck_feats',
@@ -179,7 +163,7 @@ class DistillPPYOLOELoss(nn.Module):
             self.s_channel_list = [
                 int(c * student_width_mult) for c in feat_out_channels
             ]
-            self.distill_feat_loss_modules = []
+            self.distill_feat_loss_modules = nn.ModuleList()
             for i in range(len(feat_out_channels)):
                 if feat_distiller == 'cwd':
                     raise ValueError
@@ -233,24 +217,22 @@ class DistillPPYOLOELoss(nn.Module):
     def bbox_loss(self, s_bbox, t_bbox, weight_targets=None):
         # [x,y,w,h]
         if weight_targets is not None:
-            loss = paddle.sum(self.loss_bbox(s_bbox, t_bbox) * weight_targets)
+            loss = torch.sum(self.loss_bbox(s_bbox, t_bbox) * weight_targets)
             avg_factor = weight_targets.sum()
             loss = loss / avg_factor
         else:
-            loss = paddle.mean(self.loss_bbox(s_bbox, t_bbox))
+            loss = torch.mean(self.loss_bbox(s_bbox, t_bbox))
         return loss
 
     def distribution_focal_loss(self,
                                 pred_corners,
                                 target_corners,
                                 weight_targets=None):
-        target_corners_label = F.softmax(target_corners, axis=-1)
+        target_corners_label = F.softmax(target_corners, dim=-1)
         loss_dfl = F.cross_entropy(
             pred_corners,
             target_corners_label,
-            soft_label=True,
             reduction='none')
-        loss_dfl = loss_dfl.sum(1)
 
         if weight_targets is not None:
             loss_dfl = loss_dfl * (weight_targets.expand([-1, 4]).reshape([-1]))
@@ -263,24 +245,20 @@ class DistillPPYOLOELoss(nn.Module):
         num_pos = mask_positive.sum()
         if num_pos > 0:
             cls_mask = mask_positive.unsqueeze(-1).tile([1, 1, num_classes])
-            pred_scores_pos = paddle.masked_select(
-                pred_scores, cls_mask).reshape([-1, num_classes])
-            soft_cls_pos = paddle.masked_select(
-                soft_cls, cls_mask).reshape([-1, num_classes])
-            loss_kd = self.loss_kd(
-                pred_scores_pos, soft_cls_pos, avg_factor=num_pos)
+            pred_scores_pos = pred_scores[cls_mask].reshape([-1, num_classes])
+            soft_cls_pos = soft_cls[cls_mask].reshape([-1, num_classes])
+            loss_kd = self.loss_kd(pred_scores_pos, soft_cls_pos, avg_factor=num_pos)
         else:
-            loss_kd = paddle.zeros([1])
+            loss_kd = torch.zeros([1])
         return loss_kd
 
-    def forward(self, teacher_model, student_model):
+    def forward(self, teacher_model, student_model, im_shape, gt_bbox, pad_gt_mask):
         teacher_distill_pairs = teacher_model.yolo_head.distill_pairs
         student_distill_pairs = student_model.yolo_head.distill_pairs
         if self.logits_distill and self.loss_weight_logits > 0:
-            distill_bbox_loss, distill_dfl_loss, distill_cls_loss = [], [], []
+            distill_bbox_loss, distill_dfl_loss, distill_cls_loss = 0., 0., 0.
 
-            distill_cls_loss.append(
-                self.quality_focal_loss(
+            distill_cls_loss += self.quality_focal_loss(
                     student_distill_pairs['pred_cls_scores'].reshape(
                         (-1, student_distill_pairs['pred_cls_scores'].shape[-1]
                          )),
@@ -288,32 +266,30 @@ class DistillPPYOLOELoss(nn.Module):
                         (-1, teacher_distill_pairs['pred_cls_scores'].shape[-1]
                          )),
                     num_total_pos=student_distill_pairs['pos_num'],
-                    use_sigmoid=False))
-
-            distill_bbox_loss.append(
-                self.bbox_loss(student_distill_pairs['pred_bboxes_pos'],
+                    use_sigmoid=False)
+            if 'pred_bboxes_pos' in student_distill_pairs and \
+                    'pred_bboxes_pos' in teacher_distill_pairs and \
+                    'bbox_weight' in student_distill_pairs:
+                distill_bbox_loss += self.bbox_loss(student_distill_pairs['pred_bboxes_pos'],
                                teacher_distill_pairs['pred_bboxes_pos'].detach(),
                                weight_targets=student_distill_pairs['bbox_weight']
-                               ) if 'pred_bboxes_pos' in student_distill_pairs and \
-                                    'pred_bboxes_pos' in teacher_distill_pairs and \
-                                    'bbox_weight' in student_distill_pairs
-                else paddle.zeros([1]))
+                               )
+            else:
+                distill_bbox_loss += torch.zeros([1])
 
-            distill_dfl_loss.append(
-                self.distribution_focal_loss(
+            if 'pred_dist_pos' in student_distill_pairs and \
+                     'pred_dist_pos' in teacher_distill_pairs and \
+                     'bbox_weight' in student_distill_pairs:
+                distill_dfl_loss += self.distribution_focal_loss(
                     student_distill_pairs['pred_dist_pos'].reshape(
                         (-1, student_distill_pairs['pred_dist_pos'].shape[-1])),
                     teacher_distill_pairs['pred_dist_pos'].detach().reshape(
                         (-1, teacher_distill_pairs['pred_dist_pos'].shape[-1])), \
                     weight_targets=student_distill_pairs['bbox_weight']
-                ) if 'pred_dist_pos' in student_distill_pairs and \
-                     'pred_dist_pos' in teacher_distill_pairs and \
-                     'bbox_weight' in student_distill_pairs
-                else paddle.zeros([1]))
+                )
+            else:
+                distill_dfl_loss += torch.zeros([1])
 
-            distill_cls_loss = paddle.add_n(distill_cls_loss)
-            distill_bbox_loss = paddle.add_n(distill_bbox_loss)
-            distill_dfl_loss = paddle.add_n(distill_dfl_loss)
             logits_loss = distill_bbox_loss * self.bbox_loss_weight + distill_cls_loss * self.qfl_loss_weight + distill_dfl_loss * self.dfl_loss_weight
 
             if self.logits_ld_distill:
@@ -324,22 +300,18 @@ class DistillPPYOLOELoss(nn.Module):
                     student_model.yolo_head.num_classes, )
                 logits_loss += loss_kd
         else:
-            logits_loss = paddle.zeros([1])
+            logits_loss = torch.zeros([1])
 
         if self.feat_distill and self.loss_weight_feat > 0:
-            feat_loss_list = []
-            inputs = student_model.inputs
-            assert 'gt_bbox' in inputs
+            feat_loss = 0.0
             assert self.feat_distill_place in student_distill_pairs
             assert self.feat_distill_place in teacher_distill_pairs
             stu_feats = student_distill_pairs[self.feat_distill_place]
             tea_feats = teacher_distill_pairs[self.feat_distill_place]
             for i, loss_module in enumerate(self.distill_feat_loss_modules):
-                feat_loss_list.append(
-                    loss_module(stu_feats[i], tea_feats[i], inputs))
-            feat_loss = paddle.add_n(feat_loss_list)
+                feat_loss += loss_module(stu_feats[i], tea_feats[i], im_shape, gt_bbox, pad_gt_mask)
         else:
-            feat_loss = paddle.zeros([1])
+            feat_loss = torch.zeros([1])
 
         student_model.yolo_head.distill_pairs.clear()
         teacher_model.yolo_head.distill_pairs.clear()
@@ -380,90 +352,83 @@ class FGDFeatureLoss(nn.Module):
         self.beta_fgd = beta_fgd
         self.gamma_fgd = gamma_fgd
         self.lambda_fgd = lambda_fgd
-        kaiming_init = parameter_init("kaiming")
-        zeros_init = parameter_init("constant", 0.0)
 
         if student_channels != teacher_channels:
-            self.align = nn.Conv2D(
+            self.align = nn.Conv2d(
                 student_channels,
                 teacher_channels,
                 kernel_size=1,
                 stride=1,
-                padding=0,
-                weight_attr=kaiming_init)
+                padding=0)
+            kaiming_uniform_(self.align.weight)
             student_channels = teacher_channels
         else:
             self.align = None
 
-        self.conv_mask_s = nn.Conv2D(
-            student_channels, 1, kernel_size=1, weight_attr=kaiming_init)
-        self.conv_mask_t = nn.Conv2D(
-            teacher_channels, 1, kernel_size=1, weight_attr=kaiming_init)
+        self.conv_mask_s = nn.Conv2d(student_channels, 1, kernel_size=1)
+        self.conv_mask_t = nn.Conv2d(teacher_channels, 1, kernel_size=1)
+        kaiming_uniform_(self.conv_mask_s.weight)
+        kaiming_uniform_(self.conv_mask_t.weight)
 
         self.stu_conv_block = nn.Sequential(
-            nn.Conv2D(
+            nn.Conv2d(
                 student_channels,
                 student_channels // 2,
-                kernel_size=1,
-                weight_attr=zeros_init),
+                kernel_size=1),
             nn.LayerNorm([student_channels // 2, 1, 1]),
             nn.ReLU(),
-            nn.Conv2D(
+            nn.Conv2d(
                 student_channels // 2,
                 student_channels,
-                kernel_size=1,
-                weight_attr=zeros_init))
+                kernel_size=1))
+        constant_(self.stu_conv_block[0].weight, 0.0)
+        constant_(self.stu_conv_block[-1].weight, 0.0)
         self.tea_conv_block = nn.Sequential(
-            nn.Conv2D(
+            nn.Conv2d(
                 teacher_channels,
                 teacher_channels // 2,
-                kernel_size=1,
-                weight_attr=zeros_init),
+                kernel_size=1),
             nn.LayerNorm([teacher_channels // 2, 1, 1]),
             nn.ReLU(),
-            nn.Conv2D(
+            nn.Conv2d(
                 teacher_channels // 2,
                 teacher_channels,
-                kernel_size=1,
-                weight_attr=zeros_init))
+                kernel_size=1))
+        constant_(self.tea_conv_block[0].weight, 0.0)
+        constant_(self.tea_conv_block[-1].weight, 0.0)
 
     def spatial_channel_attention(self, x, t=0.5):
-        shape = paddle.shape(x)
-        N, C, H, W = shape
-        _f = paddle.abs(x)
-        spatial_map = paddle.reshape(
-            paddle.mean(
-                _f, axis=1, keepdim=True) / t, [N, -1])
-        spatial_map = F.softmax(spatial_map, axis=1, dtype="float32") * H * W
-        spatial_att = paddle.reshape(spatial_map, [N, H, W])
+        N, C, H, W = x.shape
+        _f = torch.abs(x)
+        spatial_map = torch.reshape(torch.mean(_f, dim=1, keepdim=True) / t, [N, -1])
+        spatial_map = F.softmax(spatial_map, dim=1, dtype=torch.float32) * H * W
+        spatial_att = torch.reshape(spatial_map, [N, H, W])
 
-        channel_map = paddle.mean(
-            paddle.mean(
-                _f, axis=2, keepdim=False), axis=2, keepdim=False)
-        channel_att = F.softmax(channel_map / t, axis=1, dtype="float32") * C
+        channel_map = torch.mean(torch.mean(_f, dim=2, keepdim=False), dim=2, keepdim=False)
+        channel_att = F.softmax(channel_map / t, dim=1, dtype=torch.float32) * C
         return [spatial_att, channel_att]
 
     def spatial_pool(self, x, mode="teacher"):
         batch, channel, width, height = x.shape
         x_copy = x
-        x_copy = paddle.reshape(x_copy, [batch, channel, height * width])
+        x_copy = torch.reshape(x_copy, [batch, channel, height * width])
         x_copy = x_copy.unsqueeze(1)
         if mode.lower() == "student":
             context_mask = self.conv_mask_s(x)
         else:
             context_mask = self.conv_mask_t(x)
 
-        context_mask = paddle.reshape(context_mask, [batch, 1, height * width])
-        context_mask = F.softmax(context_mask, axis=2)
+        context_mask = torch.reshape(context_mask, [batch, 1, height * width])
+        context_mask = F.softmax(context_mask, dim=2)
         context_mask = context_mask.unsqueeze(-1)
-        context = paddle.matmul(x_copy, context_mask)
-        context = paddle.reshape(context, [batch, channel, 1, 1])
+        context = torch.matmul(x_copy, context_mask)
+        context = torch.reshape(context, [batch, channel, 1, 1])
         return context
 
     def mask_loss(self, stu_channel_att, tea_channel_att, stu_spatial_att,
                   tea_spatial_att):
         def _func(a, b):
-            return paddle.sum(paddle.abs(a - b)) / len(a)
+            return torch.sum(torch.abs(a - b)) / len(a)
 
         mask_loss = _func(stu_channel_att, tea_channel_att) + _func(
             stu_spatial_att, tea_spatial_att)
@@ -471,20 +436,20 @@ class FGDFeatureLoss(nn.Module):
 
     def feature_loss(self, stu_feature, tea_feature, mask_fg, mask_bg,
                      tea_channel_att, tea_spatial_att):
-        mask_fg = mask_fg.unsqueeze(axis=1)
-        mask_bg = mask_bg.unsqueeze(axis=1)
-        tea_channel_att = tea_channel_att.unsqueeze(axis=-1).unsqueeze(axis=-1)
-        tea_spatial_att = tea_spatial_att.unsqueeze(axis=1)
+        mask_fg = mask_fg.unsqueeze(1)
+        mask_bg = mask_bg.unsqueeze(1)
+        tea_channel_att = tea_channel_att.unsqueeze(-1).unsqueeze(-1)
+        tea_spatial_att = tea_spatial_att.unsqueeze(1)
 
-        fea_t = paddle.multiply(tea_feature, paddle.sqrt(tea_spatial_att))
-        fea_t = paddle.multiply(fea_t, paddle.sqrt(tea_channel_att))
-        fg_fea_t = paddle.multiply(fea_t, paddle.sqrt(mask_fg))
-        bg_fea_t = paddle.multiply(fea_t, paddle.sqrt(mask_bg))
+        fea_t = torch.multiply(tea_feature, tea_spatial_att.sqrt())
+        fea_t = torch.multiply(fea_t, tea_channel_att.sqrt())
+        fg_fea_t = torch.multiply(fea_t, mask_fg.sqrt())
+        bg_fea_t = torch.multiply(fea_t, mask_bg.sqrt())
 
-        fea_s = paddle.multiply(stu_feature, paddle.sqrt(tea_spatial_att))
-        fea_s = paddle.multiply(fea_s, paddle.sqrt(tea_channel_att))
-        fg_fea_s = paddle.multiply(fea_s, paddle.sqrt(mask_fg))
-        bg_fea_s = paddle.multiply(fea_s, paddle.sqrt(mask_bg))
+        fea_s = torch.multiply(stu_feature, tea_spatial_att.sqrt())
+        fea_s = torch.multiply(fea_s, tea_channel_att.sqrt())
+        fg_fea_s = torch.multiply(fea_s, mask_fg.sqrt())
+        bg_fea_s = torch.multiply(fea_s, mask_bg.sqrt())
 
         fg_loss = F.mse_loss(fg_fea_s, fg_fea_t, reduction="sum") / len(mask_fg)
         bg_loss = F.mse_loss(bg_fea_s, bg_fea_t, reduction="sum") / len(mask_bg)
@@ -499,29 +464,19 @@ class FGDFeatureLoss(nn.Module):
         return rela_loss
 
     def mask_value(self, mask, xl, xr, yl, yr, value):
-        mask[xl:xr, yl:yr] = paddle.maximum(mask[xl:xr, yl:yr], value)
+        mask[xl:xr, yl:yr] = torch.maximum(mask[xl:xr, yl:yr], value)
         return mask
 
-    def forward(self, stu_feature, tea_feature, inputs):
+    def forward(self, stu_feature, tea_feature, im_shape, gt_bboxes, pad_gt_mask):
         assert stu_feature.shape[-2:] == stu_feature.shape[-2:]
-        assert "gt_bbox" in inputs.keys() and "im_shape" in inputs.keys()
-        gt_bboxes = inputs['gt_bbox']
-        ins_shape = [
-            inputs['im_shape'][i] for i in range(inputs['im_shape'].shape[0])
-        ]
-        index_gt = []
-        for i in range(len(gt_bboxes)):
-            if gt_bboxes[i].size > 2:
-                index_gt.append(i)
-        # only distill feature with labeled GTbox
-        if len(index_gt) != len(gt_bboxes):
-            index_gt_t = paddle.to_tensor(index_gt)
-            stu_feature = paddle.index_select(stu_feature, index_gt_t)
-            tea_feature = paddle.index_select(tea_feature, index_gt_t)
-
-            ins_shape = [ins_shape[c] for c in index_gt]
-            gt_bboxes = [gt_bboxes[c] for c in index_gt]
-            assert len(gt_bboxes) == tea_feature.shape[0]
+        # only distill feature with labeled GTbox  只对有gt的图片蒸馏
+        num_boxes = pad_gt_mask.sum([1, 2])
+        has_gt = num_boxes > 0.
+        stu_feature = stu_feature[has_gt]
+        tea_feature = tea_feature[has_gt]
+        gt_bboxes = gt_bboxes[has_gt]
+        # num_max_boxes = num_boxes.max().to(torch.int32)
+        # pad_gt_mask = pad_gt_mask[:, :num_max_boxes, :]
 
         if self.align is not None:
             stu_feature = self.align(stu_feature)
@@ -530,19 +485,20 @@ class FGDFeatureLoss(nn.Module):
             stu_feature = feature_norm(stu_feature)
             tea_feature = feature_norm(tea_feature)
 
-        tea_spatial_att, tea_channel_att = self.spatial_channel_attention(
-            tea_feature, self.temp)
-        stu_spatial_att, stu_channel_att = self.spatial_channel_attention(
-            stu_feature, self.temp)
+        tea_spatial_att, tea_channel_att = self.spatial_channel_attention(tea_feature, self.temp)
+        stu_spatial_att, stu_channel_att = self.spatial_channel_attention(stu_feature, self.temp)
 
-        mask_fg = paddle.zeros(tea_spatial_att.shape)
-        mask_bg = paddle.ones_like(tea_spatial_att)
-        one_tmp = paddle.ones([*tea_spatial_att.shape[1:]])
-        zero_tmp = paddle.zeros([*tea_spatial_att.shape[1:]])
-        mask_fg.stop_gradient = True
-        mask_bg.stop_gradient = True
-        one_tmp.stop_gradient = True
-        zero_tmp.stop_gradient = True
+        mask_fg = torch.zeros(tea_spatial_att.shape)
+        mask_bg = torch.ones_like(tea_spatial_att)
+        one_tmp = torch.ones([*tea_spatial_att.shape[1:]])
+        zero_tmp = torch.zeros([*tea_spatial_att.shape[1:]])
+        mask_fg.requires_grad = False
+        mask_bg.requires_grad = False
+        one_tmp.requires_grad = False
+        zero_tmp.requires_grad = False
+        mask_fg = mask_fg.to(tea_spatial_att.device)
+        one_tmp = one_tmp.to(tea_spatial_att.device)
+        zero_tmp = zero_tmp.to(tea_spatial_att.device)
 
         wmin, wmax, hmin, hmax = [], [], [], []
 
@@ -552,23 +508,21 @@ class FGDFeatureLoss(nn.Module):
 
         N, _, H, W = stu_feature.shape
         for i in range(N):
-            tmp_box = paddle.ones_like(gt_bboxes[i])
-            tmp_box.stop_gradient = True
-            tmp_box[:, 0] = gt_bboxes[i][:, 0] / ins_shape[i][1] * W
-            tmp_box[:, 2] = gt_bboxes[i][:, 2] / ins_shape[i][1] * W
-            tmp_box[:, 1] = gt_bboxes[i][:, 1] / ins_shape[i][0] * H
-            tmp_box[:, 3] = gt_bboxes[i][:, 3] / ins_shape[i][0] * H
+            tmp_box = torch.ones_like(gt_bboxes[i])
+            tmp_box.requires_grad = False
+            tmp_box[:, 0] = gt_bboxes[i][:, 0] / im_shape[1] * W
+            tmp_box[:, 2] = gt_bboxes[i][:, 2] / im_shape[1] * W
+            tmp_box[:, 1] = gt_bboxes[i][:, 1] / im_shape[0] * H
+            tmp_box[:, 3] = gt_bboxes[i][:, 3] / im_shape[0] * H
 
-            zero = paddle.zeros_like(tmp_box[:, 0], dtype="int32")
-            ones = paddle.ones_like(tmp_box[:, 2], dtype="int32")
-            zero.stop_gradient = True
-            ones.stop_gradient = True
-            wmin.append(
-                paddle.cast(paddle.floor(tmp_box[:, 0]), "int32").maximum(zero))
-            wmax.append(paddle.cast(paddle.ceil(tmp_box[:, 2]), "int32"))
-            hmin.append(
-                paddle.cast(paddle.floor(tmp_box[:, 1]), "int32").maximum(zero))
-            hmax.append(paddle.cast(paddle.ceil(tmp_box[:, 3]), "int32"))
+            zero = torch.zeros_like(tmp_box[:, 0], dtype=torch.int32)
+            ones = torch.ones_like(tmp_box[:, 2], dtype=torch.int32)
+            zero.requires_grad = False
+            ones.requires_grad = False
+            wmin.append(torch.maximum(zero, torch.floor(tmp_box[:, 0]).to(torch.int32)))
+            wmax.append(torch.ceil(tmp_box[:, 2]).to(torch.int32))
+            hmin.append(torch.maximum(zero, torch.floor(tmp_box[:, 1]).to(torch.int32)))
+            hmax.append(torch.ceil(tmp_box[:, 3]).to(torch.int32))
 
             area_recip = 1.0 / (
                     hmax[i].reshape([1, -1]) + 1 - hmin[i].reshape([1, -1])) / (
@@ -580,10 +534,10 @@ class FGDFeatureLoss(nn.Module):
                         mask_fg[i], hmin[i][j], hmax[i][j] + 1, wmin[i][j],
                                                 wmax[i][j] + 1, area_recip[0][j])
 
-            mask_bg[i] = paddle.where(mask_fg[i] > zero_tmp, zero_tmp, one_tmp)
+            mask_bg[i] = torch.where(mask_fg[i] > zero_tmp, zero_tmp, one_tmp)
 
-            if paddle.sum(mask_bg[i]):
-                mask_bg[i] /= paddle.sum(mask_bg[i])
+            if torch.sum(mask_bg[i]):
+                mask_bg[i] /= torch.sum(mask_bg[i])
 
         fg_loss, bg_loss = self.feature_loss(stu_feature, tea_feature, mask_fg,
                                              mask_bg, tea_channel_att,
@@ -605,7 +559,7 @@ class SSIM(nn.Module):
         self.window = self.create_window(window_size, self.channel)
 
     def gaussian(self, window_size, sigma):
-        gauss = paddle.to_tensor([
+        gauss = torch.Tensor([
             math.exp(-(x - window_size // 2) ** 2 / float(2 * sigma ** 2))
             for x in range(window_size)
         ])

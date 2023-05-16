@@ -420,14 +420,6 @@ class PicoHeadV2(GFLHead):
         gt_scores = gt_meta['gt_score'] if 'gt_score' in gt_meta else None
         num_imgs = gt_meta['gt_class'].shape[0]
         pad_gt_mask = gt_meta['pad_gt_mask']  # [N, 200, 1]
-        # miemie2013: 剪掉填充的gt
-        num_boxes = pad_gt_mask.sum([1, 2])
-        num_max_boxes = num_boxes.max().to(torch.int32)
-        pad_gt_mask = pad_gt_mask[:, :num_max_boxes, :]
-        gt_labels = gt_labels[:, :num_max_boxes, :]
-        gt_bboxes = gt_bboxes[:, :num_max_boxes, :]
-        if gt_scores:
-            gt_scores = gt_scores[:, :num_max_boxes, :]
 
         # anchors              [A, 4]  先验框左上角坐标、右下角坐标；单位是像素
         # _                    [A, 2]  格子中心点坐标（单位是像素）

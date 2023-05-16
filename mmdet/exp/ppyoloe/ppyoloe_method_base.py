@@ -150,6 +150,8 @@ class PPYOLOE_Method_Exp(COCOBaseExp):
             nms_top_k=1000,
             keep_top_k=100,
         )
+        self.for_distill = False
+        self.feat_distill_place = 'neck_feats'
 
         # ---------------- 预处理相关 ---------------- #
         self.context = {'fields': ['image', 'gt_bbox', 'gt_class', 'gt_score']}
@@ -233,8 +235,8 @@ class PPYOLOE_Method_Exp(COCOBaseExp):
             fpn = Fpn(**self.fpn)
             static_assigner = ATSSAssigner(**self.static_assigner)
             assigner = TaskAlignedAssigner(**self.assigner)
-            head = PPYOLOEHead(static_assigner=static_assigner, assigner=assigner, nms_cfg=self.nms_cfg, **self.head)
-            self.model = PPYOLOE(backbone, fpn, head)
+            head = PPYOLOEHead(static_assigner=static_assigner, assigner=assigner, for_distill=self.for_distill, nms_cfg=self.nms_cfg, **self.head)
+            self.model = PPYOLOE(backbone, fpn, head, self.for_distill, self.feat_distill_place)
         return self.model
 
     def get_distill_loss(self):

@@ -110,7 +110,8 @@ class PPYOLOEHead(nn.Module):
                  },
                  trt=False,
                  nms_cfg=None,
-                 exclude_nms=False):
+                 exclude_nms=False,
+                 for_distill=False):
         super(PPYOLOEHead, self).__init__()
         assert len(in_channels) > 0, "len(in_channels) should > 0"
         self.in_channels = in_channels
@@ -132,6 +133,10 @@ class PPYOLOEHead(nn.Module):
         #     self.nms.trt = trt
         self.exclude_nms = exclude_nms
         self.nms_cfg = nms_cfg
+        self.is_teacher = False
+        self.for_distill = for_distill
+        if self.for_distill:
+            self.distill_pairs = {}
         # stem
         self.stem_cls = nn.ModuleList()
         self.stem_reg = nn.ModuleList()
@@ -348,7 +353,7 @@ class PPYOLOEHead(nn.Module):
         assert len(feats) == len(self.fpn_strides), \
             "The size of feats is not equal to size of fpn_strides"
 
-        if self.training:
+        if self.training or self.is_teacher:
             return self.forward_train(feats, targets)
         else:
             return self.forward_eval(feats)
@@ -425,6 +430,9 @@ class PPYOLOEHead(nn.Module):
                    assigned_bboxes, assigned_scores, assigned_scores_sum):
         # select positive samples mask
         mask_positive = (assigned_labels != self.num_classes)
+        if self.for_distill:
+            # only used for LD main_kd distill
+            self.distill_pairs['mask_positive_select'] = mask_positive
         num_pos = mask_positive.sum()
         # pos/neg loss
         if num_pos > 0:
@@ -453,6 +461,10 @@ class PPYOLOEHead(nn.Module):
             loss_dfl = self._df_loss(pred_dist_pos,
                                      assigned_ltrb_pos) * bbox_weight
             loss_dfl = loss_dfl.sum() / assigned_scores_sum
+            if self.for_distill:
+                self.distill_pairs['pred_bboxes_pos'] = pred_bboxes_pos
+                self.distill_pairs['pred_dist_pos'] = pred_dist_pos
+                self.distill_pairs['bbox_weight'] = bbox_weight
         else:
             loss_l1 = torch.zeros([]).to(pred_dist.device)
             loss_iou = torch.zeros([]).to(pred_dist.device)
@@ -478,16 +490,9 @@ class PPYOLOEHead(nn.Module):
         gt_bboxes = gt_meta['gt_bbox']
         pad_gt_mask = gt_meta['pad_gt_mask']
 
-        # miemie2013: 剪掉填充的gt
-        num_boxes = pad_gt_mask.sum([1, 2])
-        num_max_boxes = num_boxes.max().to(torch.int32)
-        pad_gt_mask = pad_gt_mask[:, :num_max_boxes, :]
-        gt_labels = gt_labels[:, :num_max_boxes, :]
-        gt_bboxes = gt_bboxes[:, :num_max_boxes, :]
-
         # label assignment
         if gt_meta['epoch_id'] < self.static_assigner_epoch:
-            assigned_labels, assigned_bboxes, assigned_scores, _ = \
+            assigned_labels, assigned_bboxes, assigned_scores, mask_positive = \
                 self.static_assigner(
                     anchors,
                     num_anchors_list,
@@ -507,25 +512,46 @@ class PPYOLOEHead(nn.Module):
             # assigned_scores = torch.Tensor(dic['assigned_scores']).to(torch.float32)
             # print()
         else:
-            assigned_labels, assigned_bboxes, assigned_scores, _ = \
-                self.assigner(
-                pred_scores.detach(),
-                pred_bboxes.detach() * stride_tensor,
-                anchor_points,
-                num_anchors_list,
-                gt_labels,
-                gt_bboxes,
-                pad_gt_mask,
-                bg_index=self.num_classes)
+            if not hasattr(self, "assigned_labels"):
+                assigned_labels, assigned_bboxes, assigned_scores, mask_positive = \
+                    self.assigner(
+                        pred_scores.detach(),
+                        pred_bboxes.detach() * stride_tensor,
+                        anchor_points,
+                        num_anchors_list,
+                        gt_labels,
+                        gt_bboxes,
+                        pad_gt_mask,
+                        bg_index=self.num_classes)
+                if self.for_distill:
+                    self.assigned_labels = assigned_labels
+                    self.assigned_bboxes = assigned_bboxes
+                    self.assigned_scores = assigned_scores
+                    self.mask_positive = mask_positive
+            else:
+                # only used in distill
+                assigned_labels = self.assigned_labels
+                assigned_bboxes = self.assigned_bboxes
+                assigned_scores = self.assigned_scores
+                mask_positive = self.mask_positive
             alpha_l = -1
         # rescale bbox
         assigned_bboxes /= stride_tensor
+
+        assign_out_dict = self.get_loss_from_assign(
+            pred_scores, pred_distri, pred_bboxes, anchor_points_s,
+            assigned_labels, assigned_bboxes, assigned_scores, mask_positive,
+            alpha_l)
+
+        return assign_out_dict
+
+    def get_loss_from_assign(self, pred_scores, pred_distri, pred_bboxes,
+                             anchor_points_s, assigned_labels, assigned_bboxes,
+                             assigned_scores, mask_positive, alpha_l):
         # cls loss
         if self.use_varifocal_loss:
-            one_hot_label = F.one_hot(assigned_labels,
-                                      self.num_classes + 1)[..., :-1]
-            loss_cls = self._varifocal_loss(pred_scores, assigned_scores,
-                                            one_hot_label)
+            one_hot_label = F.one_hot(assigned_labels, self.num_classes + 1)[..., :-1]
+            loss_cls = self._varifocal_loss(pred_scores, assigned_scores, one_hot_label)
         else:
             loss_cls = self._focal_loss(pred_scores, assigned_scores, alpha_l)
 
@@ -538,11 +564,18 @@ class PPYOLOEHead(nn.Module):
         assigned_scores_sum = torch.clamp(assigned_scores_sum, min=1.)  # y = max(x, 1)
         loss_cls /= assigned_scores_sum
 
+        if self.for_distill:
+            self.distill_pairs['pred_cls_scores'] = pred_scores
+            self.distill_pairs['pos_num'] = assigned_scores_sum
+            self.distill_pairs['assigned_scores'] = assigned_scores
+            self.distill_pairs['mask_positive'] = mask_positive
+            one_hot_label = F.one_hot(assigned_labels, self.num_classes + 1)[..., :-1]
+            self.distill_pairs['target_labels'] = one_hot_label
+
         loss_l1, loss_iou, loss_dfl = \
             self._bbox_loss(pred_distri, pred_bboxes, anchor_points_s,
                             assigned_labels, assigned_bboxes, assigned_scores,
                             assigned_scores_sum)
-
         loss = self.loss_weight['class'] * loss_cls + \
                self.loss_weight['iou'] * loss_iou + \
                self.loss_weight['dfl'] * loss_dfl

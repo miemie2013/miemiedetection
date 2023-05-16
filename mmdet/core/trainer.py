@@ -291,6 +291,14 @@ class Trainer:
             gt_class = gt_class.to(self.data_type)
             gt_bbox = gt_bbox.to(self.data_type)
             pad_gt_mask = pad_gt_mask.to(self.data_type)
+
+            # miemie2013: 剪掉填充的gt
+            num_boxes = pad_gt_mask.sum([1, 2])
+            num_max_boxes = num_boxes.max().to(torch.int32)
+            pad_gt_mask = pad_gt_mask[:, :num_max_boxes, :]
+            gt_class = gt_class[:, :num_max_boxes, :]
+            gt_bbox = gt_bbox[:, :num_max_boxes, :]
+
             # inps = inps.cpu()
             # gt_class = gt_class.cpu()
             # gt_bbox = gt_bbox.cpu()
@@ -440,17 +448,21 @@ class Trainer:
             torch.backends.cuda.matmul.allow_tf32 = False  # Allow PyTorch to internally use tf32 for matmul
             torch.backends.cudnn.allow_tf32 = False  # Allow PyTorch to internally use tf32 for convolutions
 
-        model = self.exp.get_model()
-        logger.info("Model Summary: {}".format(get_model_info(self.archi_name, model, self.exp.test_size)))
-        model.to(self.device)
         slim_model = None
         distill_loss = None
         if self.slim_exp:
+            self.exp.for_distill = self.slim_exp.for_distill
+            self.exp.feat_distill_place = self.slim_exp.feat_distill_place
             self.exp.__delattr__('slim_exp')
             slim_model = self.slim_exp.get_model()
             slim_model.to(self.device)
+            slim_model.is_teacher = True
+            slim_model.yolo_head.is_teacher = True
             distill_loss = self.slim_exp.get_distill_loss()
             distill_loss.to(self.device)
+        model = self.exp.get_model()
+        logger.info("Model Summary: {}".format(get_model_info(self.archi_name, model, self.exp.test_size)))
+        model.to(self.device)
 
         # 是否进行梯度裁剪
         self.need_clip = False
@@ -654,6 +666,11 @@ class Trainer:
 
         self.model = model
         self.model.train()
+        if self.slim_exp:
+            if self.is_distributed:
+                self.model.module.teacher_model.eval()   # 防止老师bn层的均值方差发生变化
+            else:
+                self.model.teacher_model.eval()   # 防止老师bn层的均值方差发生变化
 
         self.evaluator = self.exp.get_evaluator(
             batch_size=self.args.eval_batch_size, is_distributed=self.is_distributed
@@ -841,9 +858,9 @@ class Trainer:
             elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'SOLO', 'FCOS']:
                 cur_weight = copy.deepcopy(self.model.state_dict())
                 if self.is_distributed:
-                    self.model.module.load_state_dict(self.ema_model.apply())
+                    self.model.module.load_state_dict(self.ema_model.apply(), strict=False)
                 else:
-                    self.model.load_state_dict(self.ema_model.apply())
+                    self.model.load_state_dict(self.ema_model.apply(), strict=False)
                 evalmodel = self.model
                 if is_parallel(evalmodel):
                     evalmodel = evalmodel.module
@@ -858,6 +875,11 @@ class Trainer:
             evalmodel, self.evaluator, self.is_distributed
         )
         self.model.train()
+        if self.slim_exp:
+            if self.is_distributed:
+                self.model.module.teacher_model.eval()   # 防止老师bn层的均值方差发生变化
+            else:
+                self.model.teacher_model.eval()   # 防止老师bn层的均值方差发生变化
         if self.use_model_ema:
             if self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'SOLO', 'FCOS']:
                 self.model.load_state_dict(cur_weight)
@@ -885,9 +907,9 @@ class Trainer:
                 if self.use_model_ema:
                     cur_weight = copy.deepcopy(self.model.state_dict())
                     if self.is_distributed:
-                        self.model.module.load_state_dict(self.ema_model.apply())
+                        self.model.module.load_state_dict(self.ema_model.apply(), strict=False)
                     else:
-                        self.model.load_state_dict(self.ema_model.apply())
+                        self.model.load_state_dict(self.ema_model.apply(), strict=False)
                 save_model = self.model
                 if is_parallel(save_model):
                     save_model = save_model.module

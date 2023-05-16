@@ -54,6 +54,7 @@ class Exp(PPYOLOEPlus_Method_Exp):
         self.static_assigner['num_classes'] = self.num_classes
 
         # distill config
+        self.for_distill = True
         self.distill_loss_cfg = dict(
             loss_weight={'logits': 4.0, 'feat': 1.0},
             logits_distill=True,
@@ -67,6 +68,7 @@ class Exp(PPYOLOEPlus_Method_Exp):
             student_width_mult=0.50,  # S
             feat_out_channels=[768, 384, 192],  # The actual channel will multiply width_mult
         )
+        self.feat_distill_place = self.distill_loss_cfg['feat_distill_place']
 
 
         # ---------------- dataloader config ---------------- #
