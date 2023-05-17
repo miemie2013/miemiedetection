@@ -134,6 +134,7 @@ class Trainer:
             self.before_iter()
             self.train_one_iter()
             self.after_iter()
+            # break
             # 对齐梯度用
             # if (self.iter + 1) == 10:
             #     if self.rank == 0:
@@ -916,6 +917,9 @@ class Trainer:
             else:
                 raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 
+            # 知识蒸馏时，只保存学生模型
+            if self.slim_exp:
+                save_model = save_model.student_model
             logger.info("Save weights to {}".format(self.file_name))
             ckpt_state = {
                 "start_epoch": self.epoch + 1,
