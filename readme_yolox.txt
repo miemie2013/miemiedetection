@@ -125,6 +125,8 @@ python tools/eval.py -f exps/yolox/yolox_s_voc2012.py -d 1 -b 8 -w 4 -c 16.pth -
 export CUDA_VISIBLE_DEVICES=0,1
 nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 -lrs 0.1 --fp16 -c yolox_s.pth     > yolox_s_simple.log 2>&1 &
 
+tensorboard --logdir=./YOLOX_outputs/
+
 (测速。极速体验。)
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 8 -b 64 -eb 64 -w 4 -ew 4 -lrs 0.1 --fp16 -c yolox_s.pth     > yolox_s_simple.log 2>&1 &
@@ -148,13 +150,15 @@ python tools/eval.py -f exps/yolox/yolox_s_simple_voc2012.py -d 1 -b 8 -w 4 -c 1
 python tools/demo.py image -f exps/yolox/yolox_s_simple_voc2012.py -c 16.pth --path assets/2008_000073.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
 
-实测 yolox_s_simple 的AP最后可以到达（head.use_batch_assign = False, 日志见 train_ppyolo_in_voc2012/yolox_s_simple_voc2012.txt ）
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.493
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.722
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.552
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.146
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.358
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.576
+实测 yolox_s_simple 的AP最后可以到达（head.use_batch_assign = False,
+日志见 train_ppyolo_in_voc2012/yolox_s_simple_voc2012.txt  这是在完全空闲的服务器，2卡4090测速）
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.495
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.724
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.551
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.160
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.354
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.579
+
 
 导出给私有仓库：
 python tools/convert_weights.py -f exps/yolox/yolox_s_simple_voc2012.py -c YOLOX_outputs/yolox_s_simple_voc2012/16.pth -oc new_16.pth -nc 20 -pp0

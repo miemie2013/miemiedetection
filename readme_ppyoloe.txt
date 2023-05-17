@@ -159,7 +159,9 @@ export CUDA_VISIBLE_DEVICES=0,1
 nohup python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 2 -b 16 -eb 8 -w 4 -ew 4 -lrs 1.0 -c ppyoloe_plus_crn_s_80e_coco.pth     > ppyoloe_plus_s_from_coco.log 2>&1 &
 
 实测 ppyoloe_plus_s_from_coco 的AP(0.50:0.95)可以到达0.62+、AP(0.50)可以到达0.81+、AP(small)可以到达0.22+。
-日志见 train_ppyolo_in_voc2012/mmdet_ppyoloe_plus_s_from_obj365(to_coco)_2gpu.txt
+日志见(这是在完全空闲的服务器，2卡4090测速) train_ppyolo_in_voc2012/mmdet_ppyoloe_plus_s_from_obj365(to_coco)_2gpu.txt
+
+tensorboard --logdir=./PPYOLOEPlus_outputs/
 
 
 - - - - - - -
