@@ -180,4 +180,19 @@ cp ./ou*/yo*/25000.pdopt ./25000.pdopt
 zip -r a.zip ./weights
 
 
+9.安装 Anaconda3
+sh Anaconda3-2023.03-Linux-x86_64.sh
+
+安装路径选择 ~/
+
+修改 ~/.bashrc 文件，最后几行添加环境变量
+export PYTHON_HOME=~/anaconda3
+export CUDA_HOME=/usr/local/cuda-11.3
+export PATH=${PYTHON_HOME}/bin:${CUDA_HOME}/bin:$PATH
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CUDA_HOME}/lib64
+
+使其生效
+source ~/.bashrc
+
+
 
