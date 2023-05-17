@@ -95,12 +95,16 @@ class PPdetModelEMA(object):
         self.epoch = 0
         self.decay = decay
         self.state_dict = dict()
+        find_teacher = False
         model_real = model.module if is_parallel(model) else model
         for k, v in model_real.state_dict().items():   # bn层的均值、方差也会参与ema
             if '.num_batches_tracked' in k:
                 continue
             if k.startswith('teacher_model.'):
-                logger.info("skip teacher weight '%s'" % k)
+                if not find_teacher:
+                    find_teacher = True
+                    logger.info("When distillation, EMA skip teacher weights!!!")
+                # logger.info("When distillation, EMA skip teacher weight '%s'" % k)
                 continue
             self.state_dict[k] = torch.zeros_like(v)
             self.state_dict[k].requires_grad_(False)

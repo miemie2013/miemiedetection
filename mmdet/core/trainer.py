@@ -531,7 +531,7 @@ class Trainer:
             self.optimizer = self.exp.get_optimizer(self.args.batch_size, param_groups, momentum=momentum, weight_decay=base_wd)
 
             # value of epoch will be set in `resume_train`
-            model = self.resume_train(model)
+            model = self.resume_train(model, distill_loss)
             if self.slim_exp:
                 slim_model = self.resume_slim_model(slim_model)
                 model = PPYOLOEDistillModel(model, slim_model, distill_loss)
@@ -771,7 +771,7 @@ class Trainer:
                 ["{}: {:.3f}s".format(k, v.avg) for k, v in time_meter.items()]
             )
 
-            log_msg = "{}, mem: {:.0f}Mb, {}, {}, lr: {:.6f}".format(progress_str, gpu_mem_usage(), time_str, loss_str, self.meter["lr"].latest, )
+            log_msg = "{}, lr: {:.6f}, mem: {:.0f}Mb, {}, {}".format(progress_str, self.meter["lr"].latest, gpu_mem_usage(), time_str, loss_str, )
             if self.archi_name == 'YOLOX':
                 log_msg += (", size: {:d}, {}".format(self.input_size[0], eta_str))
             elif self.archi_name == 'PPYOLO':
@@ -812,7 +812,7 @@ class Trainer:
     def progress_in_iter(self):
         return self.epoch * self.max_iter + self.iter
 
-    def resume_train(self, model):
+    def resume_train(self, model, distill_loss=None):
         if self.args.resume:
             logger.info("resume training")
             if self.args.ckpt is None:
@@ -825,6 +825,9 @@ class Trainer:
             ckpt = torch.load(ckpt_file, map_location=self.device)
             # resume the model/optimizer state dict
             model.load_state_dict(ckpt["model"])
+            if distill_loss and "distill_loss" in ckpt.keys():
+                logger.info("resume distill_loss weights!!!")
+                distill_loss.load_state_dict(ckpt["distill_loss"])
             self.optimizer.load_state_dict(ckpt["optimizer"])
             # resume the training states variables
             start_epoch = ckpt["start_epoch"]
@@ -917,15 +920,17 @@ class Trainer:
             else:
                 raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 
-            # 知识蒸馏时，只保存学生模型
-            if self.slim_exp:
-                save_model = save_model.student_model
             logger.info("Save weights to {}".format(self.file_name))
             ckpt_state = {
                 "start_epoch": self.epoch + 1,
-                "model": save_model.state_dict(),
                 "optimizer": self.optimizer.state_dict(),
             }
+            # 知识蒸馏时，只保存 学生模型 和 distill_loss
+            if self.slim_exp:
+                ckpt_state["model"] = save_model.student_model.state_dict()
+                ckpt_state["distill_loss"] = save_model.distill_loss.state_dict()
+            else:
+                ckpt_state["model"] = save_model.state_dict()
             save_checkpoint(
                 ckpt_state,
                 update_best_ckpt,

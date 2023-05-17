@@ -215,6 +215,10 @@ nohup python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_l_voc2012.py -
 export CUDA_VISIBLE_DEVICES=0,1
 nohup python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 2 -b 16 -eb 8 -w 4 -ew 4 -lrs 1.0 -c ppyoloe_plus_crn_s_80e_coco.pth -sf exps/slim/distill/ppyoloe_plus_crn_l_voc2012_l2s.py -sc PPYOLOEPlus_outputs/ppyoloe_plus_crn_l_voc2012/16.pth     > ppyoloe_plus_s_from_coco.log 2>&1 &
 
+恢复训练:
+nohup python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 2 -b 16 -eb 8 -w 4 -ew 4 -lrs 1.0 -c 7.pth --resume -sf exps/slim/distill/ppyoloe_plus_crn_l_voc2012_l2s.py -sc PPYOLOEPlus_outputs/ppyoloe_plus_crn_l_voc2012/16.pth     > ppyoloe_plus_s_from_coco.log 2>&1 &
+
+
 (单卡调试)
 python tools/train.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_voc2012.py -d 1 -b 4 -eb 4 -w 1 -ew 1 -lrs 1.0 -c ppyoloe_plus_crn_s_80e_coco.pth -sf exps/slim/distill/ppyoloe_plus_crn_l_voc2012_l2s.py -sc PPYOLOEPlus_outputs/ppyoloe_plus_crn_l_voc2012/16.pth
 
