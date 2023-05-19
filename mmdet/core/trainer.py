@@ -111,53 +111,20 @@ class Trainer:
 
     def train_in_epoch(self):
         for self.epoch in range(self.start_epoch, self.max_epoch):
-            # if self.save_npz:
-            #     if self.rank == 0:
-            #         self.save_ckpt(ckpt_name="000")
             self.before_epoch()
             train_start = time.time()
             self.train_in_iter()
             if self.rank == 0:
                 cost = time.time() - train_start
                 logger.info('Train epoch %d cost time: %.1f s.' % (self.epoch + 1, cost))
-            # if self.save_npz:
-            #     break
-            # else:
-            #     break
             self.after_epoch()
 
     def train_in_iter(self):
-        # 验证每个epoch图片是否被打乱，和多尺度训练的情况
-        # self.epoch_im_ids = []
-        # self.random_sizes = []
         for self.iter in range(self.max_iter):
             self.before_iter()
             self.train_one_iter()
             self.after_iter()
             # break
-            # 对齐梯度用
-            # if (self.iter + 1) == 10:
-            #     if self.rank == 0:
-            #         self.save_ckpt(ckpt_name="%d" % (self.epoch + 1))
-            #     break
-            # if self.save_npz:
-            #     if (self.iter + 1) == 10:
-            #         if self.rank == 0:
-            #             self.save_ckpt(ckpt_name="%d__" % (self.epoch + 1))
-            #         break
-            # else:
-            #     if (self.iter + 1) == 10:
-            #         if self.rank == 0:
-            #             self.save_ckpt(ckpt_name="%d" % (self.epoch + 1))
-            #         break
-        # print(self.epoch_im_ids[:32])
-        # print(self.random_sizes[:32])
-        # print(self.epoch_im_ids)
-        # print(self.random_sizes)
-        # aaaaaaaaa = set(self.epoch_im_ids)
-        # print(len(aaaaaaaaa))
-        # print(len(self.epoch_im_ids))
-        # print()
 
     def train_one_iter(self):
         iter_start_time = time.time()
@@ -177,70 +144,8 @@ class Trainer:
         elif self.archi_name == 'PPYOLO':
             if self.n_layers == 3:
                 inps, gt_bbox, target0, target1, target2, im_ids = self.prefetcher.next()
-                # if self.align_grad:
-                #     print('======================== batch%.5d.npz ========================' % batch_idx)
-                #     npz_path = 'batch%.5d_rank%.2d.npz'%(batch_idx, rank)
-                #     import sys
-                #     isDebug = True if sys.gettrace() else False
-                #     if isDebug:
-                #         npz_path = '../batch%.5d_rank%.2d.npz'%(batch_idx, rank)
-                #     dic = np.load(npz_path)
-                #     device = self.device
-                #     inps = torch.Tensor(dic['image']).to(device).to(torch.float32)
-                #     gt_bbox = torch.Tensor(dic['gt_bbox']).to(device).to(torch.float32)
-                #     target0 = torch.Tensor(dic['target0']).to(device).to(torch.float32)
-                #     target1 = torch.Tensor(dic['target1']).to(device).to(torch.float32)
-                #     target2 = torch.Tensor(dic['target2']).to(device).to(torch.float32)
-                # if self.save_npz:
-                #     print('======================== batch%.5d.npz ========================' % batch_idx)
-                #     save_npz_name = 'batch%.5d_rank%.2d'%(batch_idx, rank)
-                #     dic = {}
-                #     dic['image'] = inps.cpu().detach().numpy()
-                #     dic['gt_bbox'] = gt_bbox.cpu().detach().numpy()
-                #     dic['target0'] = target0.cpu().detach().numpy()
-                #     dic['target1'] = target1.cpu().detach().numpy()
-                #     dic['target2'] = target2.cpu().detach().numpy()
-                # else:
-                #     print('======================== batch%.5d.npz ========================' % batch_idx)
-                #     npz_path = 'batch%.5d_rank%.2d.npz'%(batch_idx, rank)
-                #     import sys
-                #     isDebug = True if sys.gettrace() else False
-                #     if isDebug:
-                #         npz_path = '../batch%.5d_rank%.2d.npz'%(batch_idx, rank)
-                #     dic = np.load(npz_path)
-                #     device = self.device
-                #     inps = torch.Tensor(dic['image']).to(device).to(torch.float32)
-                #     gt_bbox = torch.Tensor(dic['gt_bbox']).to(device).to(torch.float32)
-                #     target0 = torch.Tensor(dic['target0']).to(device).to(torch.float32)
-                #     target1 = torch.Tensor(dic['target1']).to(device).to(torch.float32)
-                #     target2 = torch.Tensor(dic['target2']).to(device).to(torch.float32)
-                # if self.align_2gpu_1gpu:
-                #     npz_path = 'batch%.5d_rank%.2d.npz'%(batch_idx, 1)
-                #     if isDebug:
-                #         npz_path = '../batch%.5d_rank%.2d.npz'%(batch_idx, 1)
-                #     dic222 = np.load(npz_path)
-                #     keys = dic.keys()
-                #     dic222222222 = {}
-                #     for key in keys:
-                #         v1 = dic[key]
-                #         v2 = dic222[key]
-                #         if 'loss_' in key:
-                #             v3 = (v1 + v2) / 2.
-                #         else:
-                #             v3 = np.concatenate([v1, v2], 0)
-                #         dic222222222[key] = v3
-                #     print()
-                #     dic = dic222222222
-                #     device = self.device
-                #     inps = torch.Tensor(dic['image']).to(device).to(torch.float32)
-                #     gt_bbox = torch.Tensor(dic['gt_bbox']).to(device).to(torch.float32)
-                #     target0 = torch.Tensor(dic['target0']).to(device).to(torch.float32)
-                #     target1 = torch.Tensor(dic['target1']).to(device).to(torch.float32)
-                #     target2 = torch.Tensor(dic['target2']).to(device).to(torch.float32)
             elif self.n_layers == 2:
                 inps, gt_bbox, target0, target1, im_ids = self.prefetcher.next()
-            # self.epoch_im_ids += im_ids.reshape((-1,)).cpu().detach().numpy().astype(np.int32).tolist()
-            # self.random_sizes.append(inps.shape[2])
             inps = inps.to(self.data_type)
             gt_bbox = gt_bbox.to(self.data_type)
             target0 = target0.to(self.data_type)
@@ -264,28 +169,6 @@ class Trainer:
                 获得损失（训练）、推理 都要放在forward()中进行，否则DDP会计算错误结果。
                 '''
                 outputs = self.model(inps, None, gt_bbox, targets)
-                # if self.align_grad:
-                #     print_diff(dic, 'loss_xy', outputs['loss_xy'])
-                #     print_diff(dic, 'loss_wh', outputs['loss_wh'])
-                #     print_diff(dic, 'loss_iou', outputs['loss_iou'])
-                #     print_diff(dic, 'loss_iou_aware', outputs['loss_iou_aware'])
-                #     print_diff(dic, 'loss_obj', outputs['loss_obj'])
-                #     print_diff(dic, 'loss_cls', outputs['loss_cls'])
-                # if self.save_npz:
-                #     dic['loss_xy'] = outputs['loss_xy'].cpu().detach().numpy()
-                #     dic['loss_wh'] = outputs['loss_wh'].cpu().detach().numpy()
-                #     dic['loss_iou'] = outputs['loss_iou'].cpu().detach().numpy()
-                #     dic['loss_iou_aware'] = outputs['loss_iou_aware'].cpu().detach().numpy()
-                #     dic['loss_obj'] = outputs['loss_obj'].cpu().detach().numpy()
-                #     dic['loss_cls'] = outputs['loss_cls'].cpu().detach().numpy()
-                #     np.savez(save_npz_name, **dic)
-                # else:
-                #     print_diff(dic, 'loss_xy', outputs['loss_xy'])
-                #     print_diff(dic, 'loss_wh', outputs['loss_wh'])
-                #     print_diff(dic, 'loss_iou', outputs['loss_iou'])
-                #     print_diff(dic, 'loss_iou_aware', outputs['loss_iou_aware'])
-                #     print_diff(dic, 'loss_obj', outputs['loss_obj'])
-                #     print_diff(dic, 'loss_cls', outputs['loss_cls'])
         elif self.archi_name in ['PPYOLOE', 'PicoDet']:
             inps, gt_class, gt_bbox, pad_gt_mask, im_ids = self.prefetcher.next()
             inps = inps.to(self.data_type)
@@ -299,11 +182,6 @@ class Trainer:
             pad_gt_mask = pad_gt_mask[:, :num_max_boxes, :]
             gt_class = gt_class[:, :num_max_boxes, :]
             gt_bbox = gt_bbox[:, :num_max_boxes, :]
-
-            # inps = inps.cpu()
-            # gt_class = gt_class.cpu()
-            # gt_bbox = gt_bbox.cpu()
-            # pad_gt_mask = pad_gt_mask.cpu()
             gt_class.requires_grad = False
             gt_bbox.requires_grad = False
             pad_gt_mask.requires_grad = False
@@ -330,55 +208,6 @@ class Trainer:
                 获得损失（训练）、推理 都要放在forward()中进行，否则DDP会计算错误结果。
                 '''
                 outputs = self.model(inps, None, None, labels, fg_nums)
-        elif self.archi_name == 'FCOS':
-            if self.n_layers == 5:
-                inps, labels0, reg_target0, centerness0, labels1, reg_target1, centerness1, labels2, reg_target2, centerness2, labels3, reg_target3, centerness3, labels4, reg_target4, centerness4 = self.prefetcher.next()
-            elif self.n_layers == 3:
-                inps, labels0, reg_target0, centerness0, labels1, reg_target1, centerness1, labels2, reg_target2, centerness2 = self.prefetcher.next()
-            inps = inps.to(self.data_type)
-            labels0 = labels0.to(self.data_type)
-            reg_target0 = reg_target0.to(self.data_type)
-            centerness0 = centerness0.to(self.data_type)
-            labels1 = labels1.to(self.data_type)
-            reg_target1 = reg_target1.to(self.data_type)
-            centerness1 = centerness1.to(self.data_type)
-            labels2 = labels2.to(self.data_type)
-            reg_target2 = reg_target2.to(self.data_type)
-            centerness2 = centerness2.to(self.data_type)
-            if self.n_layers == 5:
-                labels3 = labels3.to(self.data_type)
-                reg_target3 = reg_target3.to(self.data_type)
-                centerness3 = centerness3.to(self.data_type)
-                labels4 = labels4.to(self.data_type)
-                reg_target4 = reg_target4.to(self.data_type)
-                centerness4 = centerness4.to(self.data_type)
-                labels3.requires_grad = False
-                reg_target3.requires_grad = False
-                centerness3.requires_grad = False
-                labels4.requires_grad = False
-                reg_target4.requires_grad = False
-                centerness4.requires_grad = False
-            labels0.requires_grad = False
-            reg_target0.requires_grad = False
-            centerness0.requires_grad = False
-            labels1.requires_grad = False
-            reg_target1.requires_grad = False
-            centerness1.requires_grad = False
-            labels2.requires_grad = False
-            reg_target2.requires_grad = False
-            centerness2.requires_grad = False
-            data_end_time = time.time()
-
-            with torch.cuda.amp.autocast(enabled=self.amp_training):
-                if self.n_layers == 5:
-                    tag_labels = [labels0, labels1, labels2, labels3, labels4]
-                    tag_bboxes = [reg_target0, reg_target1, reg_target2, reg_target3, reg_target4]
-                    tag_center = [centerness0, centerness1, centerness2, centerness3, centerness4]
-                elif self.n_layers == 3:
-                    tag_labels = [labels0, labels1, labels2]
-                    tag_bboxes = [reg_target0, reg_target1, reg_target2]
-                    tag_center = [centerness0, centerness1, centerness2]
-                outputs = self.model.train_model(inps, tag_labels, tag_bboxes, tag_center)
         else:
             raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 
@@ -422,11 +251,6 @@ class Trainer:
             raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 
         iter_end_time = time.time()
-        # 删去所有loss的键值对，避免打印loss时出现None错误。
-        # if (self.iter + 1) % self.exp.print_interval == 0:
-        #     loss_meter = self.meter.get_filtered_meter("loss")
-        #     for key in loss_meter.keys():
-        #         del self.meter[key]
         self.meter.update(
             iter_time=iter_end_time - iter_start_time,
             data_time=data_end_time - iter_start_time,
