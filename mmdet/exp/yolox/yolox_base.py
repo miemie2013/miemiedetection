@@ -48,6 +48,7 @@ class YOLOXExp(COCOBaseExp):
         self.mixup_scale = (0.5, 1.5)
         self.shear = 2.0
         self.enable_mixup = True
+        self.torch_augment = False
 
         # --------------  training config --------------------- #
         self.warmup_epochs = 5
@@ -103,6 +104,7 @@ class YOLOXExp(COCOBaseExp):
         self, batch_size, is_distributed, no_aug=False, cache_img=False
     ):
         from mmdet.data import (
+            SimpleCOCODataset,
             COCODataset,
             TrainTransform,
             YoloBatchSampler,
@@ -117,38 +119,48 @@ class YOLOXExp(COCOBaseExp):
         )
 
         local_rank = get_local_rank()
+        if self.torch_augment:
+            with wait_for_the_master(local_rank):
+                dataset = SimpleCOCODataset(
+                    data_dir=self.data_dir,
+                    json_file=self.train_ann,
+                    ann_folder=self.ann_folder,
+                    name=self.train_image_folder,
+                    img_size=self.input_size,
+                    max_labels=120,
+                )
+        else:
+            with wait_for_the_master(local_rank):
+                dataset = COCODataset(
+                    data_dir=self.data_dir,
+                    json_file=self.train_ann,
+                    ann_folder=self.ann_folder,
+                    name=self.train_image_folder,
+                    img_size=self.input_size,
+                    preproc=TrainTransform(
+                        max_labels=50,
+                        flip_prob=self.flip_prob,
+                        hsv_prob=self.hsv_prob),
+                    cache=cache_img,
+                )
 
-        with wait_for_the_master(local_rank):
-            dataset = COCODataset(
-                data_dir=self.data_dir,
-                json_file=self.train_ann,
-                ann_folder=self.ann_folder,
-                name=self.train_image_folder,
+            dataset = MosaicDetection(
+                dataset,
+                mosaic=not no_aug,
                 img_size=self.input_size,
                 preproc=TrainTransform(
-                    max_labels=50,
+                    max_labels=120,
                     flip_prob=self.flip_prob,
                     hsv_prob=self.hsv_prob),
-                cache=cache_img,
+                degrees=self.degrees,
+                translate=self.translate,
+                mosaic_scale=self.mosaic_scale,
+                mixup_scale=self.mixup_scale,
+                shear=self.shear,
+                enable_mixup=self.enable_mixup,
+                mosaic_prob=self.mosaic_prob,
+                mixup_prob=self.mixup_prob,
             )
-
-        dataset = MosaicDetection(
-            dataset,
-            mosaic=not no_aug,
-            img_size=self.input_size,
-            preproc=TrainTransform(
-                max_labels=120,
-                flip_prob=self.flip_prob,
-                hsv_prob=self.hsv_prob),
-            degrees=self.degrees,
-            translate=self.translate,
-            mosaic_scale=self.mosaic_scale,
-            mixup_scale=self.mixup_scale,
-            shear=self.shear,
-            enable_mixup=self.enable_mixup,
-            mosaic_prob=self.mosaic_prob,
-            mixup_prob=self.mixup_prob,
-        )
 
         self.dataset = dataset
 
@@ -157,21 +169,32 @@ class YOLOXExp(COCOBaseExp):
 
         sampler = InfiniteSampler(len(self.dataset), seed=self.seed if self.seed else 0)
 
-        batch_sampler = YoloBatchSampler(
-            sampler=sampler,
-            batch_size=batch_size,
-            drop_last=False,
-            mosaic=not no_aug,
-        )
+        if self.torch_augment:
+            batch_sampler = torch.utils.data.sampler.BatchSampler(
+                sampler=sampler,
+                batch_size=batch_size,
+                drop_last=True,
+            )
+            dataloader_kwargs = {"num_workers": self.data_num_workers, "pin_memory": True}
+            dataloader_kwargs["batch_sampler"] = batch_sampler
+            dataloader_kwargs["worker_init_fn"] = worker_init_reset_seed
+            train_loader = torch.utils.data.DataLoader(self.dataset, **dataloader_kwargs)
+        else:
+            batch_sampler = YoloBatchSampler(
+                sampler=sampler,
+                batch_size=batch_size,
+                drop_last=False,
+                mosaic=not no_aug,
+            )
 
-        dataloader_kwargs = {"num_workers": self.data_num_workers, "pin_memory": True}
-        dataloader_kwargs["batch_sampler"] = batch_sampler
+            dataloader_kwargs = {"num_workers": self.data_num_workers, "pin_memory": True}
+            dataloader_kwargs["batch_sampler"] = batch_sampler
 
-        # Make sure each process has different random seed, especially for 'fork' method.
-        # Check https://github.com/pytorch/pytorch/issues/63311 for more details.
-        dataloader_kwargs["worker_init_fn"] = worker_init_reset_seed
+            # Make sure each process has different random seed, especially for 'fork' method.
+            # Check https://github.com/pytorch/pytorch/issues/63311 for more details.
+            dataloader_kwargs["worker_init_fn"] = worker_init_reset_seed
 
-        train_loader = DataLoader(self.dataset, **dataloader_kwargs)
+            train_loader = DataLoader(self.dataset, **dataloader_kwargs)
 
         return train_loader
 

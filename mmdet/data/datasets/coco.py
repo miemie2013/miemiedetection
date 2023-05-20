@@ -16,6 +16,14 @@ from .. import RandomShapeSingle, YOLOXResizeImage
 from ..dataloading import get_yolox_datadir
 from .datasets_wrapper import Dataset
 
+def xyxy2cxcywh_(bboxes):
+    bboxes_ = np.copy(bboxes)
+    bboxes_[2] = bboxes_[2] - bboxes_[0]
+    bboxes_[3] = bboxes_[3] - bboxes_[1]
+    bboxes_[0] = bboxes_[0] + bboxes_[2] * 0.5
+    bboxes_[1] = bboxes_[1] + bboxes_[3] * 0.5
+    return bboxes_
+
 
 class COCODataset(Dataset):
     """
@@ -218,6 +226,112 @@ class COCODataset(Dataset):
 
         if self.preproc is not None:
             img, target = self.preproc(img, target, self.input_dim)
+        return img, target, img_info, img_id
+
+
+class SimpleCOCODataset(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        data_dir=None,
+        json_file="instances_train2017.json",
+        ann_folder="annotations",
+        name="train2017",
+        img_size=(416, 416),
+        max_labels=120,
+    ):
+        if data_dir is None:
+            data_dir = os.path.join(get_yolox_datadir(), "COCO")
+        self.data_dir = data_dir
+        self.json_file = json_file
+        self.ann_folder = ann_folder
+
+        self.coco = COCO(os.path.join(self.data_dir, self.ann_folder, self.json_file))
+        self.ids = self.coco.getImgIds()
+        self.class_ids = sorted(self.coco.getCatIds())
+        cats = self.coco.loadCats(self.coco.getCatIds())
+        self._classes = tuple([c["name"] for c in cats])
+        self.name = name
+        self.img_size = img_size
+        self.max_labels = max_labels
+        self.annotations = self._load_coco_annotations()
+
+    def __len__(self):
+        return len(self.ids)
+
+    def _load_coco_annotations(self):
+        return [self.load_anno_from_ids(_ids) for _ids in self.ids]
+
+    def load_anno_from_ids(self, id_):
+        im_ann = self.coco.loadImgs(id_)[0]
+        width = im_ann["width"]
+        height = im_ann["height"]
+        anno_ids = self.coco.getAnnIds(imgIds=[int(id_)], iscrowd=False)
+        annotations = self.coco.loadAnns(anno_ids)
+        objs = []
+        for obj in annotations:
+            x1 = np.max((0, obj["bbox"][0]))
+            y1 = np.max((0, obj["bbox"][1]))
+            x2 = np.min((width, x1 + np.max((0, obj["bbox"][2]))))
+            y2 = np.min((height, y1 + np.max((0, obj["bbox"][3]))))
+            if obj["area"] > 0 and x2 >= x1 and y2 >= y1:
+                obj["clean_bbox"] = [x1, y1, x2, y2]
+                objs.append(obj)
+
+        num_objs = len(objs)
+
+        res = np.zeros((num_objs, 5))
+
+        for ix, obj in enumerate(objs):
+            cls = self.class_ids.index(obj["category_id"])
+            res[ix, 1:5] = xyxy2cxcywh_(obj["clean_bbox"])
+            # res[ix, 1:5] = obj["clean_bbox"]
+            res[ix, 0] = cls
+
+        r = min(self.img_size[0] / height, self.img_size[1] / width)
+        res[:, 1:5] *= r
+
+        img_info = (height, width)
+        resized_info = (int(height * r), int(width * r))
+
+        file_name = (
+            im_ann["file_name"]
+            if "file_name" in im_ann
+            else "{:012}".format(id_) + ".jpg"
+        )
+
+        return (res, img_info, resized_info, file_name)
+
+    def pull_item(self, index):
+        id_ = self.ids[index]
+        # target.shape = [?, 5]   [cid cxcywh] format.
+        target, img_info, resized_info, _ = self.annotations[index]
+
+        file_name = self.annotations[index][3]
+        img_file = os.path.join(self.data_dir, self.name, file_name)
+        img = cv2.imread(img_file)
+        r = min(self.img_size[0] / img.shape[0], self.img_size[1] / img.shape[1])
+        resized_img = cv2.resize(
+            img,
+            (int(img.shape[1] * r), int(img.shape[0] * r)),
+            interpolation=cv2.INTER_LINEAR,
+        ).astype(np.uint8)
+
+        if len(resized_img.shape) == 3:
+            padded_img = np.ones((self.img_size[0], self.img_size[1], 3), dtype=np.uint8) * 114
+        else:
+            padded_img = np.ones(self.img_size, dtype=np.uint8) * 114
+        padded_img[: int(img.shape[0] * r), : int(img.shape[1] * r)] = resized_img
+        padded_img = padded_img.transpose((2, 0, 1))
+        padded_img = np.ascontiguousarray(padded_img, dtype=np.float32)
+
+        num_gt = len(target)
+        padded_labels = np.zeros((self.max_labels, 5))
+        padded_labels[:num_gt, :] = target
+        padded_labels = np.ascontiguousarray(padded_labels, dtype=np.float32)
+        return padded_img, padded_labels, img_info, np.array([id_])
+
+    def __getitem__(self, index):
+        img, target, img_info, img_id = self.pull_item(index)
         return img, target, img_info, img_id
 
 
