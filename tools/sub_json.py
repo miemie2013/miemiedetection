@@ -13,6 +13,7 @@ def make_parser():
     parser = argparse.ArgumentParser("MieMieDetection json tools")
     parser.add_argument("-j", "--json_path", default=None, type=str, help="json_path")
     parser.add_argument("-i", "--image_name", default=None, type=str, help="image_name")
+    parser.add_argument("-n", "--num_imgs", default=-1, type=int, help="num_imgs")
     parser.add_argument("-sj", "--save_json_path", default=None, type=str, help="save_json_path")
     return parser
 
@@ -30,12 +31,24 @@ def main(exp, args):
             new_images = []
             ids = []
             new_annotations = []
-            for img in images:
-                fn = img['file_name']
-                if fn == args.image_name:
+
+            # 只取1张图片
+            if args.image_name is not None:
+                for img in images:
+                    fn = img['file_name']
+                    print(fn)
+                    if fn == args.image_name:
+                        new_images.append(img)
+                        ids.append(img['id'])
+                        break
+            else:  # 只取 args.num_imgs 张图片
+                for img in images:
+                    fn = img['file_name']
+                    print(fn)
                     new_images.append(img)
                     ids.append(img['id'])
-                    break
+                    if args.num_imgs == len(ids):
+                        break
             for anno in annotations:
                 image_id = anno['image_id']
                 if image_id in ids:
@@ -55,6 +68,10 @@ def main(exp, args):
 python tools/sub_json.py -j ../COCO/annotations/instances_val2017.json -i 000000403385.jpg -sj instances_val2017_000000403385.json
 
 python tools/sub_json.py -j ../VOCdevkit/VOC2012/annotations2/voc2012_val.json -i 2008_000073.jpg -sj voc2012_val_2008_000073.json
+
+
+保存8张图片的json
+python tools/sub_json.py -j ../VOCdevkit/VOC2012/annotations2/voc2012_val.json -n 8 -sj voc2012_val8imgs.json
 
 
 '''

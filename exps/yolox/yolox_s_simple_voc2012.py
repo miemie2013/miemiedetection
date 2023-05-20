@@ -22,6 +22,7 @@ class Exp(YOLOXExp):
         self.cls_names = 'class_names/voc_classes.txt'
         self.ann_folder = "annotations2"
         self.train_ann = "voc2012_val2.json"
+        self.train_ann = "voc2012_val8imgs.json"
         self.val_ann = "voc2012_val2.json"
         self.train_ann = "voc2012_train.json"
         self.val_ann = "voc2012_val_2008_000073.json"
