@@ -109,155 +109,6 @@ class Trainer:
         finally:
             self.after_train()
 
-    def train_in_epoch(self):
-        for self.epoch in range(self.start_epoch, self.max_epoch):
-            self.before_epoch()
-            train_start = time.time()
-            self.train_in_iter()
-            if self.rank == 0:
-                cost = time.time() - train_start
-                logger.info('Train epoch %d cost time: %.1f s.' % (self.epoch + 1, cost))
-            self.after_epoch()
-
-    def train_in_iter(self):
-        for self.iter in range(self.max_iter):
-            self.before_iter()
-            self.train_one_iter()
-            self.after_iter()
-            # break
-
-    def train_one_iter(self):
-        iter_start_time = time.time()
-        batch_idx = self.iter
-        rank = self.rank
-
-        if self.archi_name == 'YOLOX':
-            inps, targets = self.prefetcher.next()
-            inps = inps.to(self.data_type)
-            targets = targets.to(self.data_type)
-            targets.requires_grad = False
-            inps, targets = self.exp.preprocess(inps, targets, self.input_size)
-            data_end_time = time.time()
-
-            with torch.cuda.amp.autocast(enabled=self.amp_training):
-                outputs = self.model(inps, targets)
-        elif self.archi_name == 'PPYOLO':
-            if self.n_layers == 3:
-                inps, gt_bbox, target0, target1, target2, im_ids = self.prefetcher.next()
-            elif self.n_layers == 2:
-                inps, gt_bbox, target0, target1, im_ids = self.prefetcher.next()
-            inps = inps.to(self.data_type)
-            gt_bbox = gt_bbox.to(self.data_type)
-            target0 = target0.to(self.data_type)
-            target1 = target1.to(self.data_type)
-            if self.n_layers == 3:
-                target2 = target2.to(self.data_type)
-                target2.requires_grad = False
-            gt_bbox.requires_grad = False
-            target0.requires_grad = False
-            target1.requires_grad = False
-            # 用张量操作实现预处理，因为DataLoader的collate_fn太费时了
-            # inps, targets = self.exp.preprocess(inps, targets, self.input_size)
-            data_end_time = time.time()
-
-            with torch.cuda.amp.autocast(enabled=self.amp_training):
-                if self.n_layers == 3:
-                    targets = [target0, target1, target2]
-                elif self.n_layers == 2:
-                    targets = [target0, target1]
-                '''
-                获得损失（训练）、推理 都要放在forward()中进行，否则DDP会计算错误结果。
-                '''
-                outputs = self.model(inps, None, gt_bbox, targets)
-        elif self.archi_name in ['PPYOLOE', 'PicoDet']:
-            inps, gt_class, gt_bbox, pad_gt_mask, im_ids = self.prefetcher.next()
-            inps = inps.to(self.data_type)
-            gt_class = gt_class.to(self.data_type)
-            gt_bbox = gt_bbox.to(self.data_type)
-            pad_gt_mask = pad_gt_mask.to(self.data_type)
-
-            # miemie2013: 剪掉填充的gt
-            num_boxes = pad_gt_mask.sum([1, 2])
-            num_max_boxes = num_boxes.max().to(torch.int32)
-            pad_gt_mask = pad_gt_mask[:, :num_max_boxes, :]
-            gt_class = gt_class[:, :num_max_boxes, :]
-            gt_bbox = gt_bbox[:, :num_max_boxes, :]
-            gt_class.requires_grad = False
-            gt_bbox.requires_grad = False
-            pad_gt_mask.requires_grad = False
-            data_end_time = time.time()
-
-            with torch.cuda.amp.autocast(enabled=self.amp_training):
-                targets = dict(
-                    gt_class=gt_class,
-                    gt_bbox=gt_bbox,
-                    pad_gt_mask=pad_gt_mask,
-                    epoch_id=self.epoch,
-                )
-                '''
-                获得损失（训练）、推理 都要放在forward()中进行，否则DDP会计算错误结果。
-                '''
-                outputs = self.model(inps, None, targets)
-        elif self.archi_name == 'SOLO':
-            inps, *labels, fg_nums, im_ids = self.prefetcher.next()
-            inps = inps.to(self.data_type)
-            data_end_time = time.time()
-
-            with torch.cuda.amp.autocast(enabled=self.amp_training):
-                '''
-                获得损失（训练）、推理 都要放在forward()中进行，否则DDP会计算错误结果。
-                '''
-                outputs = self.model(inps, None, None, labels, fg_nums)
-        else:
-            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
-
-
-        loss = outputs["total_loss"]
-
-        self.optimizer.zero_grad()
-        self.scaler.scale(loss).backward()
-        # 梯度裁剪
-        if self.need_clip:
-            for param_group in self.optimizer.param_groups:
-                if param_group['need_clip']:
-                    torch.nn.utils.clip_grad_norm_(param_group['params'], max_norm=param_group['clip_norm'], norm_type=2)
-        self.scaler.step(self.optimizer)
-        self.scaler.update()
-
-        if self.use_model_ema:
-            self.ema_model.update(self.model)
-
-        # 修改学习率
-        lr = self.lr_scheduler.update_lr(self.progress_in_iter + 1)
-        if self.archi_name == 'YOLOX':
-            for param_group in self.optimizer.param_groups:
-                param_group["lr"] = lr
-        elif self.archi_name == 'PicoDet':
-            for param_group in self.optimizer.param_groups:
-                param_group["lr"] = lr
-        elif self.archi_name == 'PPYOLO':
-            for param_group in self.optimizer.param_groups:
-                param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
-        elif self.archi_name == 'PPYOLOE':
-            for param_group in self.optimizer.param_groups:
-                param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
-        elif self.archi_name == 'SOLO':
-            for param_group in self.optimizer.param_groups:
-                param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
-        elif self.archi_name == 'FCOS':
-            for param_group in self.optimizer.param_groups:
-                param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
-        else:
-            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
-
-        iter_end_time = time.time()
-        self.meter.update(
-            iter_time=iter_end_time - iter_start_time,
-            data_time=data_end_time - iter_start_time,
-            lr=lr,
-            **outputs,
-        )
-
     def before_train(self):
         self.exp.data_num_workers = self.args.worker_num
         self.exp.eval_data_num_workers = self.args.eval_worker_num
@@ -520,9 +371,158 @@ class Trainer:
         logger.info('Trainable params: %s' % format(trainable_params, ","))
         logger.info('Non-trainable params: %s' % format(nontrainable_params, ","))
 
+    def train_in_epoch(self):
+        for self.epoch in range(self.start_epoch, self.max_epoch):
+            self.before_epoch()
+            train_start = time.time()
+            self.train_in_iter()
+            if self.rank == 0:
+                cost = time.time() - train_start
+                logger.info('Train epoch %d cost time: %.1f s.' % (self.epoch + 1, cost))
+            self.after_epoch()
+
     def after_train(self):
         logger.info(
             "Training of experiment is done and the best AP is {:.2f}".format(self.best_ap * 100)
+        )
+
+    def train_in_iter(self):
+        for self.iter in range(self.max_iter):
+            self.before_iter()
+            self.train_one_iter()
+            self.after_iter()
+            # break
+
+    def train_one_iter(self):
+        iter_start_time = time.time()
+        batch_idx = self.iter
+        rank = self.rank
+
+        if self.archi_name == 'YOLOX':
+            inps, targets = self.prefetcher.next()
+            inps = inps.to(self.data_type)
+            targets = targets.to(self.data_type)
+            targets.requires_grad = False
+            inps, targets = self.exp.preprocess(inps, targets, self.input_size)
+            data_end_time = time.time()
+
+            with torch.cuda.amp.autocast(enabled=self.amp_training):
+                outputs = self.model(inps, targets)
+        elif self.archi_name == 'PPYOLO':
+            if self.n_layers == 3:
+                inps, gt_bbox, target0, target1, target2, im_ids = self.prefetcher.next()
+            elif self.n_layers == 2:
+                inps, gt_bbox, target0, target1, im_ids = self.prefetcher.next()
+            inps = inps.to(self.data_type)
+            gt_bbox = gt_bbox.to(self.data_type)
+            target0 = target0.to(self.data_type)
+            target1 = target1.to(self.data_type)
+            if self.n_layers == 3:
+                target2 = target2.to(self.data_type)
+                target2.requires_grad = False
+            gt_bbox.requires_grad = False
+            target0.requires_grad = False
+            target1.requires_grad = False
+            # 用张量操作实现预处理，因为DataLoader的collate_fn太费时了
+            # inps, targets = self.exp.preprocess(inps, targets, self.input_size)
+            data_end_time = time.time()
+
+            with torch.cuda.amp.autocast(enabled=self.amp_training):
+                if self.n_layers == 3:
+                    targets = [target0, target1, target2]
+                elif self.n_layers == 2:
+                    targets = [target0, target1]
+                '''
+                获得损失（训练）、推理 都要放在forward()中进行，否则DDP会计算错误结果。
+                '''
+                outputs = self.model(inps, None, gt_bbox, targets)
+        elif self.archi_name in ['PPYOLOE', 'PicoDet']:
+            inps, gt_class, gt_bbox, pad_gt_mask, im_ids = self.prefetcher.next()
+            inps = inps.to(self.data_type)
+            gt_class = gt_class.to(self.data_type)
+            gt_bbox = gt_bbox.to(self.data_type)
+            pad_gt_mask = pad_gt_mask.to(self.data_type)
+
+            # miemie2013: 剪掉填充的gt
+            num_boxes = pad_gt_mask.sum([1, 2])
+            num_max_boxes = num_boxes.max().to(torch.int32)
+            pad_gt_mask = pad_gt_mask[:, :num_max_boxes, :]
+            gt_class = gt_class[:, :num_max_boxes, :]
+            gt_bbox = gt_bbox[:, :num_max_boxes, :]
+            gt_class.requires_grad = False
+            gt_bbox.requires_grad = False
+            pad_gt_mask.requires_grad = False
+            data_end_time = time.time()
+
+            with torch.cuda.amp.autocast(enabled=self.amp_training):
+                targets = dict(
+                    gt_class=gt_class,
+                    gt_bbox=gt_bbox,
+                    pad_gt_mask=pad_gt_mask,
+                    epoch_id=self.epoch,
+                )
+                '''
+                获得损失（训练）、推理 都要放在forward()中进行，否则DDP会计算错误结果。
+                '''
+                outputs = self.model(inps, None, targets)
+        elif self.archi_name == 'SOLO':
+            inps, *labels, fg_nums, im_ids = self.prefetcher.next()
+            inps = inps.to(self.data_type)
+            data_end_time = time.time()
+
+            with torch.cuda.amp.autocast(enabled=self.amp_training):
+                '''
+                获得损失（训练）、推理 都要放在forward()中进行，否则DDP会计算错误结果。
+                '''
+                outputs = self.model(inps, None, None, labels, fg_nums)
+        else:
+            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
+
+
+        loss = outputs["total_loss"]
+
+        self.optimizer.zero_grad()
+        self.scaler.scale(loss).backward()
+        # 梯度裁剪
+        if self.need_clip:
+            for param_group in self.optimizer.param_groups:
+                if param_group['need_clip']:
+                    torch.nn.utils.clip_grad_norm_(param_group['params'], max_norm=param_group['clip_norm'], norm_type=2)
+        self.scaler.step(self.optimizer)
+        self.scaler.update()
+
+        if self.use_model_ema:
+            self.ema_model.update(self.model)
+
+        # 修改学习率
+        lr = self.lr_scheduler.update_lr(self.progress_in_iter + 1)
+        if self.archi_name == 'YOLOX':
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = lr
+        elif self.archi_name == 'PicoDet':
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = lr
+        elif self.archi_name == 'PPYOLO':
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
+        elif self.archi_name == 'PPYOLOE':
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
+        elif self.archi_name == 'SOLO':
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
+        elif self.archi_name == 'FCOS':
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = lr * param_group['base_lr'] / self.base_lr   # = lr * 参数自己的学习率
+        else:
+            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
+
+        iter_end_time = time.time()
+        self.meter.update(
+            iter_time=iter_end_time - iter_start_time,
+            data_time=data_end_time - iter_start_time,
+            lr=lr,
+            **outputs,
         )
 
     def before_epoch(self):
