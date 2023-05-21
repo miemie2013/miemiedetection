@@ -13,12 +13,68 @@ import math
 import random
 
 import cv2
+import copy
 import numpy as np
 from loguru import logger
 from numbers import Number, Integral
 
 from mmdet.utils import xyxy2cxcywh
 
+
+def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
+                    mosaic_max_cached_images, mixup_max_cached_images, random_pop):
+    sample0 = dict(img=imgs, labels=targets)
+    mosaic_cache.append(sample0)
+    mixup_cache.append(copy.deepcopy(sample0))
+    if len(mosaic_cache) > mosaic_max_cached_images:
+        if random_pop:
+            index = random.randint(0, len(mosaic_cache) - 2)  # 原版是-1，小改动，肯定不会丢弃最后一张图片
+        else:
+            index = 0
+        mosaic_cache.pop(index)
+    if len(mixup_cache) > mixup_max_cached_images:
+        if random_pop:
+            index = random.randint(0, len(mixup_cache) - 2)  # 原版是-1，小改动，肯定不会丢弃最后一张图片
+        else:
+            index = 0
+        mixup_cache.pop(index)
+
+    if len(mosaic_cache) <= 4:
+        mosaic_samples = [copy.deepcopy(sample0) for _ in range(4)]
+        mixup_samples = [copy.deepcopy(sample0) for _ in range(1)]
+    else:
+        # get index of three other images
+        indexes = [np.random.randint(0, len(mosaic_cache)) for _ in range(3)]
+        mosaic_samples = [copy.deepcopy(mosaic_cache[i]) for i in indexes]
+        mosaic_samples = [copy.deepcopy(sample0)] + mosaic_samples
+        # get index of one other images
+        indexes = [np.random.randint(0, len(mixup_cache)) for _ in range(1)]
+        mixup_samples = [copy.deepcopy(mixup_cache[i]) for i in indexes]
+
+    imgs_ = mosaic_samples[1]['img']
+    targets_ = mosaic_samples[1]['labels']
+    dic = {}
+    dic['mosaic_samples_0_img'] = mosaic_samples[0]['img'].cpu().detach().numpy()
+    dic['mosaic_samples_0_labels'] = mosaic_samples[0]['labels'].cpu().detach().numpy()
+    dic['mosaic_samples_1_img'] = mosaic_samples[1]['img'].cpu().detach().numpy()
+    dic['mosaic_samples_1_labels'] = mosaic_samples[1]['labels'].cpu().detach().numpy()
+    dic['mosaic_samples_2_img'] = mosaic_samples[2]['img'].cpu().detach().numpy()
+    dic['mosaic_samples_2_labels'] = mosaic_samples[2]['labels'].cpu().detach().numpy()
+    dic['mosaic_samples_3_img'] = mosaic_samples[3]['img'].cpu().detach().numpy()
+    dic['mosaic_samples_3_labels'] = mosaic_samples[3]['labels'].cpu().detach().numpy()
+    dic['mixup_samples_0_img'] = mixup_samples[0]['img'].cpu().detach().numpy()
+    dic['mixup_samples_0_labels'] = mixup_samples[0]['labels'].cpu().detach().numpy()
+    np.savez('data', **dic)
+
+    # ---------------------- Mosaic ----------------------
+    N, C, input_h, input_w = imgs.shape
+
+    # yc, xc = s, s  # mosaic center x, y
+    yc = int(random.uniform(0.5 * input_h, 1.5 * input_h))
+    xc = int(random.uniform(0.5 * input_w, 1.5 * input_w))
+
+
+    return imgs_, targets_
 
 def augment_hsv(img, hgain=0.015, sgain=0.7, vgain=0.4):
     r = np.random.uniform(-1, 1, 3) * [hgain, sgain, vgain] + 1  # random gains

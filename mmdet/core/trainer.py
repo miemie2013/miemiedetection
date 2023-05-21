@@ -14,7 +14,7 @@ import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 
-from mmdet.data import DataPrefetcher, PPYOLODataPrefetcher, PPYOLOEDataPrefetcher, SOLODataPrefetcher
+from mmdet.data import DataPrefetcher, PPYOLODataPrefetcher, PPYOLOEDataPrefetcher, SOLODataPrefetcher, yolox_torch_aug
 from mmdet.data.data_prefetcher import FCOSDataPrefetcher
 from mmdet.slim import PPYOLOEDistillModel
 from mmdet.utils import (
@@ -58,7 +58,7 @@ class Trainer:
         self.scaler = torch.cuda.amp.GradScaler(enabled=args.fp16)
         self.is_distributed = get_world_size() > 1
         self.world_size = get_world_size()
-        self.rank = get_rank()
+        self.rank = get_rank()     # 单机2卡训练时，0号卡的rank==0, local_rank==0，1号卡的rank==1, local_rank==1
         self.local_rank = get_local_rank()
         self.device = "cuda:{}".format(self.local_rank)
         # self.device = "cpu"
@@ -159,6 +159,17 @@ class Trainer:
             )
             logger.info("init prefetcher, this might take one minute or less...")
             self.prefetcher = DataPrefetcher(self.train_loader)
+            if self.exp.torch_augment:
+                # Mosaic cache
+                self.mosaic_max_cached_images = 40
+                self.random_pop = self.exp.width > 0.4999  # ['s', 'm', 'l', 'x']
+                self.mosaic_cache = []
+                # Mixup cache
+                self.mixup_max_cached_images = 20
+                self.mixup_cache = []
+                if self.exp.width <= 0.4999:  # ['nano', 'tiny']
+                    self.mosaic_max_cached_images = self.mosaic_max_cached_images // 2
+                    self.mixup_max_cached_images = self.mixup_max_cached_images // 2
         elif self.archi_name == 'PPYOLO':
             # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
             self.base_lr = self.exp.basic_lr_per_img * self.args.batch_size
@@ -400,6 +411,20 @@ class Trainer:
 
         if self.archi_name == 'YOLOX':
             inps, targets = self.prefetcher.next()
+            if self.exp.torch_augment:
+                with torch.no_grad():
+                    inps, targets = yolox_torch_aug(inps, targets, self.mosaic_cache, self.mixup_cache,
+                                                    self.mosaic_max_cached_images, self.mixup_max_cached_images, self.random_pop)
+                # import cv2
+                # imgs = inps.permute((0, 2, 3, 1)).cpu().detach().numpy()
+                # img0 = imgs[0]
+                # img1 = imgs[1]
+                # cv2.imwrite("step%d_rank%d_0.jpg"%(self.progress_in_iter, self.rank), img0)
+                # cv2.imwrite("step%d_rank%d_1.jpg"%(self.progress_in_iter, self.rank), img1)
+                # targets_ = targets.cpu().detach().numpy()
+                # print("rank=%d, targets=%s"%(self.rank, targets_[:, :3, :]))
+            # logger.info(len(self.mosaic_cache))
+            # logger.info(len(self.mixup_cache))
             inps = inps.to(self.data_type)
             targets = targets.to(self.data_type)
             targets.requires_grad = False

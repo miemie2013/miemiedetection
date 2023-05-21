@@ -167,7 +167,7 @@ class YOLOXExp(COCOBaseExp):
         if is_distributed:
             batch_size = batch_size // dist.get_world_size()
 
-        sampler = InfiniteSampler(len(self.dataset), seed=self.seed if self.seed else 0)
+        sampler = InfiniteSampler(len(self.dataset), shuffle=True, seed=self.seed if self.seed else 0)
 
         if self.torch_augment:
             batch_sampler = torch.utils.data.sampler.BatchSampler(

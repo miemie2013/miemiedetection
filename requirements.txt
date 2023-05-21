@@ -1,4 +1,6 @@
-# TODO: Update with exact module version
+# pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+
 numpy
 Cython
 matplotlib==3.7.1
