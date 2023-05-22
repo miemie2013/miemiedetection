@@ -233,6 +233,8 @@ log*.txt
 *.param
 *.bin
 
+*.jpg
+
 wget-log
 
 !train_ppyolo_in_voc2012/*
