@@ -220,7 +220,7 @@ def rotate2d_matrix(theta, scale=1., **kwargs):
         [0,                0,                 1],
         **kwargs)
 
-def shear_matrix(theta1, theta2, **kwargs):
+def shear_matrix222(theta1, theta2, **kwargs):
     shear_matrix_ = matrix([1, torch.tan(-theta1), 0],
                            [torch.tan(-theta2), 1, 0],
                            [0,                  0, 1],
@@ -300,37 +300,41 @@ def random_perspective2(
     C = np.eye(3)
     C[0, 2] = -img.shape[1] / 2  # x translation (pixels)
     C[1, 2] = -img.shape[0] / 2  # y translation (pixels)
-    C2 = np.eye(3)
-    C2[0, 2] = img.shape[1] / 2  # x translation (pixels)
-    C2[1, 2] = img.shape[0] / 2  # y translation (pixels)
+
+    # translation_inverse_matrix = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    # 平移矩阵，往x轴正方向平移 -img.shape[1] / 2, 往y轴正方向平移 -img.shape[0] / 2, 即平移后图片中心位于坐标系原点O
+    x_translation = -img.shape[1] / 2
+    y_translation = -img.shape[0] / 2
+    translation_matrix = np.array([[1, 0, x_translation], [0, 1, y_translation], [0, 0, 1]])
+    # 平移矩阵逆矩阵, 对应着逆变换
+    translation_inverse_matrix = np.array([[1, 0, -x_translation], [0, 1, -y_translation], [0, 0, 1]])
 
     # Rotation and Scale
     R = np.eye(3)
     # a = random.uniform(-degrees, degrees)
     # a = -45.0
-    # a = 30.0
+    a = 30.0
     # a = 15.0
-    a = 0.0
+    # a = 0.0
     # s = random.uniform(scale[0], scale[1])
-    # s = 0.7
-    s = 1.0
+    s = 0.7
+    # s = 1.0
 
-    # torch impl
-    img_torch = torch.Tensor(img).cuda()
-    img_torch = img_torch.permute((2, 0, 1))
-    img_torch = img_torch.unsqueeze(0)
-    N, ch, H, W = img_torch.shape
-    device = img_torch.device
-    I_3 = torch.eye(3, device=device)
-    G_inv = I_3
-    # batch_size = 8
-    # i = torch.floor(torch.rand([batch_size], device=device) * 4)
-    translation2d_matrix_ = translation2d_matrix(offset_x=torch.Tensor([1., ]).to(device).to(torch.float32), offset_y=torch.Tensor([1., ]).to(device).to(torch.float32))
-    rotationMatrix2D_torch = rotate2d_matrix(torch.Tensor([a, ]).to(device).to(torch.float32) * math.pi / 180, scale=1./s)
-    # G_inv = rotationMatrix2D_torch @ translation2d_matrix_
 
-    theta = a * math.pi / 180
-    R2 = np.array([[math.cos(theta), math.sin(-theta), 0], [math.sin(theta), math.cos(theta), 0], [0, 0, 1]])
+    # 旋转矩阵，x轴正方向指向右，y轴正方向指向下时，代表着以坐标系原点O为中心，顺时针旋转theta角
+    theta = -a * math.pi / 180
+    rotation_matrix = np.array([[math.cos(theta), math.sin(-theta), 0], [math.sin(theta), math.cos(theta), 0], [0, 0, 1]])
+    # 旋转矩阵逆矩阵, 对应着逆变换
+    rotation_inverse_matrix = np.array([[math.cos(theta), math.sin(theta), 0], [math.sin(-theta), math.cos(theta), 0], [0, 0, 1]])
+
+
+    # 放缩矩阵
+    scale_matrix = np.array([[s, 0, 0], [0, s, 0], [0, 0, 1]])
+    # 放缩矩阵逆矩阵, 对应着逆变换
+    scale_inverse_matrix = np.array([[1./s, 0, 0], [0, 1./s, 0], [0, 0, 1]])
+
+
+
     rotationMatrix2D = cv2.getRotationMatrix2D(angle=a, center=(0, 0), scale=s)
     R[:2] = rotationMatrix2D
 
@@ -338,12 +342,14 @@ def random_perspective2(
     S = np.eye(3)
     # S[0, 1] = math.tan(random.uniform(-shear, shear) * math.pi / 180)  # x shear (deg)
     # S[1, 0] = math.tan(random.uniform(-shear, shear) * math.pi / 180)  # y shear (deg)
-    Shear1 = 63.43498823  # arctan2
-    # Shear1 = 15.
-    # Shear1 = 0.
-    Shear2 = 63.43498823
-    # Shear2 = -15.
-    # Shear2 = 0.
+    # Shear1 = 63.43498823  # arctan2
+    # Shear1 = 45.
+    # Shear1 = 10.
+    Shear1 = 0.
+    # Shear2 = 63.43498823
+    # Shear2 = 45.
+    # Shear2 = 10.
+    Shear2 = 0.
     # shear = 45.0
     # Shear1 = random.uniform(-shear, shear)
     # Shear2 = random.uniform(-shear, shear)
@@ -351,16 +357,12 @@ def random_perspective2(
     S[1, 0] = math.tan(Shear2 * math.pi / 180)  # y shear (deg)
 
 
-    S2 = np.array([[1., -math.tan(Shear1 * math.pi / 180), 0], [-math.tan(Shear2 * math.pi / 180), 1., 0], [0, 0, 1]])
+    # 切变矩阵，x轴正方向指向右，y轴正方向指向下时，代表着以坐标系原点O为中心，顺时针旋转theta角
+    shear_matrix = np.array([[1, math.tan(Shear1 * math.pi / 180), 0], [math.tan(Shear2 * math.pi / 180), 1, 0], [0, 0, 1]])
+    # 切变矩阵逆矩阵, 对应着逆变换
+    fenmu = 1. - math.tan(Shear1 * math.pi / 180) * math.tan(Shear2 * math.pi / 180)
+    shear_inverse_matrix = np.array([[1./fenmu, -math.tan(Shear1 * math.pi / 180)/fenmu, 0], [-math.tan(Shear2 * math.pi / 180)/fenmu, 1./fenmu, 0], [0, 0, 1]])
 
-    shear_matrix_ = shear_matrix(theta1=torch.Tensor([Shear1, ]).to(device).to(torch.float32) * math.pi / 180, theta2=torch.Tensor([Shear2, ]).to(device).to(torch.float32) * math.pi / 180)
-    shear_matrix_1 = shear_matrix(theta1=torch.Tensor([Shear1, ]).to(device).to(torch.float32) * math.pi / 180, theta2=torch.Tensor([0., ]).to(device).to(torch.float32) * math.pi / 180)
-    shear_matrix_2 = shear_matrix(theta1=torch.Tensor([0., ]).to(device).to(torch.float32) * math.pi / 180, theta2=torch.Tensor([Shear2, ]).to(device).to(torch.float32) * math.pi / 180)
-    # G_inv = shear_matrix_ @ rotationMatrix2D_torch @ translation2d_matrix_
-    # G_inv = shear_matrix_1 @ shear_matrix_2 @ rotationMatrix2D_torch @ translation2d_matrix_
-
-    fffff = scale2d_matrix(scale_x=torch.Tensor([math.cos(Shear1 * math.pi / 180)**2, ]).to(device).to(torch.float32), scale_y=torch.Tensor([math.cos(Shear2 * math.pi / 180)**2, ]).to(device).to(torch.float32))
-    G_inv = fffff @ shear_matrix_ @ rotationMatrix2D_torch @ translation2d_matrix_
     # ggg = 5
 
     # Translation
@@ -377,8 +379,8 @@ def random_perspective2(
     # M = R
     M = S @ R @ C
     # M = R @ C
-    # M2 = R2 @ C2
-    M2 = C2 @ R2 @ S2
+    # M2 = translation_inverse_matrix @ rotation_inverse_matrix
+    M2 = translation_inverse_matrix @ rotation_inverse_matrix @ scale_inverse_matrix @ shear_inverse_matrix
 
     ###########################
     # For Aug out of Mosaic
@@ -402,21 +404,6 @@ def random_perspective2(
             cv2.imwrite("warpAffine.jpg", img)
             ddd = np.mean((img2222 - img)**2)
             print('dddddddddddd=%.6f' % ddd)
-
-            # shape = [N, ch, height, width]
-            shape = [N, ch, H, W]
-            G_inv_ = G_inv[:, :2, :]
-            aaaaaaa2 = G_inv_[0].cpu().detach().numpy()
-            grid = F.affine_grid(theta=G_inv_, size=shape, align_corners=False)
-            # grid = grid[:, H//2:, W//2:, :]   # 只取右下角部分的图片，相当于cpu实现时的translation(平移)操作
-            # grid = grid[:, :H//2, :W//2, :]
-            images = F.grid_sample(img_torch, grid, mode="bilinear", align_corners=False)
-
-            images = images[0].cpu().detach().numpy()
-            images = images.transpose((1, 2, 0))
-            # ddd = np.mean((images - img)**2)
-            # print('ddd=%.6f' % ddd)
-            # cv2.imwrite("warpAffine3333.jpg", images)
 
             aaaaa = 11
 
