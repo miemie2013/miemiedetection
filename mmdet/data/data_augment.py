@@ -42,7 +42,7 @@ def torch_box_candidates(box1, box2, wh_thr=2, ar_thr=20, area_thr=0.2):
 
 
 def torch_warpAffine(img, transform_inverse_matrix, dsize, borderValue):
-    N, _, h, w = img.shape
+    N, ch, h, w = img.shape
     out_h = dsize[0]
     out_w = dsize[1]
     device = img.device
@@ -59,9 +59,11 @@ def torch_warpAffine(img, transform_inverse_matrix, dsize, borderValue):
     ori_xy = ori_xy[:, :2, :, :]              # [N, 2, out_h, out_w]
     ori_xy = ori_xy.permute((0, 2, 3, 1))     # [N, out_h, out_w, 2]
 
+    # ori_xy_2 = F.affine_grid(theta=transform_inverse_matrix[:, :2, :], size=(N, ch, out_h, out_w), align_corners=False)
     # 映射到-1到1之间，迎合 F.grid_sample() 双线性插值
     ori_xy[:, :, :, 0] = ori_xy[:, :, :, 0] / (w - 1) * 2.0 - 1.0
     ori_xy[:, :, :, 1] = ori_xy[:, :, :, 1] / (h - 1) * 2.0 - 1.0
+
     transform_img = F.grid_sample(img, ori_xy, mode='bilinear', padding_mode='zeros', align_corners=True)  # [N, in_C, out_h, out_w]
     return transform_img
 
@@ -112,6 +114,7 @@ def torch_random_perspective(
     width = W + border[1] * 2
     device = img.device
 
+    # 方案一：用for循环
     transform_inverse_matrixes = []
     transform_matrixes = []
     scales = []
@@ -169,6 +172,89 @@ def torch_random_perspective(
     transform_matrixes = torch.stack(transform_matrixes, 0)
     scales = torch.Tensor(scales).to(device)
     scales = scales.reshape((N, 1, 1))
+    '''
+
+    # 方案二：向量化实现
+    # Center
+    # translation_inverse_matrix = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    # 平移矩阵，往x轴正方向平移 -W / 2, 往y轴正方向平移 -H / 2, 即平移后图片中心位于坐标系原点O
+    x_translation = -W / 2
+    y_translation = -H / 2
+    translation_matrix = torch.Tensor([[1, 0, x_translation], [0, 1, y_translation], [0, 0, 1]]).to(device).unsqueeze(0).repeat([N, 1, 1])
+    # 平移矩阵逆矩阵, 对应着逆变换
+    translation_inverse_matrix = torch.Tensor([[1, 0, -x_translation], [0, 1, -y_translation], [0, 0, 1]]).to(device).unsqueeze(0).repeat([N, 1, 1])
+
+    # Rotation and Scale
+    a = torch.rand([N], device=device) * 2 * degrees - degrees
+    scales = torch.rand([N], device=device) * (scale[1] - scale[0]) + scale[0]
+    # 旋转矩阵，x轴正方向指向右，y轴正方向指向下时，代表着以坐标系原点O为中心，顺时针旋转theta角
+    theta = -a * math.pi / 180
+    cos_theta = torch.cos(theta)
+    sin_theta = torch.sin(theta)
+    rotation_matrix = torch.eye(3, device=device).unsqueeze(0).repeat([N, 1, 1])
+    rotation_matrix[:, 0, 0] = cos_theta
+    rotation_matrix[:, 0, 1] = -sin_theta
+    rotation_matrix[:, 1, 0] = sin_theta
+    rotation_matrix[:, 1, 1] = cos_theta
+    # 旋转矩阵逆矩阵, 对应着逆变换
+    rotation_inverse_matrix = torch.eye(3, device=device).unsqueeze(0).repeat([N, 1, 1])
+    rotation_inverse_matrix[:, 0, 0] = cos_theta
+    rotation_inverse_matrix[:, 0, 1] = sin_theta
+    rotation_inverse_matrix[:, 1, 0] = -sin_theta
+    rotation_inverse_matrix[:, 1, 1] = cos_theta
+    # 放缩矩阵
+    scale_matrix = torch.eye(3, device=device).unsqueeze(0).repeat([N, 1, 1])
+    scale_matrix[:, 0, 0] = scales
+    scale_matrix[:, 1, 1] = scales
+    # 放缩矩阵逆矩阵, 对应着逆变换
+    scale_inverse_matrix = torch.eye(3, device=device).unsqueeze(0).repeat([N, 1, 1])
+    scale_inverse_matrix[:, 0, 0] = 1./scales
+    scale_inverse_matrix[:, 1, 1] = 1./scales
+
+    # Shear
+    shear1 = torch.rand([N], device=device) * 2 * shear - shear
+    shear2 = torch.rand([N], device=device) * 2 * shear - shear
+    tan_shear1 = torch.tan(shear1 * math.pi / 180)
+    tan_shear2 = torch.tan(shear2 * math.pi / 180)
+
+    # 切变矩阵，x轴正方向指向右，y轴正方向指向下时，代表着以坐标系原点O为中心，顺时针旋转theta角
+    shear_matrix = torch.eye(3, device=device).unsqueeze(0).repeat([N, 1, 1])
+    shear_matrix[:, 0, 1] = tan_shear1
+    shear_matrix[:, 1, 0] = tan_shear2
+    # 切变矩阵逆矩阵, 对应着逆变换
+    mul_ = 1. / (1. - tan_shear1 * tan_shear2)
+    shear_inverse_matrix = torch.eye(3, device=device).unsqueeze(0).repeat([N, 1, 1])
+    shear_inverse_matrix[:, 0, 0] = mul_
+    shear_inverse_matrix[:, 0, 1] = -mul_ * tan_shear1
+    shear_inverse_matrix[:, 1, 0] = -mul_ * tan_shear2
+    shear_inverse_matrix[:, 1, 1] = mul_
+
+    # Translation
+    x_trans = torch.rand([N], device=device) * 2 * translate - translate + 0.5
+    y_trans = torch.rand([N], device=device) * 2 * translate - translate + 0.5
+    x_trans *= width
+    y_trans *= height
+    # 平移矩阵，往x轴正方向平移 x_trans, 往y轴正方向平移 y_trans
+    translation2_matrix = torch.eye(3, device=device).unsqueeze(0).repeat([N, 1, 1])
+    translation2_matrix[:, 0, 2] = x_trans
+    translation2_matrix[:, 1, 2] = y_trans
+    # 平移矩阵逆矩阵, 对应着逆变换
+    translation2_inverse_matrix = torch.eye(3, device=device).unsqueeze(0).repeat([N, 1, 1])
+    translation2_matrix[:, 0, 2] = -x_trans
+    translation2_matrix[:, 1, 2] = -y_trans
+
+    # 与for实现有小偏差
+    # transform_inverse_matrixes = translation_inverse_matrix @ rotation_inverse_matrix @ scale_inverse_matrix @ shear_inverse_matrix @ translation2_inverse_matrix
+    # transform_matrixes = translation2_matrix @ shear_matrix @ scale_matrix @ rotation_matrix @ translation_matrix
+    transform_inverse_matrixes = torch.zeros_like(translation2_inverse_matrix)
+    transform_matrixes = torch.zeros_like(translation2_inverse_matrix)
+    for bi in range(N):
+        # 通过变换后的坐标寻找变换之前的坐标，由果溯因，使用逆矩阵求解初始坐标。
+        transform_inverse_matrixes[bi] = translation_inverse_matrix[bi] @ rotation_inverse_matrix[bi] @ scale_inverse_matrix[bi] @ shear_inverse_matrix[bi] @ translation2_inverse_matrix[bi]
+        transform_matrixes[bi] = translation2_matrix[bi] @ shear_matrix[bi] @ scale_matrix[bi] @ rotation_matrix[bi] @ translation_matrix[bi]
+    scales = scales.reshape((N, 1, 1))
+    '''
+
 
     transform_imgs = torch_warpAffine(img, transform_inverse_matrixes, dsize=(height, width), borderValue=(0, 0, 0))
 
@@ -217,7 +303,7 @@ def torch_random_perspective(
 
     # visual and debug
     logger.info('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2222222222222222222222')
-    logger.info(targets[:, :5, :])
+    logger.info(targets[:, :10, :])
     for batch_idx in range(N):
         imgggg = transform_imgs[batch_idx].cpu().detach().numpy()
         imgggg = imgggg.transpose((1, 2, 0))
@@ -227,6 +313,8 @@ def torch_random_perspective(
 
 
 
+def torch_mixup(origin_img, origin_labels, input_dim):
+    jit_factor = random.uniform(*self.mixup_scale)
 
 
 def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
@@ -339,6 +427,15 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
         border=[-input_h // 2, -input_w // 2],
     )  # border to remove
 
+    # ---------------------- Mixup ----------------------
+    # mosaic_imgs, all_mosaic_labels = torch_mixup(mosaic_imgs, all_mosaic_labels, (input_h, input_w))
+
+
+    # xyxy2cxcywh
+    all_mosaic_labels[:, :, 2] = all_mosaic_labels[:, :, 2] - all_mosaic_labels[:, :, 0]
+    all_mosaic_labels[:, :, 3] = all_mosaic_labels[:, :, 3] - all_mosaic_labels[:, :, 1]
+    all_mosaic_labels[:, :, 0] = all_mosaic_labels[:, :, 0] + all_mosaic_labels[:, :, 2] * 0.5
+    all_mosaic_labels[:, :, 1] = all_mosaic_labels[:, :, 1] + all_mosaic_labels[:, :, 3] * 0.5
     return mosaic_imgs, all_mosaic_labels
 
 def augment_hsv(img, hgain=0.015, sgain=0.7, vgain=0.4):

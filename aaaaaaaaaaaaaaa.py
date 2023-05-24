@@ -76,6 +76,72 @@ mixup_samples_0_labels = torch.Tensor(mixup_samples_0_labels).to(torch.float32).
 
 imgs = mosaic_samples_0_img
 
+
+
+
+
+_constant_cache = dict()
+
+def constant(value, shape=None, dtype=None, device=None, memory_format=None):
+    value = np.asarray(value)
+    if shape is not None:
+        shape = tuple(shape)
+    if dtype is None:
+        dtype = torch.get_default_dtype()
+    if device is None:
+        device = torch.device('cpu')
+    if memory_format is None:
+        memory_format = torch.contiguous_format
+
+    key = (value.shape, value.dtype, value.tobytes(), shape, dtype, device, memory_format)
+    tensor = _constant_cache.get(key, None)
+    if tensor is None:
+        tensor = torch.as_tensor(value.copy(), dtype=dtype, device=device)
+        if shape is not None:
+            tensor, _ = torch.broadcast_tensors(tensor, torch.empty(shape))
+        tensor = tensor.contiguous(memory_format=memory_format)
+        _constant_cache[key] = tensor
+    return tensor
+
+def matrix(*rows, device=None):
+    assert all(len(row) == len(rows[0]) for row in rows)
+    elems = [x for row in rows for x in row]
+    ref = [x for x in elems if isinstance(x, torch.Tensor)]
+    if len(ref) == 0:
+        return constant(np.asarray(rows), device=device)
+    assert device is None or device == ref[0].device
+    elems = [x if isinstance(x, torch.Tensor) else constant(x, shape=ref[0].shape, device=ref[0].device) for x in elems]
+    return torch.stack(elems, dim=-1).reshape(ref[0].shape + (len(rows), -1))
+
+
+def scale2d(sx, sy, **kwargs):
+    return matrix(
+        [sx, 0,  0],
+        [0,  sy, 0],
+        [0,  0,  1],
+        **kwargs)
+
+
+def scale2d_inv(sx, sy, **kwargs):
+    return scale2d(1 / sx, 1 / sy, **kwargs)
+
+
+
+
+device = "cuda:{}".format(0)
+
+I_3 = torch.eye(3, device=device)
+G_inv = I_3
+
+batch_size = 4
+i = torch.floor(torch.rand([batch_size], device=device) * 2)
+i = torch.where(torch.rand([batch_size], device=device) < 0.5, i, torch.zeros_like(i))
+aaaaaw = scale2d_inv(1 - 2 * i, 1)
+aaaaaaa = aaaaaw.cpu().detach().numpy()
+G_inv = G_inv @ scale2d_inv(1 - 2 * i, 1)
+
+
+
 # ---------------------- Mosaic ----------------------
 N, C, input_h, input_w = imgs.shape
 
