@@ -170,8 +170,6 @@ translation_inverse_matrix = torch.Tensor([[1, 0, -x_translation], [0, 1, -y_tra
 # scales = torch.rand([N], device=device) * (scale[1] - scale[0]) + scale[0]
 a = torch.Tensor([7.18, -9.34]).to(device)
 scales = torch.Tensor([0.75, 1.12]).to(device)
-# a = torch.Tensor([0., 0.]).to(device)
-# scales = torch.Tensor([1., 1.]).to(device)
 # 旋转矩阵，x轴正方向指向右，y轴正方向指向下时，代表着以坐标系原点O为中心，顺时针旋转theta角
 theta = -a * math.pi / 180
 cos_theta = torch.cos(theta)
@@ -199,11 +197,8 @@ scale_inverse_matrix[:, 1, 1] = 1. / scales
 # Shear
 # shear1 = torch.rand([N], device=device) * 2 * shear - shear
 # shear2 = torch.rand([N], device=device) * 2 * shear - shear
-
 shear1 = torch.Tensor([35.4, -29.34]).to(device)
 shear2 = torch.Tensor([-13.5, 18.12]).to(device)
-# shear1 = torch.Tensor([0., 0.]).to(device)
-# shear2 = torch.Tensor([0., 0.]).to(device)
 tan_shear1 = torch.tan(shear1 * math.pi / 180)
 tan_shear2 = torch.tan(shear2 * math.pi / 180)
 
@@ -218,11 +213,6 @@ shear_inverse_matrix[:, 0, 0] = mul_
 shear_inverse_matrix[:, 0, 1] = -mul_ * tan_shear1
 shear_inverse_matrix[:, 1, 0] = -mul_ * tan_shear2
 shear_inverse_matrix[:, 1, 1] = mul_
-
-print(shear_matrix)
-print(shear_inverse_matrix)
-
-
 
 # Translation
 # x_trans = torch.rand([N], device=device) * 2 * translate - translate + 0.5
@@ -240,20 +230,20 @@ translation2_inverse_matrix = torch.eye(3, device=device).unsqueeze(0).repeat([N
 translation2_inverse_matrix[:, 0, 2] = -x_trans
 translation2_inverse_matrix[:, 1, 2] = -y_trans
 
-
+# 与for实现有小偏差
 transform_inverse_matrixes2 = torch.zeros_like(translation2_inverse_matrix)
 transform_matrixes2 = torch.zeros_like(translation2_inverse_matrix)
 for bi in range(N):
+    # 通过变换后的坐标寻找变换之前的坐标，由果溯因，使用逆矩阵求解初始坐标。
     transform_inverse_matrixes2[bi] = translation_inverse_matrix[bi] @ rotation_inverse_matrix[bi] @ scale_inverse_matrix[bi] @ shear_inverse_matrix[bi] @ translation2_inverse_matrix[bi]
     transform_matrixes2[bi] = translation2_matrix[bi] @ shear_matrix[bi] @ scale_matrix[bi] @ rotation_matrix[bi] @ translation_matrix[bi]
+scales = scales.reshape((N, 1, 1))
 
 # 通过变换后的坐标寻找变换之前的坐标，由果溯因，使用逆矩阵求解初始坐标。
-transform_inverse_matrixes2 = translation_inverse_matrix @ rotation_inverse_matrix @ scale_inverse_matrix @ shear_inverse_matrix @ translation2_inverse_matrix
-transform_matrixes2 = translation2_matrix @ shear_matrix @ scale_matrix @ rotation_matrix @ translation_matrix
+# transform_inverse_matrixes2 = translation_inverse_matrix @ rotation_inverse_matrix @ scale_inverse_matrix @ shear_inverse_matrix @ translation2_inverse_matrix
+# transform_matrixes2 = translation2_matrix @ shear_matrix @ scale_matrix @ rotation_matrix @ translation_matrix
 
 
-
-scales = scales.reshape((N, 1, 1))
 
 
 qqqq1 = transform_inverse_matrixes2.cpu().detach().numpy()

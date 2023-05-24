@@ -115,6 +115,7 @@ def torch_random_perspective(
     device = img.device
 
     # 方案一：用for循环
+    '''
     transform_inverse_matrixes = []
     transform_matrixes = []
     scales = []
@@ -240,8 +241,8 @@ def torch_random_perspective(
     translation2_matrix[:, 1, 2] = y_trans
     # 平移矩阵逆矩阵, 对应着逆变换
     translation2_inverse_matrix = torch.eye(3, device=device).unsqueeze(0).repeat([N, 1, 1])
-    translation2_matrix[:, 0, 2] = -x_trans
-    translation2_matrix[:, 1, 2] = -y_trans
+    translation2_inverse_matrix[:, 0, 2] = -x_trans
+    translation2_inverse_matrix[:, 1, 2] = -y_trans
 
     # 与for实现有小偏差
     # transform_inverse_matrixes = translation_inverse_matrix @ rotation_inverse_matrix @ scale_inverse_matrix @ shear_inverse_matrix @ translation2_inverse_matrix
@@ -253,7 +254,6 @@ def torch_random_perspective(
         transform_inverse_matrixes[bi] = translation_inverse_matrix[bi] @ rotation_inverse_matrix[bi] @ scale_inverse_matrix[bi] @ shear_inverse_matrix[bi] @ translation2_inverse_matrix[bi]
         transform_matrixes[bi] = translation2_matrix[bi] @ shear_matrix[bi] @ scale_matrix[bi] @ rotation_matrix[bi] @ translation_matrix[bi]
     scales = scales.reshape((N, 1, 1))
-    '''
 
 
     transform_imgs = torch_warpAffine(img, transform_inverse_matrixes, dsize=(height, width), borderValue=(0, 0, 0))
