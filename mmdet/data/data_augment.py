@@ -302,7 +302,7 @@ def torch_random_perspective(
         targets = targets[:, :G, :]
 
     # visual and debug
-    logger.info('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2222222222222222222222')
+    logger.info('rrrrrrrrrrtttttttttttttttttttttttttttttttttttttt')
     logger.info(targets[:, :10, :])
     for batch_idx in range(N):
         imgggg = transform_imgs[batch_idx].cpu().detach().numpy()
@@ -314,7 +314,8 @@ def torch_random_perspective(
 
 
 def torch_mixup(origin_img, origin_labels, input_dim):
-    jit_factor = random.uniform(*self.mixup_scale)
+    mixup_scale =111.
+    jit_factor = random.uniform(*mixup_scale)
 
 
 def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
@@ -432,10 +433,10 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
 
 
     # xyxy2cxcywh
-    all_mosaic_labels[:, :, 2] = all_mosaic_labels[:, :, 2] - all_mosaic_labels[:, :, 0]
     all_mosaic_labels[:, :, 3] = all_mosaic_labels[:, :, 3] - all_mosaic_labels[:, :, 1]
-    all_mosaic_labels[:, :, 0] = all_mosaic_labels[:, :, 0] + all_mosaic_labels[:, :, 2] * 0.5
+    all_mosaic_labels[:, :, 4] = all_mosaic_labels[:, :, 4] - all_mosaic_labels[:, :, 2]
     all_mosaic_labels[:, :, 1] = all_mosaic_labels[:, :, 1] + all_mosaic_labels[:, :, 3] * 0.5
+    all_mosaic_labels[:, :, 2] = all_mosaic_labels[:, :, 2] + all_mosaic_labels[:, :, 4] * 0.5
     return mosaic_imgs, all_mosaic_labels
 
 def augment_hsv(img, hgain=0.015, sgain=0.7, vgain=0.4):
