@@ -225,10 +225,89 @@ input_dim = (640, 640)
 mm_img22, mm_labels22 = mixup(origin_img22, all_mosaic_labels222, mixup_img22, mixup_label222, input_dim, mixup_scale)
 
 
+
+def torch_augment_hsv(img, hgain=0.015, sgain=0.7, vgain=0.4):
+    N, ch, H, W = img.shape
+    device = img.device
+    r = torch.rand([3], device=device) * 2 - 1.
+    gain = torch.Tensor([hgain, sgain, vgain]).to(device)
+    r = r * gain + 1.
+    r[0] = 0.98
+    r[1] = 1.4
+    r[2] = 0.76
+
+    r1111 = r.cpu().detach().numpy()
+    img_111 = img[1].cpu().detach().numpy()
+    img_111 = img_111.transpose((1, 2, 0))
+
+
+    aaaaaaa = cv2.cvtColor(img_111, cv2.COLOR_BGR2HSV)
+    hue22, sat22, val22 = cv2.split(aaaaaaa)
+
+
+    B = img[:, 0:1, :, :]
+    G = img[:, 1:2, :, :]
+    R = img[:, 2:3, :, :]
+
+    val, arg_max = torch.max(img, dim=1, keepdim=True)
+    min_BGR, _ = torch.min(img, dim=1, keepdim=True)
+    sat = torch.where(val > 0., (val - min_BGR) / val, torch.zeros_like(val))
+    hue = torch.where(arg_max == 0, (R - G) / (val - min_BGR + 1e-9) * 60. + 240., torch.zeros_like(val))   # B
+    hue = torch.where(arg_max == 1, (B - R) / (val - min_BGR + 1e-9) * 60. + 120., hue)   # G
+    hue = torch.where(arg_max == 2, (G - B) / (val - min_BGR + 1e-9) * 60., hue)   # R
+
+    val33 = val[1, 0].cpu().detach().numpy()
+    ddd = np.mean((val33 - val22)**2)
+    print('ddd=%.6f' % ddd)
+    sat33 = sat[1, 0].cpu().detach().numpy()
+    ddd = np.mean((sat33 - sat22)**2)
+    print('ddd sat=%.6f' % ddd)
+    hue33 = hue[1, 0].cpu().detach().numpy()
+    ddd = np.mean((hue33[:320, :320] - hue22[:320, :320])**2)
+    print('ddd hue=%.6f' % ddd)
+
+    x = torch.arange(256, dtype=torch.int16, device=device)
+    lut_hue = ((x * r[0]) % 180).int()
+    lut_sat = torch.clamp(x * r[1], min=0., max=255.).int()
+    lut_val = torch.clamp(x * r[2], min=0., max=255.).int()
+
+    img_hsv = cv2.merge(
+        (cv2.LUT(hue, lut_hue), cv2.LUT(sat, lut_sat), cv2.LUT(val, lut_val))
+    ).astype(dtype)
+    cv2.cvtColor(img_hsv, cv2.COLOR_HSV2BGR, dst=img)  # no return needed
+
+
+def augment_hsv(img, hgain=0.015, sgain=0.7, vgain=0.4):
+    r = np.random.uniform(-1, 1, 3) * [hgain, sgain, vgain] + 1  # random gains
+    aaaaaaa = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    hue, sat, val = cv2.split(aaaaaaa)
+    dtype = img.dtype  # uint8
+
+    x = np.arange(0, 256, dtype=np.int16)
+    lut_hue = ((x * r[0]) % 180).astype(dtype)
+    lut_sat = np.clip(x * r[1], 0, 255).astype(dtype)
+    lut_val = np.clip(x * r[2], 0, 255).astype(dtype)
+
+    img_hsv = cv2.merge(
+        (cv2.LUT(hue, lut_hue), cv2.LUT(sat, lut_sat), cv2.LUT(val, lut_val))
+    ).astype(dtype)
+    cv2.cvtColor(img_hsv, cv2.COLOR_HSV2BGR, dst=img)  # no return needed
+
+cv2.imwrite("mm_img22.jpg", mm_img22)
+
+augment_hsv(mm_img22)
+cv2.imwrite("mm_img222.jpg", mm_img22)
+
+
 mm_img, mm_labels = torch_mixup(mosaic_imgs, all_mosaic_labels, mixup_img, mixup_label, mixup_scale)
 
 aaaaaaa = mm_labels[1].cpu().detach().numpy()
 save("mm_img.jpg", mm_img[1], mm_labels)
+
+# ---------------------- TrainTransform ----------------------
+
+mm_img = torch_augment_hsv(mm_img)
+
 
 aa = 1
 
