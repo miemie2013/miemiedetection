@@ -102,11 +102,10 @@ def torch_random_perspective(
 ):
     '''
     degrees:        如果是10, 代表随机旋转-10度到10度。degrees单位是角度而不是弧度。
-    translate:      aaaaaaaa
+    translate:      最后的平移变换的范围
     scale:          (0.1, 2)   表示随机放缩0.1到2倍
-    shear:          aaaaaaaa
-    perspective:    aaaaaaaa
-    border:         aaaaaaaa
+    shear:          Shear变换角度最大值
+    perspective:    0.0
     '''
     # targets = [cls, xyxy]
     N, ch, H, W = img.shape
@@ -302,141 +301,162 @@ def torch_random_perspective(
         targets = targets[:, :G, :]
 
     # visual and debug
-    logger.info('rrrrrrrrrrtttttttttttttttttttttttttttttttttttttt')
-    logger.info(targets[:, :10, :])
-    for batch_idx in range(N):
-        imgggg = transform_imgs[batch_idx].cpu().detach().numpy()
-        imgggg = imgggg.transpose((1, 2, 0))
-        cv2.imwrite("%d.jpg"%batch_idx, imgggg)
+    # logger.info('rrrrrrrrrrtttttttttttttttttttttttttttttttttttttt')
+    # logger.info(targets[:, :10, :])
+    # for batch_idx in range(N):
+    #     imgggg = transform_imgs[batch_idx].cpu().detach().numpy()
+    #     imgggg = imgggg.transpose((1, 2, 0))
+    #     cv2.imwrite("%d.jpg"%batch_idx, imgggg)
 
     return transform_imgs, targets
 
 
 
-def torch_mixup(origin_img, origin_labels, input_dim):
+def torch_mixup(origin_img, origin_labels, mixup_img, mixup_label, input_dim):
     mixup_scale =111.
     jit_factor = random.uniform(*mixup_scale)
 
 
 def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
-                    mosaic_max_cached_images, mixup_max_cached_images, random_pop):
-    sample0 = dict(img=imgs, labels=targets)
-    mosaic_cache.append(sample0)
-    mixup_cache.append(copy.deepcopy(sample0))
-    if len(mosaic_cache) > mosaic_max_cached_images:
-        if random_pop:
-            index = random.randint(0, len(mosaic_cache) - 2)  # 原版是-1，小改动，肯定不会丢弃最后一张图片
-        else:
-            index = 0
-        mosaic_cache.pop(index)
-    if len(mixup_cache) > mixup_max_cached_images:
-        if random_pop:
-            index = random.randint(0, len(mixup_cache) - 2)  # 原版是-1，小改动，肯定不会丢弃最后一张图片
-        else:
-            index = 0
-        mixup_cache.pop(index)
+                    mosaic_max_cached_images, mixup_max_cached_images, random_pop, use_mosaic=False):
+    if use_mosaic:
+        sample0 = dict(img=imgs, labels=targets)
+        mosaic_cache.append(sample0)
+        mixup_cache.append(copy.deepcopy(sample0))
+        if len(mosaic_cache) > mosaic_max_cached_images:
+            if random_pop:
+                index = random.randint(0, len(mosaic_cache) - 2)  # 原版是-1，小改动，肯定不会丢弃最后一张图片
+            else:
+                index = 0
+            mosaic_cache.pop(index)
+        if len(mixup_cache) > mixup_max_cached_images:
+            if random_pop:
+                index = random.randint(0, len(mixup_cache) - 2)  # 原版是-1，小改动，肯定不会丢弃最后一张图片
+            else:
+                index = 0
+            mixup_cache.pop(index)
 
-    if len(mosaic_cache) <= 4:
-        mosaic_samples = [copy.deepcopy(sample0) for _ in range(4)]
-        mixup_samples = [copy.deepcopy(sample0) for _ in range(1)]
+        if len(mosaic_cache) <= 4:
+            mosaic_samples = [copy.deepcopy(sample0) for _ in range(4)]
+            mixup_samples = [copy.deepcopy(sample0) for _ in range(1)]
+        else:
+            # get index of three other images
+            indexes = [np.random.randint(0, len(mosaic_cache)) for _ in range(3)]
+            mosaic_samples = [copy.deepcopy(mosaic_cache[i]) for i in indexes]
+            mosaic_samples = [copy.deepcopy(sample0)] + mosaic_samples
+            # get index of one other images
+            indexes = [np.random.randint(0, len(mixup_cache)) for _ in range(1)]
+            mixup_samples = [copy.deepcopy(mixup_cache[i]) for i in indexes]
+
+        # imgs_ = mosaic_samples[1]['img']
+        # targets_ = mosaic_samples[1]['labels']
+        # dic = {}
+        # dic['mosaic_samples_0_img'] = mosaic_samples[0]['img'].cpu().detach().numpy()
+        # dic['mosaic_samples_0_labels'] = mosaic_samples[0]['labels'].cpu().detach().numpy()
+        # dic['mosaic_samples_1_img'] = mosaic_samples[1]['img'].cpu().detach().numpy()
+        # dic['mosaic_samples_1_labels'] = mosaic_samples[1]['labels'].cpu().detach().numpy()
+        # dic['mosaic_samples_2_img'] = mosaic_samples[2]['img'].cpu().detach().numpy()
+        # dic['mosaic_samples_2_labels'] = mosaic_samples[2]['labels'].cpu().detach().numpy()
+        # dic['mosaic_samples_3_img'] = mosaic_samples[3]['img'].cpu().detach().numpy()
+        # dic['mosaic_samples_3_labels'] = mosaic_samples[3]['labels'].cpu().detach().numpy()
+        # dic['mixup_samples_0_img'] = mixup_samples[0]['img'].cpu().detach().numpy()
+        # dic['mixup_samples_0_labels'] = mixup_samples[0]['labels'].cpu().detach().numpy()
+        # np.savez('data', **dic)
+
+        # ---------------------- Mosaic ----------------------
+        N, C, input_h, input_w = imgs.shape
+
+        # yc, xc = s, s  # mosaic center x, y
+        yc = int(random.uniform(0.5 * input_h, 1.5 * input_h))
+        xc = int(random.uniform(0.5 * input_w, 1.5 * input_w))
+
+        mosaic_img = torch.ones((N, C, input_h * 2, input_w * 2), dtype=imgs.dtype, device=imgs.device) * 114
+
+        max_labels = targets.shape[1]
+        all_mosaic_labels = []
+        for i_mosaic, sample in enumerate(mosaic_samples):
+            # suffix l means large image, while s means small image in mosaic aug.
+            (l_x1, l_y1, l_x2, l_y2), (s_x1, s_y1, s_x2, s_y2) = \
+                get_mosaic_coordinate2(None, i_mosaic, xc, yc, input_w, input_h, input_h, input_w)
+
+            img = sample['img']
+            labels = sample['labels']
+            mosaic_img[:, :, l_y1:l_y2, l_x1:l_x2] = img[:, :, s_y1:s_y2, s_x1:s_x2]
+            padw, padh = l_x1 - s_x1, l_y1 - s_y1
+            nlabel = (labels.sum(dim=2) > 0).sum(dim=1)  # [N, ]  每张图片gt数
+            G = nlabel.max()
+            labels = labels[:, :G, :]  # [N, G, 5]   gt的cid、cxcywh, 单位是像素
+            # 转xyxy格式
+            labels[:, :, 1] = labels[:, :, 1] - labels[:, :, 3] * 0.5
+            labels[:, :, 2] = labels[:, :, 2] - labels[:, :, 4] * 0.5
+            labels[:, :, 3] = labels[:, :, 3] + labels[:, :, 1]
+            labels[:, :, 4] = labels[:, :, 4] + labels[:, :, 2]
+            labels[:, :, 1] += padw
+            labels[:, :, 2] += padh
+            labels[:, :, 3] += padw
+            labels[:, :, 4] += padh
+            all_mosaic_labels.append(labels)
+
+        all_mosaic_labels = torch.cat(all_mosaic_labels, 1)
+
+        # 如果有gt超出图片范围，面积会是0
+        all_mosaic_labels[:, :, 1] = torch.clamp(all_mosaic_labels[:, :, 1], min=0., max=2 * input_w - 1)
+        all_mosaic_labels[:, :, 2] = torch.clamp(all_mosaic_labels[:, :, 2], min=0., max=2 * input_h - 1)
+        all_mosaic_labels[:, :, 3] = torch.clamp(all_mosaic_labels[:, :, 3], min=0., max=2 * input_w - 1)
+        all_mosaic_labels[:, :, 4] = torch.clamp(all_mosaic_labels[:, :, 4], min=0., max=2 * input_h - 1)
+
+
+        scale = (0.1, 2)
+        mosaic_prob = 1.0
+        mixup_prob = 1.0
+        hsv_prob = 1.0
+        flip_prob = 0.5
+        degrees = 10.0
+        translate = 0.1
+        mixup_scale = (0.5, 1.5)
+        shear = 2.0
+        perspective = 0.0
+
+        mosaic_imgs, all_mosaic_labels = torch_random_perspective(
+            mosaic_img,
+            all_mosaic_labels,
+            degrees=degrees,
+            translate=translate,
+            scale=scale,
+            shear=shear,
+            perspective=perspective,
+            border=[-input_h // 2, -input_w // 2],
+        )  # border to remove
+
+        dic = {}
+        dic['mosaic_imgs'] = mosaic_imgs.cpu().detach().numpy()
+        dic['all_mosaic_labels'] = all_mosaic_labels.cpu().detach().numpy()
+        dic['mixup_samples_0_img'] = mixup_samples[0]['img'].cpu().detach().numpy()
+        dic['mixup_samples_0_labels'] = mixup_samples[0]['labels'].cpu().detach().numpy()
+        np.savez('data2', **dic)
+
+        # ---------------------- Mixup ----------------------
+        mixup_img = mixup_samples[0]['img']
+        mixup_label = mixup_samples[0]['labels']
+        # cxcywh2xyxy
+        mixup_label[:, :, 1:3] = mixup_label[:, :, 1:3] - mixup_label[:, :, 3:5] * 0.5
+        mixup_label[:, :, 3:5] = mixup_label[:, :, 1:3] + mixup_label[:, :, 3:5]
+        mosaic_imgs, all_mosaic_labels = torch_mixup(mosaic_imgs, all_mosaic_labels, mixup_img, mixup_label, (input_h, input_w))
+
+
+        # xyxy2cxcywh
+        all_mosaic_labels[:, :, 3:5] = all_mosaic_labels[:, :, 3:5] - all_mosaic_labels[:, :, 1:3]
+        all_mosaic_labels[:, :, 1:3] = all_mosaic_labels[:, :, 1:3] + all_mosaic_labels[:, :, 3:5] * 0.5
     else:
-        # get index of three other images
-        indexes = [np.random.randint(0, len(mosaic_cache)) for _ in range(3)]
-        mosaic_samples = [copy.deepcopy(mosaic_cache[i]) for i in indexes]
-        mosaic_samples = [copy.deepcopy(sample0)] + mosaic_samples
-        # get index of one other images
-        indexes = [np.random.randint(0, len(mixup_cache)) for _ in range(1)]
-        mixup_samples = [copy.deepcopy(mixup_cache[i]) for i in indexes]
+        while len(mosaic_cache) > 0:
+            mosaic_cache.pop(0)
+        while len(mixup_cache) > 0:
+            mixup_cache.pop(0)
+        mosaic_imgs = imgs
+        all_mosaic_labels = targets
 
-    # imgs_ = mosaic_samples[1]['img']
-    # targets_ = mosaic_samples[1]['labels']
-    # dic = {}
-    # dic['mosaic_samples_0_img'] = mosaic_samples[0]['img'].cpu().detach().numpy()
-    # dic['mosaic_samples_0_labels'] = mosaic_samples[0]['labels'].cpu().detach().numpy()
-    # dic['mosaic_samples_1_img'] = mosaic_samples[1]['img'].cpu().detach().numpy()
-    # dic['mosaic_samples_1_labels'] = mosaic_samples[1]['labels'].cpu().detach().numpy()
-    # dic['mosaic_samples_2_img'] = mosaic_samples[2]['img'].cpu().detach().numpy()
-    # dic['mosaic_samples_2_labels'] = mosaic_samples[2]['labels'].cpu().detach().numpy()
-    # dic['mosaic_samples_3_img'] = mosaic_samples[3]['img'].cpu().detach().numpy()
-    # dic['mosaic_samples_3_labels'] = mosaic_samples[3]['labels'].cpu().detach().numpy()
-    # dic['mixup_samples_0_img'] = mixup_samples[0]['img'].cpu().detach().numpy()
-    # dic['mixup_samples_0_labels'] = mixup_samples[0]['labels'].cpu().detach().numpy()
-    # np.savez('data', **dic)
-
-    # ---------------------- Mosaic ----------------------
-    N, C, input_h, input_w = imgs.shape
-
-    # yc, xc = s, s  # mosaic center x, y
-    yc = int(random.uniform(0.5 * input_h, 1.5 * input_h))
-    xc = int(random.uniform(0.5 * input_w, 1.5 * input_w))
-
-    mosaic_img = torch.ones((N, C, input_h * 2, input_w * 2), dtype=imgs.dtype, device=imgs.device) * 114
-
-    max_labels = targets.shape[1]
-    all_mosaic_labels = []
-    for i_mosaic, sample in enumerate(mosaic_samples):
-        # suffix l means large image, while s means small image in mosaic aug.
-        (l_x1, l_y1, l_x2, l_y2), (s_x1, s_y1, s_x2, s_y2) = \
-            get_mosaic_coordinate2(None, i_mosaic, xc, yc, input_w, input_h, input_h, input_w)
-
-        img = sample['img']
-        labels = sample['labels']
-        mosaic_img[:, :, l_y1:l_y2, l_x1:l_x2] = img[:, :, s_y1:s_y2, s_x1:s_x2]
-        padw, padh = l_x1 - s_x1, l_y1 - s_y1
-        nlabel = (labels.sum(dim=2) > 0).sum(dim=1)  # [N, ]  每张图片gt数
-        G = nlabel.max()
-        labels = labels[:, :G, :]  # [N, G, 5]   gt的cid、cxcywh, 单位是像素
-        # 转xyxy格式
-        labels[:, :, 1] = labels[:, :, 1] - labels[:, :, 3] * 0.5
-        labels[:, :, 2] = labels[:, :, 2] - labels[:, :, 4] * 0.5
-        labels[:, :, 3] = labels[:, :, 3] + labels[:, :, 1]
-        labels[:, :, 4] = labels[:, :, 4] + labels[:, :, 2]
-        labels[:, :, 1] += padw
-        labels[:, :, 2] += padh
-        labels[:, :, 3] += padw
-        labels[:, :, 4] += padh
-        all_mosaic_labels.append(labels)
-
-    all_mosaic_labels = torch.cat(all_mosaic_labels, 1)
-
-    # 如果有gt超出图片范围，面积会是0
-    all_mosaic_labels[:, :, 1] = torch.clamp(all_mosaic_labels[:, :, 1], min=0., max=2 * input_w - 1)
-    all_mosaic_labels[:, :, 2] = torch.clamp(all_mosaic_labels[:, :, 2], min=0., max=2 * input_h - 1)
-    all_mosaic_labels[:, :, 3] = torch.clamp(all_mosaic_labels[:, :, 3], min=0., max=2 * input_w - 1)
-    all_mosaic_labels[:, :, 4] = torch.clamp(all_mosaic_labels[:, :, 4], min=0., max=2 * input_h - 1)
-
-
-    scale = (0.1, 2)
-    mosaic_prob = 1.0
-    mixup_prob = 1.0
-    hsv_prob = 1.0
-    flip_prob = 0.5
-    degrees = 10.0
-    translate = 0.1
-    mixup_scale = (0.5, 1.5)
-    shear = 2.0
-    perspective = 0.0
-
-    mosaic_imgs, all_mosaic_labels = torch_random_perspective(
-        mosaic_img,
-        all_mosaic_labels,
-        degrees=degrees,
-        translate=translate,
-        scale=scale,
-        shear=shear,
-        perspective=perspective,
-        border=[-input_h // 2, -input_w // 2],
-    )  # border to remove
-
-    # ---------------------- Mixup ----------------------
-    # mosaic_imgs, all_mosaic_labels = torch_mixup(mosaic_imgs, all_mosaic_labels, (input_h, input_w))
-
-
-    # xyxy2cxcywh
-    all_mosaic_labels[:, :, 3] = all_mosaic_labels[:, :, 3] - all_mosaic_labels[:, :, 1]
-    all_mosaic_labels[:, :, 4] = all_mosaic_labels[:, :, 4] - all_mosaic_labels[:, :, 2]
-    all_mosaic_labels[:, :, 1] = all_mosaic_labels[:, :, 1] + all_mosaic_labels[:, :, 3] * 0.5
-    all_mosaic_labels[:, :, 2] = all_mosaic_labels[:, :, 2] + all_mosaic_labels[:, :, 4] * 0.5
+    mosaic_imgs.requires_grad_(False)
+    all_mosaic_labels.requires_grad_(False)
     return mosaic_imgs, all_mosaic_labels
 
 def augment_hsv(img, hgain=0.015, sgain=0.7, vgain=0.4):
