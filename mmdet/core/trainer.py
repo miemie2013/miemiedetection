@@ -159,6 +159,8 @@ class Trainer:
             )
             logger.info("init prefetcher, this might take one minute or less...")
             self.prefetcher = DataPrefetcher(self.train_loader)
+            logger.info("use torch_augment:")
+            logger.info(self.exp.torch_augment)
             if self.exp.torch_augment:
                 self.use_mosaic = True
                 # Mosaic cache
@@ -413,6 +415,8 @@ class Trainer:
 
         if self.archi_name == 'YOLOX':
             inps, targets = self.prefetcher.next()
+            inps = inps.to(self.data_type)
+            targets = targets.to(self.data_type)
             if self.exp.torch_augment:
                 with torch.no_grad():
                     inps, targets = yolox_torch_aug(inps, targets, self.mosaic_cache, self.mixup_cache,
@@ -427,8 +431,6 @@ class Trainer:
                 # print("rank=%d, targets=%s"%(self.rank, targets_[:, :3, :]))
             # logger.info(len(self.mosaic_cache))
             # logger.info(len(self.mixup_cache))
-            inps = inps.to(self.data_type)
-            targets = targets.to(self.data_type)
             targets.requires_grad = False
             inps, targets = self.exp.preprocess(inps, targets, self.input_size)
             data_end_time = time.time()
