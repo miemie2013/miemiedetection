@@ -416,7 +416,7 @@ class Trainer:
             if self.exp.torch_augment:
                 with torch.no_grad():
                     inps, targets = yolox_torch_aug(inps, targets, self.mosaic_cache, self.mixup_cache,
-                                                    self.mosaic_max_cached_images, self.mixup_max_cached_images, self.random_pop, self.use_mosaic)
+                                                    self.mosaic_max_cached_images, self.mixup_max_cached_images, self.random_pop, self.exp, self.use_mosaic)
                 # import cv2
                 # imgs = inps.permute((0, 2, 3, 1)).cpu().detach().numpy()
                 # img0 = imgs[0]

@@ -484,7 +484,7 @@ def filter_gt(imgs, targets, mossalse):
     aaaaa = 1
 
 def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
-                    mosaic_max_cached_images, mixup_max_cached_images, random_pop, use_mosaic=False):
+                    mosaic_max_cached_images, mixup_max_cached_images, random_pop, exp, use_mosaic=False):
     if use_mosaic:
         sample0 = dict(img=imgs, labels=targets)
         mosaic_cache.append(sample0)
@@ -538,7 +538,6 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
 
         mosaic_img = torch.ones((N, C, input_h * 2, input_w * 2), dtype=imgs.dtype, device=imgs.device) * 114
 
-        max_labels = targets.shape[1]
         all_mosaic_labels = []
         for i_mosaic, sample in enumerate(mosaic_samples):
             # suffix l means large image, while s means small image in mosaic aug.
@@ -571,26 +570,24 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
         all_mosaic_labels[:, :, 3] = torch.clamp(all_mosaic_labels[:, :, 3], min=0., max=2 * input_w - 1)
         all_mosaic_labels[:, :, 4] = torch.clamp(all_mosaic_labels[:, :, 4], min=0., max=2 * input_h - 1)
 
-
-        scale = (0.1, 2)
-        mosaic_prob = 1.0
-        mixup_prob = 1.0
-        hsv_prob = 1.0
-        flip_prob = 0.5
-        degrees = 10.0
-        translate = 0.1
-        mixup_scale = (0.5, 1.5)
-        shear = 2.0
-        perspective = 0.0
+        # mosaic_scale = (0.1, 2)
+        # mosaic_prob = 1.0
+        # mixup_prob = 1.0
+        # hsv_prob = 1.0
+        # flip_prob = 0.5
+        # degrees = 10.0
+        # translate = 0.1
+        # mixup_scale = (0.5, 1.5)
+        # shear = 2.0
 
         mosaic_imgs, all_mosaic_labels = torch_random_perspective(
             mosaic_img,
             all_mosaic_labels,
-            degrees=degrees,
-            translate=translate,
-            scale=scale,
-            shear=shear,
-            perspective=perspective,
+            degrees=exp.degrees,
+            translate=exp.translate,
+            scale=exp.mosaic_scale,
+            shear=exp.shear,
+            perspective=0.,
             border=[-input_h // 2, -input_w // 2],
         )  # border to remove
 
@@ -607,7 +604,7 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
         # cxcywh2xyxy
         mixup_label[:, :, 1:3] = mixup_label[:, :, 1:3] - mixup_label[:, :, 3:5] * 0.5
         mixup_label[:, :, 3:5] = mixup_label[:, :, 1:3] + mixup_label[:, :, 3:5]
-        mosaic_imgs, all_mosaic_labels = torch_mixup(mosaic_imgs, all_mosaic_labels, mixup_img, mixup_label, mixup_scale)
+        mosaic_imgs, all_mosaic_labels = torch_mixup(mosaic_imgs, all_mosaic_labels, mixup_img, mixup_label, exp.mixup_scale)
     else:
         mosaic_imgs = imgs
         all_mosaic_labels = targets
