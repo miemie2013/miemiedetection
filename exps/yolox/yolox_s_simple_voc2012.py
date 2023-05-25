@@ -30,6 +30,15 @@ class Exp(YOLOXExp):
         self.train_image_folder = "JPEGImages"
         self.val_image_folder = "JPEGImages"
 
+        # self.num_classes = 80
+        # self.data_dir = '../COCO'
+        # self.cls_names = 'class_names/coco_classes.txt'
+        # self.ann_folder = "annotations"
+        # self.train_ann = "instances_val2017.json"
+        # self.val_ann = "instances_val2017.json"
+        # self.train_image_folder = "val2017"
+        # self.val_image_folder = "val2017"
+
         self.multiscale_range = 0
         self.warmup_epochs = 1
         self.max_epoch = 16

@@ -160,6 +160,7 @@ class Trainer:
             logger.info("init prefetcher, this might take one minute or less...")
             self.prefetcher = DataPrefetcher(self.train_loader)
             if self.exp.torch_augment:
+                self.use_mosaic = True
                 # Mosaic cache
                 self.mosaic_max_cached_images = 40
                 self.random_pop = self.exp.width > 0.4999  # ['s', 'm', 'l', 'x']
@@ -402,7 +403,8 @@ class Trainer:
             self.before_iter()
             self.train_one_iter()
             self.after_iter()
-            # break
+            # if self.iter == 10:
+            #     break
 
     def train_one_iter(self):
         iter_start_time = time.time()
@@ -414,7 +416,7 @@ class Trainer:
             if self.exp.torch_augment:
                 with torch.no_grad():
                     inps, targets = yolox_torch_aug(inps, targets, self.mosaic_cache, self.mixup_cache,
-                                                    self.mosaic_max_cached_images, self.mixup_max_cached_images, self.random_pop)
+                                                    self.mosaic_max_cached_images, self.mixup_max_cached_images, self.random_pop, self.use_mosaic)
                 # import cv2
                 # imgs = inps.permute((0, 2, 3, 1)).cpu().detach().numpy()
                 # img0 = imgs[0]
@@ -555,7 +557,14 @@ class Trainer:
         if self.archi_name == 'YOLOX':
             if self.epoch == self.max_epoch - self.exp.no_aug_epochs or self.no_aug:
                 logger.info("--->No mosaic aug now!")
-                self.train_loader.close_mosaic()
+                if self.exp.torch_augment:
+                    while len(self.mosaic_cache) > 0:
+                        self.mosaic_cache.pop(0)
+                    while len(self.mixup_cache) > 0:
+                        self.mixup_cache.pop(0)
+                    self.use_mosaic = False
+                else:
+                    self.train_loader.close_mosaic()
                 logger.info("--->Add additional L1 loss now!")
                 if self.is_distributed:
                     self.model.module.head.use_l1 = True
