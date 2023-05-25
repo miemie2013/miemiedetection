@@ -39,6 +39,8 @@ def torch_box_candidates(box1, box2, wh_thr=2, ar_thr=20, area_thr=0.2, area_thr
     )  # candidates
 
 
+_constant_cache = dict()
+
 def torch_warpAffine(img, transform_inverse_matrix, dsize, borderValue):
     N, ch, h, w = img.shape
     out_h = dsize[0]
@@ -46,11 +48,16 @@ def torch_warpAffine(img, transform_inverse_matrix, dsize, borderValue):
     device = img.device
     dtype = img.dtype
 
-    yv, xv = torch.meshgrid([torch.arange(out_h, dtype=dtype, device=device), torch.arange(out_w, dtype=dtype, device=device)])
-    grid = torch.stack((xv, yv), 0).view(1, 2, out_h, out_w).repeat([N, 1, 1, 1])   # [N, 2, out_h, out_w]
-    xy = torch.ones((N, 3, out_h, out_w), dtype=dtype, device=device)   # [N, 3, out_h, out_w]
-    xy[:, :2, :, :] = grid
-    xy = xy.reshape((1, N*3, out_h, out_w))   # [1, N*3, out_h, out_w]
+    key = (N, out_h, out_w, dtype, device)
+    xy = _constant_cache.get(key, None)
+    if xy is None:
+        yv, xv = torch.meshgrid([torch.arange(out_h, dtype=dtype, device=device), torch.arange(out_w, dtype=dtype, device=device)])
+        grid = torch.stack((xv, yv), 0).view(1, 2, out_h, out_w).repeat([N, 1, 1, 1])  # [N, 2, out_h, out_w]
+        xy = torch.ones((N, 3, out_h, out_w), dtype=dtype, device=device)  # [N, 3, out_h, out_w]
+        xy[:, :2, :, :] = grid
+        xy = xy.reshape((1, N * 3, out_h, out_w))  # [1, N*3, out_h, out_w]
+        _constant_cache[key] = xy
+
 
     weight = transform_inverse_matrix.reshape((N*3, 3, 1, 1))   # [N*3, 3, 1, 1]
     ori_xy = F.conv2d(xy, weight, groups=N)   # [1, N*3, out_h, out_w]    matmul, 变换后的坐标和逆矩阵运算，得到变换之前的坐标
@@ -174,7 +181,11 @@ def torch_random_perspective(
     scales = scales.reshape((N, 1, 1))
     '''
 
-    eye3 = torch.eye(3, device=device, dtype=dtype).unsqueeze(0).repeat([N, 1, 1])
+    key = (N, "eye3")
+    eye3 = _constant_cache.get(key, None)
+    if eye3 is None:
+        eye3 = torch.eye(3, device=device, dtype=dtype).unsqueeze(0).repeat([N, 1, 1])
+        _constant_cache[key] = eye3
     # 方案二：向量化实现
     # Center
     # translation_inverse_matrix = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
@@ -631,7 +642,12 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
     # - - - - - - - - flip aug - - - - - - - -
     flip_prob = 0.5
     flip = (torch.rand([N], device=device) < flip_prob).float()   # 1 means flip
-    eye3 = torch.eye(3, device=device, dtype=dtype).unsqueeze(0).repeat([N, 1, 1])
+
+    key = (N, "eye3")
+    eye3 = _constant_cache.get(key, None)
+    if eye3 is None:
+        eye3 = torch.eye(3, device=device, dtype=dtype).unsqueeze(0).repeat([N, 1, 1])
+        _constant_cache[key] = eye3
     # 水平翻转矩阵
     horizonflip_matrix = eye3.clone()
     horizonflip_matrix[:, 0, 0] = 1. - 2. * flip
