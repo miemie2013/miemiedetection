@@ -254,7 +254,6 @@ class SimpleCOCODataset(torch.utils.data.Dataset):
         self.img_size = img_size
         self.max_labels = max_labels
         self.annotations = self._load_coco_annotations()
-        self.init_bbox = [-1.0, 0.0, 0.0, 0.0, 0.0]
 
     def __len__(self):
         return len(self.ids)
@@ -326,8 +325,7 @@ class SimpleCOCODataset(torch.utils.data.Dataset):
         padded_img = np.ascontiguousarray(padded_img, dtype=np.float32)
 
         num_gt = len(target)
-        # 批量mosaic时，填充的假gt 利用 cid = -1 过滤掉
-        padded_labels = np.ones((self.max_labels, 5), dtype=np.float32) * self.init_bbox
+        padded_labels = np.zeros((self.max_labels, 5))
         padded_labels[:num_gt, :] = target
         padded_labels = np.ascontiguousarray(padded_labels, dtype=np.float32)
         return padded_img, padded_labels, img_info, np.array([id_])

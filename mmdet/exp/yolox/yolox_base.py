@@ -173,7 +173,7 @@ class YOLOXExp(COCOBaseExp):
             batch_sampler = torch.utils.data.sampler.BatchSampler(
                 sampler=sampler,
                 batch_size=batch_size,
-                drop_last=True,
+                drop_last=False,
             )
             dataloader_kwargs = {"num_workers": self.data_num_workers, "pin_memory": True}
             dataloader_kwargs["batch_sampler"] = batch_sampler
