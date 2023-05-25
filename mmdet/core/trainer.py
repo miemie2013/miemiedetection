@@ -415,8 +415,7 @@ class Trainer:
 
         if self.archi_name == 'YOLOX':
             inps, targets = self.prefetcher.next()
-            inps = inps.to(self.data_type)
-            targets = targets.to(self.data_type)
+            # 先转fp16再增强会掉精度，所以用fp32做增强
             if self.exp.torch_augment:
                 with torch.no_grad():
                     inps, targets = yolox_torch_aug(inps, targets, self.mosaic_cache, self.mixup_cache,
@@ -431,6 +430,8 @@ class Trainer:
                 # print("rank=%d, targets=%s"%(self.rank, targets_[:, :3, :]))
             # logger.info(len(self.mosaic_cache))
             # logger.info(len(self.mixup_cache))
+            inps = inps.to(self.data_type)
+            targets = targets.to(self.data_type)
             targets.requires_grad = False
             inps, targets = self.exp.preprocess(inps, targets, self.input_size)
             data_end_time = time.time()
