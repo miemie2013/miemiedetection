@@ -10,11 +10,11 @@
 
 import math
 import random
+import time
 
 import torch
 import torch.nn.functional as F
 import cv2
-import copy
 import numpy as np
 from loguru import logger
 from numbers import Number, Integral
@@ -182,6 +182,7 @@ def torch_random_perspective(
     scales = scales.reshape((N, 1, 1))
     '''
 
+    # 创建转换矩阵时，只生成1次eye3再用eye3 clone() 比 每次都 xxx = torch.eye(3, device=device, dtype=dtype).unsqueeze(0).repeat([N, 1, 1]) 快得多
     key = (N, "eye3")
     eye3 = _constant_cache.get(key, None)
     if eye3 is None:
@@ -502,15 +503,12 @@ def torch_augment_hsv(img, hgain=0.015, sgain=0.7, vgain=0.4, max_angle=180.):
     aug_imgs = aug_imgs.to(dtype)  # to float16
     return aug_imgs
 
-def filter_gt(imgs, targets, mossalse):
-    aaaaa = 1
-
 def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
-                    mosaic_max_cached_images, mixup_max_cached_images, random_pop, exp, use_mosaic=False):
+                    mosaic_max_cached_images, mixup_max_cached_images, random_pop, exp, use_mosaic=False, rank=0):
     if use_mosaic:
-        sample0 = dict(img=imgs, labels=targets)
-        mosaic_cache.append(sample0)
-        mixup_cache.append(copy.deepcopy(sample0))
+        train_start = time.time()
+        mosaic_cache.append(dict(img=imgs, labels=targets))
+        mixup_cache.append(dict(img=imgs.clone(), labels=targets.clone()))
         if len(mosaic_cache) > mosaic_max_cached_images:
             if random_pop:
                 index = random.randint(0, len(mosaic_cache) - 2)  # 原版是-1，小改动，肯定不会丢弃最后一张图片
@@ -525,16 +523,21 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
             mixup_cache.pop(index)
 
         if len(mosaic_cache) <= 4:
-            mosaic_samples = [copy.deepcopy(sample0) for _ in range(4)]
-            mixup_samples = [copy.deepcopy(sample0) for _ in range(1)]
+            mosaic_samples = [dict(img=imgs.clone(), labels=targets.clone()) for _ in range(4)]
+            mixup_samples = [dict(img=imgs.clone(), labels=targets.clone()) for _ in range(1)]
         else:
             # get index of three other images
             indexes = [np.random.randint(0, len(mosaic_cache)) for _ in range(3)]
-            mosaic_samples = [copy.deepcopy(mosaic_cache[i]) for i in indexes]
-            mosaic_samples = [copy.deepcopy(sample0)] + mosaic_samples
+            # tensor.clone() 比 copy.deepcopy(mosaic_cache[i]) 快得多
+            mosaic_samples = [dict(img=mosaic_cache[i]['img'].clone(), labels=mosaic_cache[i]['labels'].clone()) for i in indexes]
+            mosaic_samples = [dict(img=imgs.clone(), labels=targets.clone())] + mosaic_samples
             # get index of one other images
             indexes = [np.random.randint(0, len(mixup_cache)) for _ in range(1)]
-            mixup_samples = [copy.deepcopy(mixup_cache[i]) for i in indexes]
+            mixup_samples = [dict(img=mixup_cache[i]['img'].clone(), labels=mixup_cache[i]['labels'].clone()) for i in indexes]
+        if rank == 0:
+            cost = time.time() - train_start
+            # logger.info('deepcopy cost time: %.6f s.' % (cost, ))
+        train_start = time.time()
 
         # imgs_ = mosaic_samples[1]['img']
         # targets_ = mosaic_samples[1]['labels']
@@ -579,7 +582,11 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
             labels[:, :, 3] += padw
             labels[:, :, 4] += padh
             all_mosaic_labels.append(labels)
+        if rank == 0:
+            cost = time.time() - train_start
+            # logger.info('tietu cost time: %.6f s.' % (cost, ))
 
+        train_start = time.time()
         all_mosaic_labels = torch.cat(all_mosaic_labels, 1)
 
         # 如果有gt超出图片范围，面积会是0
@@ -587,6 +594,10 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
         all_mosaic_labels[:, :, 2] = torch.clamp(all_mosaic_labels[:, :, 2], min=0., max=2 * input_h - 1)
         all_mosaic_labels[:, :, 3] = torch.clamp(all_mosaic_labels[:, :, 3], min=0., max=2 * input_w - 1)
         all_mosaic_labels[:, :, 4] = torch.clamp(all_mosaic_labels[:, :, 4], min=0., max=2 * input_h - 1)
+        if rank == 0:
+            cost = time.time() - train_start
+            # logger.info('clamp cost time: %.6f s.' % (cost, ))
+        train_start = time.time()
 
         # mosaic_scale = (0.1, 2)
         # mosaic_prob = 1.0
@@ -608,6 +619,10 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
             perspective=0.,
             border=[-input_h // 2, -input_w // 2],
         )  # border to remove
+        if rank == 0:
+            cost = time.time() - train_start
+            # logger.info('torch_random_perspective cost time: %.6f s.' % (cost, ))
+        train_start = time.time()
 
         # dic = {}
         # dic['mosaic_imgs'] = mosaic_imgs.cpu().detach().numpy()
@@ -620,16 +635,24 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
         mixup_img = mixup_samples[0]['img']
         mixup_label = mixup_samples[0]['labels']
         mosaic_imgs, all_mosaic_labels = torch_mixup(mosaic_imgs, all_mosaic_labels, mixup_img, mixup_label, exp.mixup_scale)
+        if rank == 0:
+            cost = time.time() - train_start
+            # logger.info('torch_mixup cost time: %.6f s.' % (cost, ))
     else:
         mosaic_imgs = imgs
         all_mosaic_labels = targets
 
+    train_start = time.time()
     # ---------------------- TrainTransform ----------------------
     device = mosaic_imgs.device
     dtype = mosaic_imgs.dtype
     N, ch, H, W = mosaic_imgs.shape
     # - - - - - - - - hsv aug - - - - - - - -
     mosaic_imgs = torch_augment_hsv(mosaic_imgs)
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('torch_augment_hsv cost time: %.6f s.' % (cost, ))
+    train_start = time.time()
 
     # - - - - - - - - flip aug - - - - - - - -
     flip_prob = 0.5
@@ -664,6 +687,10 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
         transform_inverse_matrixes[bi] = horizonflip_inverse_matrix[bi] @ translation_inverse_matrix[bi]
         transform_matrixes[bi] = translation_matrix[bi] @ horizonflip_matrix[bi]
     transform_imgs = torch_warpAffine(mosaic_imgs, transform_inverse_matrixes, dsize=(H, W), borderValue=(0, 0, 0))
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('horizonflip cost time: %.6f s.' % (cost, ))
+    train_start = time.time()
 
 
     # 变换gt坐标
@@ -717,6 +744,32 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
     #     imgggg = transform_imgs[batch_idx].cpu().detach().numpy()
     #     imgggg = imgggg.transpose((1, 2, 0))
     #     cv2.imwrite("%d.jpg"%batch_idx, imgggg)
+
+    # xyxy2cxcywh
+    all_mosaic_labels[:, :, 3:5] = all_mosaic_labels[:, :, 3:5] - all_mosaic_labels[:, :, 1:3]
+    all_mosaic_labels[:, :, 1:3] = all_mosaic_labels[:, :, 1:3] + all_mosaic_labels[:, :, 3:5] * 0.5
+    transform_imgs.requires_grad_(False)
+    all_mosaic_labels.requires_grad_(False)
+    return transform_imgs, all_mosaic_labels
+
+
+def yolox_torch_aug2(imgs, targets, mosaic_cache, mixup_cache,
+                    mosaic_max_cached_images, mixup_max_cached_images, random_pop, exp, use_mosaic=False, rank=0):
+    transform_imgs = imgs
+    all_mosaic_labels = targets
+
+
+    device = transform_imgs.device
+    dtype = transform_imgs.dtype
+    N, ch, H, W = transform_imgs.shape
+
+    key = (N, "eye3")
+    eye3 = _constant_cache.get(key, None)
+    if eye3 is None:
+        logger.info('init eye3...')
+        eye3 = torch.eye(3, device=device, dtype=dtype).unsqueeze(0).repeat([N, 1, 1])
+    for i in range(200):
+        aaaaaaaa = eye3.clone()
 
     # xyxy2cxcywh
     all_mosaic_labels[:, :, 3:5] = all_mosaic_labels[:, :, 3:5] - all_mosaic_labels[:, :, 1:3]

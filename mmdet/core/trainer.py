@@ -15,7 +15,7 @@ import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 
-from mmdet.data import DataPrefetcher, PPYOLODataPrefetcher, PPYOLOEDataPrefetcher, SOLODataPrefetcher, yolox_torch_aug
+from mmdet.data import DataPrefetcher, PPYOLODataPrefetcher, PPYOLOEDataPrefetcher, SOLODataPrefetcher, yolox_torch_aug, yolox_torch_aug2
 from mmdet.data.data_prefetcher import FCOSDataPrefetcher
 from mmdet.slim import PPYOLOEDistillModel
 from mmdet.utils import (
@@ -48,7 +48,7 @@ def read_train_data(train_dic,
                     start_epoch,
                     max_epoch,
                     max_iter, prefetcher, mosaic_cache, mixup_cache, mosaic_max_cached_images,
-                    mixup_max_cached_images, random_pop, exp):
+                    mixup_max_cached_images, random_pop, exp, rank):
     max_batch = 2
     sleep_time = 0.001
     no_aug = start_epoch >= max_epoch - exp.no_aug_epochs
@@ -72,9 +72,13 @@ def read_train_data(train_dic,
             inps, targets = prefetcher.next()
             # 先转fp16再增强会掉精度，所以用fp32做增强
             with torch.no_grad():
+                train_start = time.time()
                 inps, targets = yolox_torch_aug(inps, targets, mosaic_cache, mixup_cache,
                                                 mosaic_max_cached_images, mixup_max_cached_images,
-                                                random_pop, exp, use_mosaic)
+                                                random_pop, exp, use_mosaic, rank)
+                if rank == 0:
+                    cost = time.time() - train_start
+                    # logger.info('yolox_torch_aug cost time: %.6f s.' % (cost, ))
             dic = {}
             dic['inps'] = inps
             dic['targets'] = targets
@@ -429,7 +433,7 @@ class Trainer:
                                              self.start_epoch,
                                              self.max_epoch,
                                              self.max_iter, self.prefetcher, self.mosaic_cache, self.mixup_cache, self.mosaic_max_cached_images,
-                                             self.mixup_max_cached_images, self.random_pop, self.exp))
+                                             self.mixup_max_cached_images, self.random_pop, self.exp, self.rank))
                 thr.start()
 
     def train_in_epoch(self):
