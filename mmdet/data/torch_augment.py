@@ -258,12 +258,12 @@ def torch_random_perspective(
     y_trans = random_number[5]
     transform_matrixes = eye3.clone()
     transform_inverse_matrixes = eye3.clone()
-    v00 = (cos_theta + sin_theta * tan_shear1)*scales
-    v01 = (-sin_theta + cos_theta * tan_shear1)*scales
+    v00 = (cos_theta + sin_theta * tan_shear1) * scales
+    v01 = (-sin_theta + cos_theta * tan_shear1) * scales
     v02 = v00 * x_translation + v01 * y_translation + x_trans
-    v10 = (cos_theta*tan_shear2 + sin_theta)*scales
-    v11 = (-sin_theta*tan_shear2 + cos_theta)*scales
-    v12 = v10*x_translation + v11*y_translation + y_trans
+    v10 = (cos_theta * tan_shear2 + sin_theta) * scales
+    v11 = (-sin_theta * tan_shear2 + cos_theta) * scales
+    v12 = v10 * x_translation + v11 * y_translation + y_trans
     transform_matrixes[:, 0, 0] = v00
     transform_matrixes[:, 0, 1] = v01
     transform_matrixes[:, 0, 2] = v02
@@ -273,10 +273,10 @@ def torch_random_perspective(
     ad_bc = v00 * v11 - v01 * v10
     transform_inverse_matrixes[:, 0, 0] = v11 / ad_bc
     transform_inverse_matrixes[:, 0, 1] = -v01 / ad_bc
-    transform_inverse_matrixes[:, 0, 2] = (v01*v12-v02*v11) / ad_bc
+    transform_inverse_matrixes[:, 0, 2] = (v01 * v12 - v02 * v11) / ad_bc
     transform_inverse_matrixes[:, 1, 0] = -v10 / ad_bc
     transform_inverse_matrixes[:, 1, 1] = v00 / ad_bc
-    transform_inverse_matrixes[:, 1, 2] = (v10*v02-v00*v12) / ad_bc
+    transform_inverse_matrixes[:, 1, 2] = (v10 * v02 - v00 * v12) / ad_bc
     if rank == 0:
         cost = time.time() - train_start
         # logger.info('create matrix cost time: %.6f s.' % (cost, ))
@@ -325,11 +325,15 @@ def torch_random_perspective(
     y1, _ = y.min(2)
     y2, _ = y.max(2)
     # clip boxes
-    x1 = torch.clamp(x1, min=0., max=width)
-    x2 = torch.clamp(x2, min=0., max=width)
-    y1 = torch.clamp(y1, min=0., max=height)
-    y2 = torch.clamp(y2, min=0., max=height)
-    xy = torch.stack((x1, y1, x2, y2), 2)   # [N, n, 4]
+    if width == height:
+        xy = torch.stack((x1, y1, x2, y2), 2)   # [N, n, 4]
+        xy = torch.clamp(xy, min=0., max=width)
+    else:
+        x1 = torch.clamp(x1, min=0., max=width)
+        x2 = torch.clamp(x2, min=0., max=width)
+        y1 = torch.clamp(y1, min=0., max=height)
+        y2 = torch.clamp(y2, min=0., max=height)
+        xy = torch.stack((x1, y1, x2, y2), 2)   # [N, n, 4]
     if rank == 0:
         cost = time.time() - train_start
         # logger.info('trans bbox cost time: %.6f s.' % (cost, ))
@@ -419,10 +423,13 @@ def torch_mixup(origin_img, origin_labels, labels_keep, cp_img, cp_labels, mixup
         # cv2.imwrite("aaa2.jpg", aaaaaaaaaa2)
         x_offset, y_offset = 0, 0
 
-    cp_labels[:, :, 1] = torch.clamp(cp_labels[:, :, 1] * cp_scale_ratio, min=0., max=origin_w)
-    cp_labels[:, :, 2] = torch.clamp(cp_labels[:, :, 2] * cp_scale_ratio, min=0., max=origin_h)
-    cp_labels[:, :, 3] = torch.clamp(cp_labels[:, :, 3] * cp_scale_ratio, min=0., max=origin_w)
-    cp_labels[:, :, 4] = torch.clamp(cp_labels[:, :, 4] * cp_scale_ratio, min=0., max=origin_h)
+    if origin_w == origin_h:
+        cp_labels[:, :, 1:5] = torch.clamp(cp_labels[:, :, 1:5] * cp_scale_ratio, min=0., max=origin_w)
+    else:
+        cp_labels[:, :, 1] = torch.clamp(cp_labels[:, :, 1] * cp_scale_ratio, min=0., max=origin_w)
+        cp_labels[:, :, 2] = torch.clamp(cp_labels[:, :, 2] * cp_scale_ratio, min=0., max=origin_h)
+        cp_labels[:, :, 3] = torch.clamp(cp_labels[:, :, 3] * cp_scale_ratio, min=0., max=origin_w)
+        cp_labels[:, :, 4] = torch.clamp(cp_labels[:, :, 4] * cp_scale_ratio, min=0., max=origin_h)
 
     if FLIP:
         ori_x1 = cp_labels[:, :, 1].clone()
@@ -430,10 +437,13 @@ def torch_mixup(origin_img, origin_labels, labels_keep, cp_img, cp_labels, mixup
         cp_labels[:, :, 1] = origin_w - ori_x2
         cp_labels[:, :, 3] = origin_w - ori_x1
     old_bbox = cp_labels[:, :, 1:5].clone()
-    cp_labels[:, :, 1] = torch.clamp(cp_labels[:, :, 1] - x_offset, min=0., max=target_w)
-    cp_labels[:, :, 2] = torch.clamp(cp_labels[:, :, 2] - y_offset, min=0., max=target_h)
-    cp_labels[:, :, 3] = torch.clamp(cp_labels[:, :, 3] - x_offset, min=0., max=target_w)
-    cp_labels[:, :, 4] = torch.clamp(cp_labels[:, :, 4] - y_offset, min=0., max=target_h)
+    if target_w == target_h:
+        cp_labels[:, :, 1:5] = torch.clamp(cp_labels[:, :, 1:5], min=0., max=target_w)
+    else:
+        cp_labels[:, :, 1] = torch.clamp(cp_labels[:, :, 1] - x_offset, min=0., max=target_w)
+        cp_labels[:, :, 2] = torch.clamp(cp_labels[:, :, 2] - y_offset, min=0., max=target_h)
+        cp_labels[:, :, 3] = torch.clamp(cp_labels[:, :, 3] - x_offset, min=0., max=target_w)
+        cp_labels[:, :, 4] = torch.clamp(cp_labels[:, :, 4] - y_offset, min=0., max=target_h)
 
 
     keep = torch_box_candidates(box1=old_bbox, box2=cp_labels[:, :, 1:5], wh_thr=5)
@@ -662,10 +672,13 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
         all_mosaic_labels = torch.cat(all_mosaic_labels, 1)
 
         # 如果有gt超出图片范围，面积会是0
-        all_mosaic_labels[:, :, 1] = torch.clamp(all_mosaic_labels[:, :, 1], min=0., max=2 * input_w - 1)
-        all_mosaic_labels[:, :, 2] = torch.clamp(all_mosaic_labels[:, :, 2], min=0., max=2 * input_h - 1)
-        all_mosaic_labels[:, :, 3] = torch.clamp(all_mosaic_labels[:, :, 3], min=0., max=2 * input_w - 1)
-        all_mosaic_labels[:, :, 4] = torch.clamp(all_mosaic_labels[:, :, 4], min=0., max=2 * input_h - 1)
+        if input_h == input_w:
+            all_mosaic_labels[:, :, 1:5] = torch.clamp(all_mosaic_labels[:, :, 1:5], min=0., max=2 * input_w - 1)
+        else:
+            all_mosaic_labels[:, :, 1] = torch.clamp(all_mosaic_labels[:, :, 1], min=0., max=2 * input_w - 1)
+            all_mosaic_labels[:, :, 2] = torch.clamp(all_mosaic_labels[:, :, 2], min=0., max=2 * input_h - 1)
+            all_mosaic_labels[:, :, 3] = torch.clamp(all_mosaic_labels[:, :, 3], min=0., max=2 * input_w - 1)
+            all_mosaic_labels[:, :, 4] = torch.clamp(all_mosaic_labels[:, :, 4], min=0., max=2 * input_h - 1)
         if rank == 0:
             cost = time.time() - train_start
             # logger.info('clamp cost time: %.6f s.' % (cost, ))
@@ -778,11 +791,15 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
     y1, _ = y.min(2)
     y2, _ = y.max(2)
     # clip boxes
-    x1 = torch.clamp(x1, min=0., max=W)
-    x2 = torch.clamp(x2, min=0., max=W)
-    y1 = torch.clamp(y1, min=0., max=H)
-    y2 = torch.clamp(y2, min=0., max=H)
-    xy = torch.stack((x1, y1, x2, y2), 2)   # [N, n, 4]
+    if W == H:
+        xy = torch.stack((x1, y1, x2, y2), 2)   # [N, n, 4]
+        xy = torch.clamp(xy, min=0., max=W)
+    else:
+        x1 = torch.clamp(x1, min=0., max=W)
+        x2 = torch.clamp(x2, min=0., max=W)
+        y1 = torch.clamp(y1, min=0., max=H)
+        y2 = torch.clamp(y2, min=0., max=H)
+        xy = torch.stack((x1, y1, x2, y2), 2)   # [N, n, 4]
 
     # filter candidates
     area_thr2 = 8.
