@@ -333,16 +333,17 @@ def torch_random_perspective(
 
     # filter candidates
     keep = torch_box_candidates(box1=bboxes.reshape((N, n, 4)) * scales, box2=xy)
-    num_gts = keep.sum(1)
-    G = num_gts.max()
-    masks = torch.ones((G + 1, G + 1), dtype=torch.bool, device=device).tril(diagonal=-1)
-    masks = masks[:, :-1]  # [G+1, G]
-    gt_position = masks[num_gts, :]   # [N, G]  是真gt处为1，填充的位置是0
-    new_bboxes = torch.zeros((N, G, 4), dtype=targets.dtype, device=device)
-    new_classes = torch.zeros((N, G, 1), dtype=targets.dtype, device=device)
-    new_bboxes[gt_position] = xy[keep]
-    new_classes[gt_position] = targets[keep][:, :1]
-    new_targets = torch.cat([new_classes, new_bboxes], dim=2)
+    targets[:, :, 1:5] = xy
+    # num_gts = keep.sum(1)
+    # G = num_gts.max()
+    # masks = torch.ones((G + 1, G + 1), dtype=torch.bool, device=device).tril(diagonal=-1)
+    # masks = masks[:, :-1]  # [G+1, G]
+    # gt_position = masks[num_gts, :]   # [N, G]  是真gt处为1，填充的位置是0
+    # new_bboxes = torch.zeros((N, G, 4), dtype=targets.dtype, device=device)
+    # new_classes = torch.zeros((N, G, 1), dtype=targets.dtype, device=device)
+    # new_bboxes[gt_position] = xy[keep]
+    # new_classes[gt_position] = targets[keep][:, :1]
+    # new_targets = torch.cat([new_classes, new_bboxes], dim=2)
 
     # for batch_idx in range(N):
     #     targets[batch_idx, :num_gts[batch_idx], :1] = targets[batch_idx][keep[batch_idx]][:, :1]
@@ -375,10 +376,10 @@ def torch_random_perspective(
     #     imgggg = imgggg.transpose((1, 2, 0))
     #     cv2.imwrite("%d.jpg"%batch_idx, imgggg)
 
-    return transform_imgs, new_targets
+    return transform_imgs, targets, keep
 
 
-def torch_mixup(origin_img, origin_labels, cp_img, cp_labels, mixup_scale):
+def torch_mixup(origin_img, origin_labels, labels_keep, cp_img, cp_labels, mixup_scale):
     N, ch, H, W = origin_img.shape
     device = origin_img.device
     # jit_factor = torch.rand([N], device=device) * (mixup_scale[1] - mixup_scale[0]) + mixup_scale[0]
@@ -431,14 +432,17 @@ def torch_mixup(origin_img, origin_labels, cp_img, cp_labels, mixup_scale):
 
 
     keep = torch_box_candidates(box1=old_bbox, box2=cp_labels[:, :, 1:5], wh_thr=5)
-    num_gts = keep.sum(1)
-    G = num_gts.max()
+    labels_keep = torch.cat([labels_keep, keep], 1)
 
-    masks = torch.ones((G + 1, G + 1), dtype=torch.bool, device=device).tril(diagonal=-1)
-    masks = masks[:, :-1]  # [G+1, G]
-    gt_position = masks[num_gts, :]   # [N, G]  是真gt处为1，填充的位置是0
-    new_targets = torch.zeros((N, G, 5), dtype=cp_labels.dtype, device=device)
-    new_targets[gt_position] = cp_labels[keep]
+
+
+    # num_gts = keep.sum(1)
+    # G = num_gts.max()
+    # masks = torch.ones((G + 1, G + 1), dtype=torch.bool, device=device).tril(diagonal=-1)
+    # masks = masks[:, :-1]  # [G+1, G]
+    # gt_position = masks[num_gts, :]   # [N, G]  是真gt处为1，填充的位置是0
+    # new_targets = torch.zeros((N, G, 5), dtype=cp_labels.dtype, device=device)
+    # new_targets[gt_position] = cp_labels[keep]
 
 
     # n = cp_labels.shape[1]
@@ -454,9 +458,9 @@ def torch_mixup(origin_img, origin_labels, cp_img, cp_labels, mixup_scale):
 
 
 
-    origin_labels = torch.cat([origin_labels, new_targets], 1)
+    origin_labels = torch.cat([origin_labels, cp_labels], 1)
     origin_img = 0.5 * origin_img + 0.5 * padded_cropped_img
-    return origin_img, origin_labels
+    return origin_img, origin_labels, labels_keep
 
 def torch_LUT(index, value):
     assert index.dtype == torch.int64
@@ -568,6 +572,9 @@ def torch_augment_hsv(img, hgain=0.015, sgain=0.7, vgain=0.4, max_angle=180.):
 
 def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
                     mosaic_max_cached_images, mixup_max_cached_images, random_pop, exp, use_mosaic=False, rank=0):
+    nlabel_ = (targets.sum(dim=2) > 0).sum(dim=1)  # [N, ]  每张图片gt数
+    G1 = nlabel_.max()
+    targets = targets[:, :G1, :]  # [N, G1, 5]   gt的cid、xyxy, 单位是像素
     if use_mosaic:
         train_start = time.time()
         mosaic_cache.append(dict(img=imgs, labels=targets))
@@ -633,12 +640,9 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
                 get_mosaic_coordinate2(None, i_mosaic, xc, yc, input_w, input_h, input_h, input_w)
 
             img = sample['img']
-            labels = sample['labels']
+            labels = sample['labels']  # [N, G, 5]   gt的cid、xyxy, 单位是像素
             mosaic_img[:, :, l_y1:l_y2, l_x1:l_x2] = img[:, :, s_y1:s_y2, s_x1:s_x2]
             padw, padh = l_x1 - s_x1, l_y1 - s_y1
-            nlabel = (labels.sum(dim=2) > 0).sum(dim=1)  # [N, ]  每张图片gt数
-            G = nlabel.max()
-            labels = labels[:, :G, :]  # [N, G, 5]   gt的cid、xyxy, 单位是像素
             # xyxy格式
             labels[:, :, 1] += padw
             labels[:, :, 2] += padh
@@ -672,7 +676,7 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
         # mixup_scale = (0.5, 1.5)
         # shear = 2.0
 
-        mosaic_imgs, all_mosaic_labels = torch_random_perspective(
+        mosaic_imgs, all_mosaic_labels, labels_keep = torch_random_perspective(
             mosaic_img,
             all_mosaic_labels,
             degrees=exp.degrees,
@@ -698,7 +702,7 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
         # ---------------------- Mixup ----------------------
         mixup_img = mixup_samples[0]['img']
         mixup_label = mixup_samples[0]['labels']
-        mosaic_imgs, all_mosaic_labels = torch_mixup(mosaic_imgs, all_mosaic_labels, mixup_img, mixup_label, exp.mixup_scale)
+        mosaic_imgs, all_mosaic_labels, labels_keep = torch_mixup(mosaic_imgs, all_mosaic_labels, labels_keep, mixup_img, mixup_label, exp.mixup_scale)
         if rank == 0:
             cost = time.time() - train_start
             # logger.info('torch_mixup cost time: %.6f s.' % (cost, ))
@@ -791,6 +795,8 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
     # filter candidates
     area_thr2 = 8.
     keep = torch_box_candidates(box1=bboxes.reshape((N, n, 4)), box2=xy, area_thr2=area_thr2)
+    if use_mosaic:
+        keep = keep & labels_keep
     num_gts = keep.sum(1)
     G = num_gts.max()
 
