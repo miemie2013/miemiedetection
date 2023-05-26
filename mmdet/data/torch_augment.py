@@ -183,6 +183,7 @@ def torch_random_perspective(
     scales = scales.reshape((N, 1, 1))
     '''
 
+    percent = []
     train_start = time.time()
     # 创建转换矩阵时，只生成1次eye3再用eye3 clone() 比 每次都 xxx = torch.eye(3, device=device, dtype=dtype).unsqueeze(0).repeat([N, 1, 1]) 快得多
     key = (N, "eye3")
@@ -266,21 +267,23 @@ def torch_random_perspective(
     if rank == 0:
         cost = time.time() - train_start
         # logger.info('create matrix cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
     train_start = time.time()
 
     # 与for实现有小偏差
-    # transform_inverse_matrixes = translation_inverse_matrix @ rotation_inverse_matrix @ scale_inverse_matrix @ shear_inverse_matrix @ translation2_inverse_matrix
-    # transform_matrixes = translation2_matrix @ shear_matrix @ scale_matrix @ rotation_matrix @ translation_matrix
-    transform_inverse_matrixes = torch.zeros_like(translation2_inverse_matrix)
-    transform_matrixes = torch.zeros_like(translation2_inverse_matrix)
-    for bi in range(N):
-        # 通过变换后的坐标寻找变换之前的坐标，由果溯因，使用逆矩阵求解初始坐标。
-        transform_inverse_matrixes[bi] = translation_inverse_matrix[bi] @ rotation_inverse_matrix[bi] @ scale_inverse_matrix[bi] @ shear_inverse_matrix[bi] @ translation2_inverse_matrix[bi]
-        transform_matrixes[bi] = translation2_matrix[bi] @ shear_matrix[bi] @ scale_matrix[bi] @ rotation_matrix[bi] @ translation_matrix[bi]
+    transform_inverse_matrixes = translation_inverse_matrix @ rotation_inverse_matrix @ scale_inverse_matrix @ shear_inverse_matrix @ translation2_inverse_matrix
+    transform_matrixes = translation2_matrix @ shear_matrix @ scale_matrix @ rotation_matrix @ translation_matrix
+    # transform_inverse_matrixes = torch.zeros_like(translation2_inverse_matrix)
+    # transform_matrixes = torch.zeros_like(translation2_inverse_matrix)
+    # for bi in range(N):
+    #     # 通过变换后的坐标寻找变换之前的坐标，由果溯因，使用逆矩阵求解初始坐标。
+    #     transform_inverse_matrixes[bi] = translation_inverse_matrix[bi] @ rotation_inverse_matrix[bi] @ scale_inverse_matrix[bi] @ shear_inverse_matrix[bi] @ translation2_inverse_matrix[bi]
+    #     transform_matrixes[bi] = translation2_matrix[bi] @ shear_matrix[bi] @ scale_matrix[bi] @ rotation_matrix[bi] @ translation_matrix[bi]
     scales = scales.reshape((N, 1, 1))
     if rank == 0:
         cost = time.time() - train_start
         # logger.info('matmul cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
     train_start = time.time()
 
 
@@ -289,6 +292,7 @@ def torch_random_perspective(
     if rank == 0:
         cost = time.time() - train_start
         # logger.info('torch_warpAffine cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
     train_start = time.time()
 
     # 变换gt坐标
@@ -324,13 +328,14 @@ def torch_random_perspective(
     if rank == 0:
         cost = time.time() - train_start
         # logger.info('trans bbox cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
     train_start = time.time()
 
     # filter candidates
     keep = torch_box_candidates(box1=bboxes.reshape((N, n, 4)) * scales, box2=xy)
     num_gts = keep.sum(1)
     G = num_gts.max()
-    masks = torch.ones((G + 1, G + 1), dtype=torch.uint8, device=device).tril(diagonal=-1)
+    masks = torch.ones((G + 1, G + 1), dtype=torch.bool, device=device).tril(diagonal=-1)
     masks = masks[:, :-1]  # [G+1, G]
     gt_position = masks[num_gts, :]   # [N, G]  是真gt处为1，填充的位置是0
     new_bboxes = torch.zeros((N, G, 4), dtype=targets.dtype, device=device)
@@ -355,6 +360,11 @@ def torch_random_perspective(
     if rank == 0:
         cost = time.time() - train_start
         # logger.info('filter bbox cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
+        # percent = np.array(percent)
+        # sum_ = np.sum(percent)
+        # percent /= sum_
+        # logger.info(percent)
         # logger.info('')
 
     # visual and debug
@@ -424,7 +434,7 @@ def torch_mixup(origin_img, origin_labels, cp_img, cp_labels, mixup_scale):
     num_gts = keep.sum(1)
     G = num_gts.max()
 
-    masks = torch.ones((G + 1, G + 1), dtype=torch.uint8, device=device).tril(diagonal=-1)
+    masks = torch.ones((G + 1, G + 1), dtype=torch.bool, device=device).tril(diagonal=-1)
     masks = masks[:, :-1]  # [G+1, G]
     gt_position = masks[num_gts, :]   # [N, G]  是真gt处为1，填充的位置是0
     new_targets = torch.zeros((N, G, 5), dtype=cp_labels.dtype, device=device)
@@ -732,14 +742,14 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
     translation_inverse_matrix[:, 0, 2] = -x_trans
 
     # 与for实现有小偏差
-    # transform_inverse_matrixes = horizonflip_inverse_matrix @ translation_inverse_matrix
-    # transform_matrixes = translation_matrix @ horizonflip_matrix
-    transform_inverse_matrixes = torch.zeros_like(translation_inverse_matrix)
-    transform_matrixes = torch.zeros_like(translation_inverse_matrix)
-    for bi in range(N):
-        # 通过变换后的坐标寻找变换之前的坐标，由果溯因，使用逆矩阵求解初始坐标。
-        transform_inverse_matrixes[bi] = horizonflip_inverse_matrix[bi] @ translation_inverse_matrix[bi]
-        transform_matrixes[bi] = translation_matrix[bi] @ horizonflip_matrix[bi]
+    transform_inverse_matrixes = horizonflip_inverse_matrix @ translation_inverse_matrix
+    transform_matrixes = translation_matrix @ horizonflip_matrix
+    # transform_inverse_matrixes = torch.zeros_like(translation_inverse_matrix)
+    # transform_matrixes = torch.zeros_like(translation_inverse_matrix)
+    # for bi in range(N):
+    #     # 通过变换后的坐标寻找变换之前的坐标，由果溯因，使用逆矩阵求解初始坐标。
+    #     transform_inverse_matrixes[bi] = horizonflip_inverse_matrix[bi] @ translation_inverse_matrix[bi]
+    #     transform_matrixes[bi] = translation_matrix[bi] @ horizonflip_matrix[bi]
     transform_imgs = torch_warpAffine(mosaic_imgs, transform_inverse_matrixes, dsize=(H, W), borderValue=(0, 0, 0))
     if rank == 0:
         cost = time.time() - train_start
@@ -784,7 +794,7 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
     num_gts = keep.sum(1)
     G = num_gts.max()
 
-    masks = torch.ones((G + 1, G + 1), dtype=torch.uint8, device=device).tril(diagonal=-1)
+    masks = torch.ones((G + 1, G + 1), dtype=torch.bool, device=device).tril(diagonal=-1)
     masks = masks[:, :-1]  # [G+1, G]
     gt_position = masks[num_gts, :]   # [N, G]  是真gt处为1，填充的位置是0
     new_bboxes = torch.zeros((N, G, 4), dtype=all_mosaic_labels.dtype, device=device)
