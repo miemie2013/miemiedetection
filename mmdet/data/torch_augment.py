@@ -106,6 +106,7 @@ def torch_random_perspective(
     shear=10,
     perspective=0.0,
     border=(0, 0),
+    rank=0,
 ):
     '''
     degrees:        如果是10, 代表随机旋转-10度到10度。degrees单位是角度而不是弧度。
@@ -182,6 +183,7 @@ def torch_random_perspective(
     scales = scales.reshape((N, 1, 1))
     '''
 
+    train_start = time.time()
     # 创建转换矩阵时，只生成1次eye3再用eye3 clone() 比 每次都 xxx = torch.eye(3, device=device, dtype=dtype).unsqueeze(0).repeat([N, 1, 1]) 快得多
     key = (N, "eye3")
     eye3 = _constant_cache.get(key, None)
@@ -261,6 +263,10 @@ def torch_random_perspective(
     translation2_inverse_matrix = eye3.clone()
     translation2_inverse_matrix[:, 0, 2] = -x_trans
     translation2_inverse_matrix[:, 1, 2] = -y_trans
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('create matrix cost time: %.6f s.' % (cost, ))
+    train_start = time.time()
 
     # 与for实现有小偏差
     # transform_inverse_matrixes = translation_inverse_matrix @ rotation_inverse_matrix @ scale_inverse_matrix @ shear_inverse_matrix @ translation2_inverse_matrix
@@ -272,10 +278,18 @@ def torch_random_perspective(
         transform_inverse_matrixes[bi] = translation_inverse_matrix[bi] @ rotation_inverse_matrix[bi] @ scale_inverse_matrix[bi] @ shear_inverse_matrix[bi] @ translation2_inverse_matrix[bi]
         transform_matrixes[bi] = translation2_matrix[bi] @ shear_matrix[bi] @ scale_matrix[bi] @ rotation_matrix[bi] @ translation_matrix[bi]
     scales = scales.reshape((N, 1, 1))
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('matmul cost time: %.6f s.' % (cost, ))
+    train_start = time.time()
 
 
     transform_imgs = torch_warpAffine(img, transform_inverse_matrixes, dsize=(height, width), borderValue=(0, 0, 0))
 
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('torch_warpAffine cost time: %.6f s.' % (cost, ))
+    train_start = time.time()
 
     # 变换gt坐标
     n = targets.shape[1]
@@ -307,17 +321,41 @@ def torch_random_perspective(
     y1 = torch.clamp(y1, min=0., max=height)
     y2 = torch.clamp(y2, min=0., max=height)
     xy = torch.stack((x1, y1, x2, y2), 2)   # [N, n, 4]
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('trans bbox cost time: %.6f s.' % (cost, ))
+    train_start = time.time()
 
     # filter candidates
     keep = torch_box_candidates(box1=bboxes.reshape((N, n, 4)) * scales, box2=xy)
     num_gts = keep.sum(1)
     G = num_gts.max()
-    for batch_idx in range(N):
-        targets[batch_idx, :num_gts[batch_idx], :1] = targets[batch_idx][keep[batch_idx]][:, :1]
-        targets[batch_idx, :num_gts[batch_idx], 1:5] = xy[batch_idx][keep[batch_idx]]
-        targets[batch_idx, num_gts[batch_idx]:, :] = 0
-    if G < n:
-        targets = targets[:, :G, :]
+    masks = torch.ones((G + 1, G + 1), dtype=torch.uint8, device=device).tril(diagonal=-1)
+    masks = masks[:, :-1]  # [G+1, G]
+    gt_position = masks[num_gts, :]   # [N, G]  是真gt处为1，填充的位置是0
+    new_bboxes = torch.zeros((N, G, 4), dtype=targets.dtype, device=device)
+    new_classes = torch.zeros((N, G, 1), dtype=targets.dtype, device=device)
+    new_bboxes[gt_position] = xy[keep]
+    new_classes[gt_position] = targets[keep][:, :1]
+    new_targets = torch.cat([new_classes, new_bboxes], dim=2)
+
+    # for batch_idx in range(N):
+    #     targets[batch_idx, :num_gts[batch_idx], :1] = targets[batch_idx][keep[batch_idx]][:, :1]
+    #     targets[batch_idx, :num_gts[batch_idx], 1:5] = xy[batch_idx][keep[batch_idx]]
+    #     targets[batch_idx, num_gts[batch_idx]:, :] = 0
+    # if G < n:
+    #     new_targets2 = targets[:, :G, :]
+    # else:
+    #     new_targets2 = targets
+    # aaaaaaaawww1 = new_targets2.cpu().detach().numpy()
+    # aaaaaaaawww2 = new_targets.cpu().detach().numpy()
+    # ddd = np.mean((aaaaaaaawww1 - aaaaaaaawww2)**2)
+    # print('dddddddddddd=%.6f' % ddd)
+
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('filter bbox cost time: %.6f s.' % (cost, ))
+        # logger.info('')
 
     # visual and debug
     # logger.info('rrrrrrrrrrtttttttttttttttttttttttttttttttttttttt')
@@ -327,7 +365,7 @@ def torch_random_perspective(
     #     imgggg = imgggg.transpose((1, 2, 0))
     #     cv2.imwrite("%d.jpg"%batch_idx, imgggg)
 
-    return transform_imgs, targets
+    return transform_imgs, new_targets
 
 
 def torch_mixup(origin_img, origin_labels, cp_img, cp_labels, mixup_scale):
@@ -385,13 +423,28 @@ def torch_mixup(origin_img, origin_labels, cp_img, cp_labels, mixup_scale):
     keep = torch_box_candidates(box1=old_bbox, box2=cp_labels[:, :, 1:5], wh_thr=5)
     num_gts = keep.sum(1)
     G = num_gts.max()
-    n = cp_labels.shape[1]
-    for batch_idx in range(N):
-        cp_labels[batch_idx, :num_gts[batch_idx], :] = cp_labels[batch_idx][keep[batch_idx]][:, :]
-        cp_labels[batch_idx, num_gts[batch_idx]:, :] = 0
-    if G < n:
-        cp_labels = cp_labels[:, :G, :]
-    origin_labels = torch.cat([origin_labels, cp_labels], 1)
+
+    masks = torch.ones((G + 1, G + 1), dtype=torch.uint8, device=device).tril(diagonal=-1)
+    masks = masks[:, :-1]  # [G+1, G]
+    gt_position = masks[num_gts, :]   # [N, G]  是真gt处为1，填充的位置是0
+    new_targets = torch.zeros((N, G, 5), dtype=cp_labels.dtype, device=device)
+    new_targets[gt_position] = cp_labels[keep]
+
+
+    # n = cp_labels.shape[1]
+    # for batch_idx in range(N):
+    #     cp_labels[batch_idx, :num_gts[batch_idx], :] = cp_labels[batch_idx][keep[batch_idx]][:, :]
+    #     cp_labels[batch_idx, num_gts[batch_idx]:, :] = 0
+    # if G < n:
+    #     cp_labels = cp_labels[:, :G, :]
+    # aaaaaaaawww1 = cp_labels.cpu().detach().numpy()
+    # aaaaaaaawww2 = new_targets.cpu().detach().numpy()
+    # ddd = np.mean((aaaaaaaawww1 - aaaaaaaawww2)**2)
+    # print('dddddddddddd=%.6f' % ddd)
+
+
+
+    origin_labels = torch.cat([origin_labels, new_targets], 1)
     origin_img = 0.5 * origin_img + 0.5 * padded_cropped_img
     return origin_img, origin_labels
 
@@ -618,6 +671,7 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
             shear=exp.shear,
             perspective=0.,
             border=[-input_h // 2, -input_w // 2],
+            rank=rank,
         )  # border to remove
         if rank == 0:
             cost = time.time() - train_start
@@ -729,12 +783,25 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
     keep = torch_box_candidates(box1=bboxes.reshape((N, n, 4)), box2=xy, area_thr2=area_thr2)
     num_gts = keep.sum(1)
     G = num_gts.max()
-    for batch_idx in range(N):
-        all_mosaic_labels[batch_idx, :num_gts[batch_idx], :1] = all_mosaic_labels[batch_idx][keep[batch_idx]][:, :1]
-        all_mosaic_labels[batch_idx, :num_gts[batch_idx], 1:5] = xy[batch_idx][keep[batch_idx]]
-        all_mosaic_labels[batch_idx, num_gts[batch_idx]:, :] = 0
-    if G < n:
-        all_mosaic_labels = all_mosaic_labels[:, :G, :]
+
+    masks = torch.ones((G + 1, G + 1), dtype=torch.uint8, device=device).tril(diagonal=-1)
+    masks = masks[:, :-1]  # [G+1, G]
+    gt_position = masks[num_gts, :]   # [N, G]  是真gt处为1，填充的位置是0
+    new_bboxes = torch.zeros((N, G, 4), dtype=all_mosaic_labels.dtype, device=device)
+    new_classes = torch.zeros((N, G, 1), dtype=all_mosaic_labels.dtype, device=device)
+    new_bboxes[gt_position] = xy[keep]
+    new_classes[gt_position] = all_mosaic_labels[keep][:, :1]
+    new_targets = torch.cat([new_classes, new_bboxes], dim=2)
+
+    # for batch_idx in range(N):
+    #     all_mosaic_labels[batch_idx, :num_gts[batch_idx], :1] = all_mosaic_labels[batch_idx][keep[batch_idx]][:, :1]
+    #     all_mosaic_labels[batch_idx, :num_gts[batch_idx], 1:5] = xy[batch_idx][keep[batch_idx]]
+    #     all_mosaic_labels[batch_idx, num_gts[batch_idx]:, :] = 0
+    # all_mosaic_labels2 = all_mosaic_labels[:, :G, :]
+    # aaaaaaaawww1 = all_mosaic_labels2.cpu().detach().numpy()
+    # aaaaaaaawww2 = new_targets.cpu().detach().numpy()
+    # ddd = np.mean((aaaaaaaawww1 - aaaaaaaawww2)**2)
+    # print('dddddddddddd=%.6f' % ddd)
 
     # visual and debug
     # logger.info('last transform...')
@@ -746,30 +813,22 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
     #     cv2.imwrite("%d.jpg"%batch_idx, imgggg)
 
     # xyxy2cxcywh
-    all_mosaic_labels[:, :, 3:5] = all_mosaic_labels[:, :, 3:5] - all_mosaic_labels[:, :, 1:3]
-    all_mosaic_labels[:, :, 1:3] = all_mosaic_labels[:, :, 1:3] + all_mosaic_labels[:, :, 3:5] * 0.5
+    new_targets[:, :, 3:5] = new_targets[:, :, 3:5] - new_targets[:, :, 1:3]
+    new_targets[:, :, 1:3] = new_targets[:, :, 1:3] + new_targets[:, :, 3:5] * 0.5
     transform_imgs.requires_grad_(False)
-    all_mosaic_labels.requires_grad_(False)
-    return transform_imgs, all_mosaic_labels
+    new_targets.requires_grad_(False)
+    return transform_imgs, new_targets
 
 
 def yolox_torch_aug2(imgs, targets, mosaic_cache, mixup_cache,
                     mosaic_max_cached_images, mixup_max_cached_images, random_pop, exp, use_mosaic=False, rank=0):
     transform_imgs = imgs
     all_mosaic_labels = targets
-
-
     device = transform_imgs.device
     dtype = transform_imgs.dtype
     N, ch, H, W = transform_imgs.shape
 
-    key = (N, "eye3")
-    eye3 = _constant_cache.get(key, None)
-    if eye3 is None:
-        logger.info('init eye3...')
-        eye3 = torch.eye(3, device=device, dtype=dtype).unsqueeze(0).repeat([N, 1, 1])
-    for i in range(200):
-        aaaaaaaa = eye3.clone()
+
 
     # xyxy2cxcywh
     all_mosaic_labels[:, :, 3:5] = all_mosaic_labels[:, :, 3:5] - all_mosaic_labels[:, :, 1:3]

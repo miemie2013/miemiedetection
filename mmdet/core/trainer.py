@@ -50,7 +50,7 @@ def read_train_data(train_dic,
                     max_iter, prefetcher, mosaic_cache, mixup_cache, mosaic_max_cached_images,
                     mixup_max_cached_images, random_pop, exp, rank):
     max_batch = 2
-    sleep_time = 0.001
+    sleep_time = 0.01
     no_aug = start_epoch >= max_epoch - exp.no_aug_epochs
     for epoch_id in range(start_epoch, max_epoch):
         use_mosaic = True
@@ -468,8 +468,9 @@ class Trainer:
             if self.exp.torch_augment:
                 key_list = list(self.train_dic.keys())
                 key_len = len(key_list)
+                sleep_time = 0.01
                 while key_len == 0:
-                    time.sleep(0.001)
+                    time.sleep(sleep_time)
                     key_list = list(self.train_dic.keys())
                     key_len = len(key_list)
                 data_dic = self.train_dic.pop('%.4d_%.8d'%(self.epoch, self.iter))
