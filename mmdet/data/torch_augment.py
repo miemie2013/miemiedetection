@@ -732,29 +732,15 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
         logger.info('init eye3...')
         eye3 = torch.eye(3, device=device, dtype=dtype).unsqueeze(0).repeat([N, 1, 1])
         _constant_cache[key] = eye3
-    # 水平翻转矩阵
+    # 水平翻转矩阵。先翻转再右移
     horizonflip_matrix = eye3.clone()
     horizonflip_matrix[:, 0, 0] = 1. - 2. * flip
+    # 翻转了才会向右平移W
+    horizonflip_matrix[:, 0, 2] = flip * W
     # 水平翻转矩阵逆矩阵, 对应着逆变换
     horizonflip_inverse_matrix = horizonflip_matrix.clone()
-    # 平移矩阵。翻转了才会向右平移W
-    x_trans = flip * W
-    translation_matrix = eye3.clone()
-    translation_matrix[:, 0, 2] = x_trans
-    # 平移矩阵逆矩阵, 对应着逆变换
-    translation_inverse_matrix = eye3.clone()
-    translation_inverse_matrix[:, 0, 2] = -x_trans
 
-    # 与for实现有小偏差
-    transform_inverse_matrixes = horizonflip_inverse_matrix @ translation_inverse_matrix
-    transform_matrixes = translation_matrix @ horizonflip_matrix
-    # transform_inverse_matrixes = torch.zeros_like(translation_inverse_matrix)
-    # transform_matrixes = torch.zeros_like(translation_inverse_matrix)
-    # for bi in range(N):
-    #     # 通过变换后的坐标寻找变换之前的坐标，由果溯因，使用逆矩阵求解初始坐标。
-    #     transform_inverse_matrixes[bi] = horizonflip_inverse_matrix[bi] @ translation_inverse_matrix[bi]
-    #     transform_matrixes[bi] = translation_matrix[bi] @ horizonflip_matrix[bi]
-    transform_imgs = torch_warpAffine(mosaic_imgs, transform_inverse_matrixes, dsize=(H, W), borderValue=(0, 0, 0))
+    transform_imgs = torch_warpAffine(mosaic_imgs, horizonflip_inverse_matrix, dsize=(H, W), borderValue=(0, 0, 0))
     if rank == 0:
         cost = time.time() - train_start
         # logger.info('horizonflip cost time: %.6f s.' % (cost, ))
@@ -774,7 +760,7 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
     xy = xy.reshape((N, n * 4, 3))   # [N, n * 4, 3]
     xy = xy.permute((0, 2, 1))       # [N, 3, n * 4]
     xy = xy.reshape((1, N*3, n, 4))       # [1, N*3, n, 4]
-    weight = transform_matrixes.reshape((N*3, 3, 1, 1))   # [N*3, 3, 1, 1]
+    weight = horizonflip_matrix.reshape((N*3, 3, 1, 1))   # [N*3, 3, 1, 1]
     xy = F.conv2d(xy, weight, groups=N)   # [1, N*3, n, 4]    matmul
     xy = xy.reshape((N, 3, n, 4))   # [N, 3, n, 4]
 
