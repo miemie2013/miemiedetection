@@ -8,6 +8,7 @@ import math
 import copy
 import time
 import numpy as np
+import threading
 from loguru import logger
 
 import torch
@@ -40,6 +41,44 @@ def print_diff(dic, key, tensor):
     if tensor is not None:  # 有的梯度张量可能是None
         ddd = np.sum((dic[key] - tensor.cpu().detach().numpy()) ** 2)
         print('diff=%.6f (%s)' % (ddd, key))
+
+
+
+def read_train_data(train_dic,
+                    start_epoch,
+                    max_epoch,
+                    max_iter, prefetcher, mosaic_cache, mixup_cache, mosaic_max_cached_images,
+                    mixup_max_cached_images, random_pop, exp):
+    max_batch = 2
+    sleep_time = 0.001
+    no_aug = start_epoch >= max_epoch - exp.no_aug_epochs
+    for epoch_id in range(start_epoch, max_epoch):
+        use_mosaic = True
+        if epoch_id >= max_epoch - exp.no_aug_epochs or no_aug:
+            while len(mosaic_cache) > 0:
+                mosaic_cache.pop(0)
+            while len(mixup_cache) > 0:
+                mixup_cache.pop(0)
+            use_mosaic = False
+        for iter_id in range(max_iter):
+            key_list = list(train_dic.keys())
+            key_len = len(key_list)
+            while key_len >= max_batch:
+                time.sleep(sleep_time)
+                key_list = list(train_dic.keys())
+                key_len = len(key_list)
+
+
+            inps, targets = prefetcher.next()
+            # 先转fp16再增强会掉精度，所以用fp32做增强
+            with torch.no_grad():
+                inps, targets = yolox_torch_aug(inps, targets, mosaic_cache, mixup_cache,
+                                                mosaic_max_cached_images, mixup_max_cached_images,
+                                                random_pop, exp, use_mosaic)
+            dic = {}
+            dic['inps'] = inps
+            dic['targets'] = targets
+            train_dic['%.4d_%.8d'%(epoch_id, iter_id)] = dic
 
 
 class Trainer:
@@ -159,20 +198,6 @@ class Trainer:
             )
             logger.info("init prefetcher, this might take one minute or less...")
             self.prefetcher = DataPrefetcher(self.train_loader)
-            logger.info("use torch_augment:")
-            logger.info(self.exp.torch_augment)
-            if self.exp.torch_augment:
-                self.use_mosaic = True
-                # Mosaic cache
-                self.mosaic_max_cached_images = 40
-                self.random_pop = self.exp.width > 0.4999  # ['s', 'm', 'l', 'x']
-                self.mosaic_cache = []
-                # Mixup cache
-                self.mixup_max_cached_images = 20
-                self.mixup_cache = []
-                if self.exp.width <= 0.4999:  # ['nano', 'tiny']
-                    self.mosaic_max_cached_images = self.mosaic_max_cached_images // 2
-                    self.mixup_max_cached_images = self.mixup_max_cached_images // 2
         elif self.archi_name == 'PPYOLO':
             # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
             self.base_lr = self.exp.basic_lr_per_img * self.args.batch_size
@@ -384,6 +409,28 @@ class Trainer:
         logger.info('Total params: %s' % format(total_params, ","))
         logger.info('Trainable params: %s' % format(trainable_params, ","))
         logger.info('Non-trainable params: %s' % format(nontrainable_params, ","))
+        if self.archi_name == 'YOLOX':
+            logger.info("use torch_augment:")
+            logger.info(self.exp.torch_augment)
+            if self.exp.torch_augment:
+                # Mosaic cache
+                self.mosaic_max_cached_images = 40
+                self.random_pop = self.exp.width > 0.4999  # ['s', 'm', 'l', 'x']
+                self.mosaic_cache = []
+                # Mixup cache
+                self.mixup_max_cached_images = 20
+                self.mixup_cache = []
+                if self.exp.width <= 0.4999:  # ['nano', 'tiny']
+                    self.mosaic_max_cached_images = self.mosaic_max_cached_images // 2
+                    self.mixup_max_cached_images = self.mixup_max_cached_images // 2
+                self.train_dic = {}
+                thr = threading.Thread(target=read_train_data,
+                                       args=(self.train_dic,
+                                             self.start_epoch,
+                                             self.max_epoch,
+                                             self.max_iter, self.prefetcher, self.mosaic_cache, self.mixup_cache, self.mosaic_max_cached_images,
+                                             self.mixup_max_cached_images, self.random_pop, self.exp))
+                thr.start()
 
     def train_in_epoch(self):
         for self.epoch in range(self.start_epoch, self.max_epoch):
@@ -414,22 +461,18 @@ class Trainer:
         rank = self.rank
 
         if self.archi_name == 'YOLOX':
-            inps, targets = self.prefetcher.next()
-            # 先转fp16再增强会掉精度，所以用fp32做增强
             if self.exp.torch_augment:
-                with torch.no_grad():
-                    inps, targets = yolox_torch_aug(inps, targets, self.mosaic_cache, self.mixup_cache,
-                                                    self.mosaic_max_cached_images, self.mixup_max_cached_images, self.random_pop, self.exp, self.use_mosaic)
-                # import cv2
-                # imgs = inps.permute((0, 2, 3, 1)).cpu().detach().numpy()
-                # img0 = imgs[0]
-                # img1 = imgs[1]
-                # cv2.imwrite("step%d_rank%d_0.jpg"%(self.progress_in_iter, self.rank), img0)
-                # cv2.imwrite("step%d_rank%d_1.jpg"%(self.progress_in_iter, self.rank), img1)
-                # targets_ = targets.cpu().detach().numpy()
-                # print("rank=%d, targets=%s"%(self.rank, targets_[:, :3, :]))
-            # logger.info(len(self.mosaic_cache))
-            # logger.info(len(self.mixup_cache))
+                key_list = list(self.train_dic.keys())
+                key_len = len(key_list)
+                while key_len == 0:
+                    time.sleep(0.001)
+                    key_list = list(self.train_dic.keys())
+                    key_len = len(key_list)
+                data_dic = self.train_dic.pop('%.4d_%.8d'%(self.epoch, self.iter))
+                inps = data_dic['inps']
+                targets = data_dic['targets']
+            else:
+                inps, targets = self.prefetcher.next()
             inps = inps.to(self.data_type)
             targets = targets.to(self.data_type)
             targets.requires_grad = False
@@ -561,11 +604,7 @@ class Trainer:
             if self.epoch == self.max_epoch - self.exp.no_aug_epochs or self.no_aug:
                 logger.info("--->No mosaic aug now!")
                 if self.exp.torch_augment:
-                    while len(self.mosaic_cache) > 0:
-                        self.mosaic_cache.pop(0)
-                    while len(self.mixup_cache) > 0:
-                        self.mixup_cache.pop(0)
-                    self.use_mosaic = False
+                    pass
                 else:
                     self.train_loader.close_mosaic()
                 logger.info("--->Add additional L1 loss now!")
