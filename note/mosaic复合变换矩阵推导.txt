@@ -1,0 +1,84 @@
+mmdet/data/torch_augment.py
+用了5个变换，平移、旋转、缩放、Shear、平移。下面推导复合变换矩阵：
+
+
+x = x + p
+y = y + q
+---------------------------------------
+x = cos(theta)x-sin(theta)y
+y = sin(theta)x+cos(theta)y
+
+x = cos(theta)(x + p)-sin(theta)(y + q)
+y = sin(theta)(x + p)+cos(theta)(y + q)
+
+
+---------------------------------------
+x = sx
+y = sy
+
+x = cos(theta)(x + p)s-sin(theta)(y + q)s
+y = sin(theta)(x + p)s+cos(theta)(y + q)s
+
+---------------------------------------
+x = x + tan(s1)y
+y = tan(s2)x + y
+
+
+x = cos(theta)(x + p)s-sin(theta)(y + q)s + sin(theta)(x + p)s*tan(s1)+cos(theta)(y + q)s*tan(s1)
+y = cos(theta)(x + p)s*tan(s2)-sin(theta)(y + q)s*tan(s2) + sin(theta)(x + p)s+cos(theta)(y + q)s
+
+---------------------------------------
+x = x + i
+y = y + j
+
+
+x' = cos(theta)(x + p)s-sin(theta)(y + q)s + sin(theta)(x + p)s*tan(s1)+cos(theta)(y + q)s*tan(s1) + i
+y' = cos(theta)(x + p)s*tan(s2)-sin(theta)(y + q)s*tan(s2) + sin(theta)(x + p)s+cos(theta)(y + q)s + j
+
+
+
+---------------------------------------
+最后x'的化简：
+x'中x的系数是 cos(theta)*s + sin(theta)*s*tan(s1)
+x'中y的系数是 -sin(theta)*s + cos(theta)*s*tan(s1)
+x'中常数项是  cos(theta)*s*p - sin(theta)*s*q + sin(theta)*s*tan(s1)*p + cos(theta)*s*tan(s1)*q + i
+
+x'中x的系数是 先算 temp1=cos(theta) + sin(theta)*tan(s1)，再乘以s
+x'中y的系数是 先算 temp2=-sin(theta) + cos(theta)*tan(s1)，再乘以s
+x'中常数项是  A=cos(theta)*p - sin(theta)*q + sin(theta)*tan(s1)*p + cos(theta)*tan(s1)*q，再乘以s，再加i
+
+A = [cos(theta) + sin(theta)*tan(s1)] * p + [cos(theta)*tan(s1) - sin(theta)] * q
+A = temp1*p + temp2*q
+x'中常数项是(temp1*p + temp2*q)*s + i
+
+v00 = cos(theta) + sin(theta)*tan(s1)
+v00 *= s
+
+v01 = -sin(theta) + cos(theta)*tan(s1)
+v01 *= s
+
+v02 = v00*p + v01*q + i
+
+---------------------------------------
+最后y'的化简：
+y'中x的系数是 cos(theta)*s*tan(s2) + sin(theta)*s
+y'中y的系数是 -sin(theta)*s*tan(s2)  + cos(theta)*s
+y'中常数项是  cos(theta)*s*p*tan(s2) - sin(theta)*s*q*tan(s2) + sin(theta)*s*p + cos(theta)*s*q + j
+
+y'中x的系数是 先算 temp3=cos(theta)*tan(s2) + sin(theta)，再乘以s
+y'中y的系数是 先算 temp4=-sin(theta)*tan(s2)  + cos(theta)，再乘以s
+y'中常数项是  B=cos(theta)*p*tan(s2) - sin(theta)*q*tan(s2) + sin(theta)*p + cos(theta)*q，再乘以s，再加j
+
+B = [cos(theta)*tan(s2) + sin(theta)] * p + [cos(theta) - sin(theta)*tan(s2)] * q
+B = temp3*p + temp4*q
+y'中常数项是(temp3*p + temp4*q)*s + j
+
+
+v10 = cos(theta)*tan(s2) + sin(theta)
+v10 *= s
+
+v11 = -sin(theta)*tan(s2)  + cos(theta)
+v11 *= s
+
+v12 = v10*p + v11*q + j
+

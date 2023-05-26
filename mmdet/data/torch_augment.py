@@ -122,67 +122,6 @@ def torch_random_perspective(
     device = img.device
     dtype = img.dtype
 
-    # 方案一：用for循环
-    '''
-    transform_inverse_matrixes = []
-    transform_matrixes = []
-    scales = []
-    for batch_idx in range(N):
-        # Center
-        # translation_inverse_matrix = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-        # 平移矩阵，往x轴正方向平移 -W / 2, 往y轴正方向平移 -H / 2, 即平移后图片中心位于坐标系原点O
-        x_translation = -W / 2
-        y_translation = -H / 2
-        translation_matrix = torch.Tensor([[1, 0, x_translation], [0, 1, y_translation], [0, 0, 1]]).to(device)
-        # 平移矩阵逆矩阵, 对应着逆变换
-        translation_inverse_matrix = torch.Tensor([[1, 0, -x_translation], [0, 1, -y_translation], [0, 0, 1]]).to(device)
-
-        # Rotation and Scale
-        a = random.uniform(-degrees, degrees)
-        s = random.uniform(scale[0], scale[1])
-        # 旋转矩阵，x轴正方向指向右，y轴正方向指向下时，代表着以坐标系原点O为中心，顺时针旋转theta角
-        theta = -a * math.pi / 180
-        rotation_matrix = torch.Tensor([[math.cos(theta), math.sin(-theta), 0], [math.sin(theta), math.cos(theta), 0], [0, 0, 1]]).to(device)
-        # 旋转矩阵逆矩阵, 对应着逆变换
-        rotation_inverse_matrix = torch.Tensor([[math.cos(theta), math.sin(theta), 0], [math.sin(-theta), math.cos(theta), 0], [0, 0, 1]]).to(device)
-        # 放缩矩阵
-        scale_matrix = torch.Tensor([[s, 0, 0], [0, s, 0], [0, 0, 1]]).to(device)
-        # 放缩矩阵逆矩阵, 对应着逆变换
-        scale_inverse_matrix = torch.Tensor([[1./s, 0, 0], [0, 1./s, 0], [0, 0, 1]]).to(device)
-
-        # Shear
-        Shear1 = random.uniform(-shear, shear)
-        Shear2 = random.uniform(-shear, shear)
-
-
-        # 切变矩阵，x轴正方向指向右，y轴正方向指向下时，代表着以坐标系原点O为中心，顺时针旋转theta角
-        shear_matrix = torch.Tensor([[1, math.tan(Shear1 * math.pi / 180), 0], [math.tan(Shear2 * math.pi / 180), 1, 0], [0, 0, 1]]).to(device)
-        # 切变矩阵逆矩阵, 对应着逆变换
-        fenmu = 1. - math.tan(Shear1 * math.pi / 180) * math.tan(Shear2 * math.pi / 180)
-        shear_inverse_matrix = torch.Tensor([[1./fenmu, -math.tan(Shear1 * math.pi / 180)/fenmu, 0], [-math.tan(Shear2 * math.pi / 180)/fenmu, 1./fenmu, 0], [0, 0, 1]]).to(device)
-
-
-        # Translation
-        x_trans = random.uniform(0.5 - translate, 0.5 + translate) * width
-        y_trans = random.uniform(0.5 - translate, 0.5 + translate) * height
-        # 平移矩阵，往x轴正方向平移 x_trans, 往y轴正方向平移 y_trans
-        translation2_matrix = torch.Tensor([[1, 0, x_trans], [0, 1, y_trans], [0, 0, 1]]).to(device)
-        # 平移矩阵逆矩阵, 对应着逆变换
-        translation2_inverse_matrix = torch.Tensor([[1, 0, -x_trans], [0, 1, -y_trans], [0, 0, 1]]).to(device)
-
-
-        # 通过变换后的坐标寻找变换之前的坐标，由果溯因，使用逆矩阵求解初始坐标。
-        transform_inverse_matrix = translation_inverse_matrix @ rotation_inverse_matrix @ scale_inverse_matrix @ shear_inverse_matrix @ translation2_inverse_matrix
-        transform_matrix = translation2_matrix @ shear_matrix @ scale_matrix @ rotation_matrix @ translation_matrix
-        transform_inverse_matrixes.append(transform_inverse_matrix)
-        transform_matrixes.append(transform_matrix)
-        scales.append(s)
-    transform_inverse_matrixes = torch.stack(transform_inverse_matrixes, 0)
-    transform_matrixes = torch.stack(transform_matrixes, 0)
-    scales = torch.Tensor(scales).to(device)
-    scales = scales.reshape((N, 1, 1))
-    '''
-
     percent = []
     train_start = time.time()
     # 创建转换矩阵时，只生成1次eye3再用eye3 clone() 比 每次都 xxx = torch.eye(3, device=device, dtype=dtype).unsqueeze(0).repeat([N, 1, 1]) 快得多
@@ -192,7 +131,10 @@ def torch_random_perspective(
         logger.info('init eye3...')
         eye3 = torch.eye(3, device=device, dtype=dtype).unsqueeze(0).repeat([N, 1, 1])
         _constant_cache[key] = eye3
-    # 方案二：向量化实现
+
+
+    '''
+    # 方案一：常规实现
     # Center
     # translation_inverse_matrix = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
     # 平移矩阵，往x轴正方向平移 -W / 2, 往y轴正方向平移 -H / 2, 即平移后图片中心位于坐标系原点O
@@ -279,6 +221,61 @@ def torch_random_perspective(
     #     # 通过变换后的坐标寻找变换之前的坐标，由果溯因，使用逆矩阵求解初始坐标。
     #     transform_inverse_matrixes[bi] = translation_inverse_matrix[bi] @ rotation_inverse_matrix[bi] @ scale_inverse_matrix[bi] @ shear_inverse_matrix[bi] @ translation2_inverse_matrix[bi]
     #     transform_matrixes[bi] = translation2_matrix[bi] @ shear_matrix[bi] @ scale_matrix[bi] @ rotation_matrix[bi] @ translation_matrix[bi]
+    
+    scales = scales.reshape((N, 1, 1))
+    '''
+
+    # 方案二：直接求复合变换矩阵及其逆矩阵
+    # Center
+    x_translation = -W / 2
+    y_translation = -H / 2
+
+    # Rotation and Scale
+    a = torch.rand([N], device=device) * 2 * degrees - degrees
+    scales = torch.rand([N], device=device) * (scale[1] - scale[0]) + scale[0]
+    theta = -a * math.pi / 180
+    cos_theta = torch.cos(theta)
+    sin_theta = torch.sin(theta)
+
+    # Shear
+    shear1 = torch.rand([N], device=device) * 2 * shear - shear
+    shear2 = torch.rand([N], device=device) * 2 * shear - shear
+    tan_shear1 = torch.tan(shear1 * math.pi / 180)
+    tan_shear2 = torch.tan(shear2 * math.pi / 180)
+
+    # Translation
+    x_trans = torch.rand([N], device=device) * 2 * translate - translate + 0.5
+    y_trans = torch.rand([N], device=device) * 2 * translate - translate + 0.5
+    x_trans *= width
+    y_trans *= height
+    transform_matrixes = eye3.clone()
+    transform_inverse_matrixes = eye3.clone()
+    v00 = (cos_theta + sin_theta * tan_shear1)*scales
+    v01 = (-sin_theta + cos_theta * tan_shear1)*scales
+    v02 = v00 * x_translation + v01 * y_translation + x_trans
+    v10 = (cos_theta*tan_shear2 + sin_theta)*scales
+    v11 = (-sin_theta*tan_shear2 + cos_theta)*scales
+    v12 = v10*x_translation + v11*y_translation + y_trans
+    transform_matrixes[:, 0, 0] = v00
+    transform_matrixes[:, 0, 1] = v01
+    transform_matrixes[:, 0, 2] = v02
+    transform_matrixes[:, 1, 0] = v10
+    transform_matrixes[:, 1, 1] = v11
+    transform_matrixes[:, 1, 2] = v12
+    ad_bc = v00 * v11 - v01 * v10
+    transform_inverse_matrixes[:, 0, 0] = v11 / ad_bc
+    transform_inverse_matrixes[:, 0, 1] = -v01 / ad_bc
+    transform_inverse_matrixes[:, 0, 2] = (v01*v12-v02*v11) / ad_bc
+    transform_inverse_matrixes[:, 1, 0] = -v10 / ad_bc
+    transform_inverse_matrixes[:, 1, 1] = v00 / ad_bc
+    transform_inverse_matrixes[:, 1, 2] = (v10*v02-v00*v12) / ad_bc
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('create matrix cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
+    train_start = time.time()
+
+
     scales = scales.reshape((N, 1, 1))
     if rank == 0:
         cost = time.time() - train_start
