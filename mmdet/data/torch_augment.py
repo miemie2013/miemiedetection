@@ -51,6 +51,7 @@ def torch_warpAffine(img, transform_inverse_matrix, dsize, borderValue):
     key = (N, out_h, out_w, dtype, device)
     xy = _constant_cache.get(key, None)
     if xy is None:
+        logger.info('init xy...')
         yv, xv = torch.meshgrid([torch.arange(out_h, dtype=dtype, device=device), torch.arange(out_w, dtype=dtype, device=device)])
         grid = torch.stack((xv, yv), 0).view(1, 2, out_h, out_w).repeat([N, 1, 1, 1])  # [N, 2, out_h, out_w]
         xy = torch.ones((N, 3, out_h, out_w), dtype=dtype, device=device)  # [N, 3, out_h, out_w]
@@ -184,6 +185,7 @@ def torch_random_perspective(
     key = (N, "eye3")
     eye3 = _constant_cache.get(key, None)
     if eye3 is None:
+        logger.info('init eye3...')
         eye3 = torch.eye(3, device=device, dtype=dtype).unsqueeze(0).repeat([N, 1, 1])
         _constant_cache[key] = eye3
     # 方案二：向量化实现
@@ -570,12 +572,8 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
             padw, padh = l_x1 - s_x1, l_y1 - s_y1
             nlabel = (labels.sum(dim=2) > 0).sum(dim=1)  # [N, ]  每张图片gt数
             G = nlabel.max()
-            labels = labels[:, :G, :]  # [N, G, 5]   gt的cid、cxcywh, 单位是像素
-            # 转xyxy格式
-            labels[:, :, 1] = labels[:, :, 1] - labels[:, :, 3] * 0.5
-            labels[:, :, 2] = labels[:, :, 2] - labels[:, :, 4] * 0.5
-            labels[:, :, 3] = labels[:, :, 3] + labels[:, :, 1]
-            labels[:, :, 4] = labels[:, :, 4] + labels[:, :, 2]
+            labels = labels[:, :G, :]  # [N, G, 5]   gt的cid、xyxy, 单位是像素
+            # xyxy格式
             labels[:, :, 1] += padw
             labels[:, :, 2] += padh
             labels[:, :, 3] += padw
@@ -621,16 +619,10 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
         # ---------------------- Mixup ----------------------
         mixup_img = mixup_samples[0]['img']
         mixup_label = mixup_samples[0]['labels']
-        # cxcywh2xyxy
-        mixup_label[:, :, 1:3] = mixup_label[:, :, 1:3] - mixup_label[:, :, 3:5] * 0.5
-        mixup_label[:, :, 3:5] = mixup_label[:, :, 1:3] + mixup_label[:, :, 3:5]
         mosaic_imgs, all_mosaic_labels = torch_mixup(mosaic_imgs, all_mosaic_labels, mixup_img, mixup_label, exp.mixup_scale)
     else:
         mosaic_imgs = imgs
         all_mosaic_labels = targets
-        # cxcywh2xyxy
-        all_mosaic_labels[:, :, 1:3] = all_mosaic_labels[:, :, 1:3] - all_mosaic_labels[:, :, 3:5] * 0.5
-        all_mosaic_labels[:, :, 3:5] = all_mosaic_labels[:, :, 1:3] + all_mosaic_labels[:, :, 3:5]
 
     # ---------------------- TrainTransform ----------------------
     device = mosaic_imgs.device
@@ -646,6 +638,7 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
     key = (N, "eye3")
     eye3 = _constant_cache.get(key, None)
     if eye3 is None:
+        logger.info('init eye3...')
         eye3 = torch.eye(3, device=device, dtype=dtype).unsqueeze(0).repeat([N, 1, 1])
         _constant_cache[key] = eye3
     # 水平翻转矩阵

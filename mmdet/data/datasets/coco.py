@@ -16,14 +16,6 @@ from .. import RandomShapeSingle, YOLOXResizeImage
 from ..dataloading import get_yolox_datadir
 from .datasets_wrapper import Dataset
 
-def xyxy2cxcywh_(bboxes):
-    bboxes_ = np.copy(bboxes)
-    bboxes_[2] = bboxes_[2] - bboxes_[0]
-    bboxes_[3] = bboxes_[3] - bboxes_[1]
-    bboxes_[0] = bboxes_[0] + bboxes_[2] * 0.5
-    bboxes_[1] = bboxes_[1] + bboxes_[3] * 0.5
-    return bboxes_
-
 
 class COCODataset(Dataset):
     """
@@ -283,8 +275,7 @@ class SimpleCOCODataset(torch.utils.data.Dataset):
 
         for ix, obj in enumerate(objs):
             cls = self.class_ids.index(obj["category_id"])
-            res[ix, 1:5] = xyxy2cxcywh_(obj["clean_bbox"])
-            # res[ix, 1:5] = obj["clean_bbox"]
+            res[ix, 1:5] = obj["clean_bbox"]
             res[ix, 0] = cls
 
         r = min(self.img_size[0] / height, self.img_size[1] / width)
@@ -304,9 +295,7 @@ class SimpleCOCODataset(torch.utils.data.Dataset):
     def pull_item(self, index):
         id_ = self.ids[index]
         # target.shape = [?, 5]   [cid cxcywh] format.
-        target, img_info, resized_info, _ = self.annotations[index]
-
-        file_name = self.annotations[index][3]
+        target, img_info, resized_info, file_name = self.annotations[index]
         img_file = os.path.join(self.data_dir, self.name, file_name)
         img = cv2.imread(img_file)
         r = min(self.img_size[0] / img.shape[0], self.img_size[1] / img.shape[1])
