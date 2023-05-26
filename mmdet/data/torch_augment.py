@@ -51,7 +51,7 @@ def torch_warpAffine(img, transform_inverse_matrix, dsize, borderValue):
     key = (N, out_h, out_w, dtype, device)
     xy = _constant_cache.get(key, None)
     if xy is None:
-        logger.info('init xy...')
+        logger.info('cache xy...')
         yv, xv = torch.meshgrid([torch.arange(out_h, dtype=dtype, device=device), torch.arange(out_w, dtype=dtype, device=device)])
         grid = torch.stack((xv, yv), 0).view(1, 2, out_h, out_w).repeat([N, 1, 1, 1])  # [N, 2, out_h, out_w]
         xy = torch.ones((N, 3, out_h, out_w), dtype=dtype, device=device)  # [N, 3, out_h, out_w]
@@ -128,7 +128,7 @@ def torch_random_perspective(
     key = (N, "eye3")
     eye3 = _constant_cache.get(key, None)
     if eye3 is None:
-        logger.info('init eye3...')
+        logger.info('cache eye3...')
         eye3 = torch.eye(3, device=device, dtype=dtype).unsqueeze(0).repeat([N, 1, 1])
         _constant_cache[key] = eye3
 
@@ -734,7 +734,7 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
     key = (N, "eye3")
     eye3 = _constant_cache.get(key, None)
     if eye3 is None:
-        logger.info('init eye3...')
+        logger.info('cache eye3...')
         eye3 = torch.eye(3, device=device, dtype=dtype).unsqueeze(0).repeat([N, 1, 1])
         _constant_cache[key] = eye3
     # 水平翻转矩阵。先翻转再右移
