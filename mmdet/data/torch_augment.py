@@ -737,8 +737,9 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
     horizonflip_matrix[:, 0, 0] = 1. - 2. * flip
     # 翻转了才会向右平移W
     horizonflip_matrix[:, 0, 2] = flip * W
-    # 水平翻转矩阵逆矩阵, 对应着逆变换
-    horizonflip_inverse_matrix = horizonflip_matrix.clone()
+    # 水平翻转矩阵逆矩阵, 对应着逆变换。不用clone()来提速
+    # horizonflip_inverse_matrix = horizonflip_matrix.clone()
+    horizonflip_inverse_matrix = horizonflip_matrix
 
     transform_imgs = torch_warpAffine(mosaic_imgs, horizonflip_inverse_matrix, dsize=(H, W), borderValue=(0, 0, 0))
     if rank == 0:
