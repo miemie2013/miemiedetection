@@ -230,24 +230,32 @@ def torch_random_perspective(
     x_translation = -W / 2
     y_translation = -H / 2
 
+    key1 = (N, "scope_down")
+    key2 = (N, "scope_up")
+    scope_down = _constant_cache.get(key1, None)
+    scope_up = _constant_cache.get(key2, None)
+    if scope_down is None:
+        logger.info('cache scope...')
+        scope_down = torch.Tensor([[degrees * math.pi / 180], [scale[0]], [-shear * math.pi / 180], [-shear * math.pi / 180], [(0.5 - translate)*width], [(0.5 - translate)*height]]).to(device)
+        scope_up = torch.Tensor([[-degrees * math.pi / 180], [scale[1]], [shear * math.pi / 180], [shear * math.pi / 180], [(0.5 + translate)*width], [(0.5 + translate)*height]]).to(device)
+        scope_down = scope_down.repeat([1, N])  # [6, N]
+        scope_up = scope_up.repeat([1, N])  # [6, N]
+        _constant_cache[key1] = scope_down
+        _constant_cache[key2] = scope_up
     # Rotation and Scale
-    a = torch.rand([N], device=device) * 2 * degrees - degrees
-    scales = torch.rand([N], device=device) * (scale[1] - scale[0]) + scale[0]
-    theta = -a * math.pi / 180
+    random_number = torch.rand([6, N], device=device) * (scope_up - scope_down) + scope_down
+    theta = random_number[0]
+    scales = random_number[1]
     cos_theta = torch.cos(theta)
     sin_theta = torch.sin(theta)
 
     # Shear
-    shear1 = torch.rand([N], device=device) * 2 * shear - shear
-    shear2 = torch.rand([N], device=device) * 2 * shear - shear
-    tan_shear1 = torch.tan(shear1 * math.pi / 180)
-    tan_shear2 = torch.tan(shear2 * math.pi / 180)
+    tan_shear1 = torch.tan(random_number[2])
+    tan_shear2 = torch.tan(random_number[3])
 
     # Translation
-    x_trans = torch.rand([N], device=device) * 2 * translate - translate + 0.5
-    y_trans = torch.rand([N], device=device) * 2 * translate - translate + 0.5
-    x_trans *= width
-    y_trans *= height
+    x_trans = random_number[4]
+    y_trans = random_number[5]
     transform_matrixes = eye3.clone()
     transform_inverse_matrixes = eye3.clone()
     v00 = (cos_theta + sin_theta * tan_shear1)*scales
