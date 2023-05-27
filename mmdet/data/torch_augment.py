@@ -4,7 +4,8 @@
 #
 #   Author      : miemie2013
 #   Created date:
-#   Description :
+#   Description : This code is from
+#                 https://github.com/miemie2013/miemiedetection/blob/main/mmdet/data/torch_augment.py
 #
 # ================================================================
 
