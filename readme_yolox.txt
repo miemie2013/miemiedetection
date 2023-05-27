@@ -102,23 +102,19 @@ python tools/train.py -f exps/yolox/yolox_s.py -d 1 -b 8 -eb 4 -w 1 -ew 0 --fp16
 
 ----------------------- 迁移学习，带上-c（--ckpt）参数读取预训练模型。 -----------------------
 迁移学习（不冻结骨干网络）:（可以加--fp16， -eb表示验证时的批大小）
-python tools/train.py -f exps/yolox/yolox_s_voc2012.py -d 1 -b 24 -eb 16 -w 4 -ew 4 --fp16 -c yolox_s.pth
+python tools/train.py -f exps/yolox/yolox_s_voc2012.py -d 1 -b 24 -eb 16 -w 4 -ew 4 -lrs 0.1 --fp16 -c yolox_s.pth
 
 
 1机2卡训练：(发现一个隐藏知识点：获得损失（训练）、推理 都要放在模型的forward()中进行，否则DDP会计算错误结果。)
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train.py -f exps/yolox/yolox_s_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 --fp16 -c yolox_s.pth     > yolox_s.log 2>&1 &
+nohup python tools/train.py -f exps/yolox/yolox_s_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 -lrs 0.1 --fp16 -c yolox_s.pth     > yolox_s.log 2>&1 &
 
 python tools/eval.py -f exps/yolox/yolox_s_voc2012.py -d 1 -b 8 -w 4 -c 16.pth --conf 0.01 --tsize 640
 
 
-实测 yolox_s 的AP最高可以到达（head.use_batch_assign = False, 日志见 train_ppyolo_in_voc2012/yolox_s_voc2012.txt ）
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.517
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.743
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.577
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.173
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.389
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.597
+实测 yolox_s 的AP最高可以到达（head.use_batch_assign = False,
+日志见 train_ppyolo_in_voc2012/yolox_s_voc2012.txt  这是在完全空闲的服务器，2卡4090测速）
+
 
 - - - - - - - - - - - -
 (迁移学习，发现使用更小的学习率才更好，所以指定 -lrs 参数。这个参数会乘到 basic_lr_per_img)
@@ -126,6 +122,16 @@ export CUDA_VISIBLE_DEVICES=0,1
 nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 2 -b 24 -eb 16 -w 4 -ew 4 -lrs 0.1 --fp16 -c yolox_s.pth     > yolox_s_simple.log 2>&1 &
 
 tensorboard --logdir=./YOLOX_outputs/
+
+实测 yolox_s_simple 的AP最后可以到达（head.use_batch_assign = False,
+日志见 train_ppyolo_in_voc2012/yolox_s_simple_voc2012.txt  这是在完全空闲的服务器，2卡4090测速）
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.495
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.724
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.551
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.160
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.354
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.579
+
 
 (测速。极速体验。)
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
@@ -150,14 +156,6 @@ python tools/eval.py -f exps/yolox/yolox_s_simple_voc2012.py -d 1 -b 8 -w 4 -c 1
 python tools/demo.py image -f exps/yolox/yolox_s_simple_voc2012.py -c 16.pth --path assets/2008_000073.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
 
-实测 yolox_s_simple 的AP最后可以到达（head.use_batch_assign = False,
-日志见 train_ppyolo_in_voc2012/yolox_s_simple_voc2012.txt  这是在完全空闲的服务器，2卡4090测速）
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.495
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.724
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.551
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.160
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.354
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.579
 
 
 导出给私有仓库：
