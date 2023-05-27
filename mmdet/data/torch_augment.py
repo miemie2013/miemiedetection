@@ -20,7 +20,7 @@ from loguru import logger
 from numbers import Number, Integral
 
 
-def torch_box_candidates(box1, box2, wh_thr=2, ar_thr=20, area_thr=0.2, area_thr2=0.5):
+def torch_box_candidates(box1, box2, wh_thr=2, ar_thr=20, area_thr=0.2):
     '''
     box1 is ori gt,    shape=[N, n, 4]
     box2 is trans gt,  shape=[N, n, 4]
@@ -29,14 +29,21 @@ def torch_box_candidates(box1, box2, wh_thr=2, ar_thr=20, area_thr=0.2, area_thr
     # box1 before augment, box2 after augment, wh_thr (pixels), aspect_ratio_thr, area_ratio
     w1, h1 = box1[:, :, 2] - box1[:, :, 0], box1[:, :, 3] - box1[:, :, 1]
     w2, h2 = box2[:, :, 2] - box2[:, :, 0], box2[:, :, 3] - box2[:, :, 1]
-    ar = torch.maximum(w2 / (h2 + 1e-16), h2 / (w2 + 1e-16))  # aspect ratio
+    ar = torch.maximum(w2 / (h2 + 1e-16), h2 / (w2 + 1e-16))  # 变换后的gt宽高比太极端的话，去掉
     return (
         (w2 > wh_thr)
         & (h2 > wh_thr)
         & (w2 * h2 / (w1 * h1 + 1e-16) > area_thr)
-        & (w2 * h2 > area_thr2)
         & (ar < ar_thr)
     )  # candidates
+
+
+def torch_box_candidates_area(box2, area_thr=0.5):
+    '''
+    box2 is trans gt,  shape=[N, n, 4]
+    '''
+    w2, h2 = box2[:, :, 2] - box2[:, :, 0], box2[:, :, 3] - box2[:, :, 1]
+    return w2 * h2 > area_thr
 
 
 _constant_cache = dict()
@@ -388,7 +395,10 @@ def torch_random_perspective(
     return transform_imgs, targets, keep
 
 
-def torch_mixup(origin_img, origin_labels, labels_keep, cp_img, cp_labels, mixup_scale):
+def torch_mixup(origin_img, origin_labels, labels_keep, cp_img, cp_labels, mixup_scale, rank):
+    percent = []
+    train_start = time.time()
+
     N, ch, H, W = origin_img.shape
     device = origin_img.device
     # jit_factor = torch.rand([N], device=device) * (mixup_scale[1] - mixup_scale[0]) + mixup_scale[0]
@@ -399,11 +409,21 @@ def torch_mixup(origin_img, origin_labels, labels_keep, cp_img, cp_labels, mixup
     # FLIP = True
 
     cp_img = F.interpolate(cp_img, scale_factor=jit_factor, align_corners=False, mode='bilinear')
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('interpolate cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
+    train_start = time.time()
 
     cp_scale_ratio = jit_factor
 
     if FLIP:
         cp_img = cp_img[:, :, :, torch.arange(cp_img.shape[3] - 1, -1, -1, device=device).long()]
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('FLIP cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
+    train_start = time.time()
 
     origin_h, origin_w = cp_img.shape[2:4]
     target_h, target_w = origin_img.shape[2:4]
@@ -422,6 +442,11 @@ def torch_mixup(origin_img, origin_labels, labels_keep, cp_img, cp_labels, mixup
         # aaaaaaaaaa2 = aaaaaaaaaa2.transpose((1, 2, 0))
         # cv2.imwrite("aaa2.jpg", aaaaaaaaaa2)
         x_offset, y_offset = 0, 0
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('scale cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
+    train_start = time.time()
 
     if origin_w == origin_h:
         cp_labels[:, :, 1:5] = torch.clamp(cp_labels[:, :, 1:5] * cp_scale_ratio, min=0., max=origin_w)
@@ -430,6 +455,11 @@ def torch_mixup(origin_img, origin_labels, labels_keep, cp_img, cp_labels, mixup
         cp_labels[:, :, 2] = torch.clamp(cp_labels[:, :, 2] * cp_scale_ratio, min=0., max=origin_h)
         cp_labels[:, :, 3] = torch.clamp(cp_labels[:, :, 3] * cp_scale_ratio, min=0., max=origin_w)
         cp_labels[:, :, 4] = torch.clamp(cp_labels[:, :, 4] * cp_scale_ratio, min=0., max=origin_h)
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('clamp bbox cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
+    train_start = time.time()
 
     if FLIP:
         ori_x1 = cp_labels[:, :, 1].clone()
@@ -444,10 +474,25 @@ def torch_mixup(origin_img, origin_labels, labels_keep, cp_img, cp_labels, mixup
         cp_labels[:, :, 2] = torch.clamp(cp_labels[:, :, 2] - y_offset, min=0., max=target_h)
         cp_labels[:, :, 3] = torch.clamp(cp_labels[:, :, 3] - x_offset, min=0., max=target_w)
         cp_labels[:, :, 4] = torch.clamp(cp_labels[:, :, 4] - y_offset, min=0., max=target_h)
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('FLIP bbox cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
+    train_start = time.time()
 
-
-    keep = torch_box_candidates(box1=old_bbox, box2=cp_labels[:, :, 1:5], wh_thr=5)
+    # keep = torch_box_candidates(box1=old_bbox, box2=cp_labels[:, :, 1:5], wh_thr=5)
+    keep = torch_box_candidates_area(box2=cp_labels[:, :, 1:5])
     labels_keep = torch.cat([labels_keep, keep], 1)
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('filter bbox cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
+        # percent = np.array(percent)
+        # sum_ = np.sum(percent)
+        # percent /= sum_
+        # logger.info(percent)
+        # logger.info('')
+    train_start = time.time()
 
 
 
@@ -499,7 +544,7 @@ def torch_BGR2HSV(img, max_angle=180.):
     R = img[:, 2:3, :, :]
     max_BGR, arg_max = torch.max(img, dim=1, keepdim=True)
     min_BGR, _ = torch.min(img, dim=1, keepdim=True)
-    val = max_BGR.clone()
+    val = max_BGR
     val = val.to(torch.int64)
     sat = torch.where(max_BGR > 0., 255. * (max_BGR - min_BGR) / max_BGR, torch.zeros_like(max_BGR))
     sat = (sat + 0.5).to(torch.int64)
@@ -556,7 +601,9 @@ def torch_HSV2BGR(H, S, V, max_angle=180.):
     B = torch.where(hi == 5, min_BGR - (H - max_angle) / angle_radius * (max_BGR - min_BGR + 1e-9), B)
     return B, G, R
 
-def torch_augment_hsv(img, hgain=0.015, sgain=0.7, vgain=0.4, max_angle=180.):
+def torch_augment_hsv(img, rank, hgain=0.015, sgain=0.7, vgain=0.4, max_angle=180.):
+    percent = []
+    train_start = time.time()
     N, ch, H, W = img.shape
     device = img.device
     dtype = img.dtype
@@ -566,9 +613,19 @@ def torch_augment_hsv(img, hgain=0.015, sgain=0.7, vgain=0.4, max_angle=180.):
     r = torch.rand([N, 3], device=device) * 2. - 1.
     gain = torch.Tensor([hgain, sgain, vgain]).to(device).unsqueeze(0).repeat([N, 1])
     r = r * gain + 1.
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('get r cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
+    train_start = time.time()
 
     # BGR2HSV
     hue, sat, val = torch_BGR2HSV(img, max_angle)
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('torch_BGR2HSV cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
+    train_start = time.time()
 
     # 增强
     x = torch.arange(256, dtype=torch.int16, device=device).unsqueeze(0).repeat([N, 1])   # [N, 256]
@@ -578,9 +635,24 @@ def torch_augment_hsv(img, hgain=0.015, sgain=0.7, vgain=0.4, max_angle=180.):
     new_hue = torch_LUT(hue, lut_hue)
     new_sat = torch_LUT(sat, lut_sat)
     new_val = torch_LUT(val, lut_val)
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('new_hue cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
+    train_start = time.time()
 
     # HSV2BGR , new_B new_G new_R are  float32
     new_B, new_G, new_R = torch_HSV2BGR(new_hue, new_sat, new_val, max_angle)
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('torch_HSV2BGR cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
+        # percent = np.array(percent)
+        # sum_ = np.sum(percent)
+        # percent /= sum_
+        # logger.info(percent)
+        # logger.info('')
+    train_start = time.time()
     aug_imgs = torch.cat([new_B, new_G, new_R], 1)
     aug_imgs = aug_imgs.to(dtype)  # to float16
     return aug_imgs
@@ -720,7 +792,7 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
         # ---------------------- Mixup ----------------------
         mixup_img = mixup_samples[0]['img']
         mixup_label = mixup_samples[0]['labels']
-        mosaic_imgs, all_mosaic_labels, labels_keep = torch_mixup(mosaic_imgs, all_mosaic_labels, labels_keep, mixup_img, mixup_label, exp.mixup_scale)
+        mosaic_imgs, all_mosaic_labels, labels_keep = torch_mixup(mosaic_imgs, all_mosaic_labels, labels_keep, mixup_img, mixup_label, exp.mixup_scale, rank)
         if rank == 0:
             cost = time.time() - train_start
             # logger.info('torch_mixup cost time: %.6f s.' % (cost, ))
@@ -728,16 +800,18 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
         mosaic_imgs = imgs
         all_mosaic_labels = targets
 
+    percent = []
     train_start = time.time()
     # ---------------------- TrainTransform ----------------------
     device = mosaic_imgs.device
     dtype = mosaic_imgs.dtype
     N, ch, H, W = mosaic_imgs.shape
     # - - - - - - - - hsv aug - - - - - - - -
-    mosaic_imgs = torch_augment_hsv(mosaic_imgs)
+    mosaic_imgs = torch_augment_hsv(mosaic_imgs, rank)
     if rank == 0:
         cost = time.time() - train_start
         # logger.info('torch_augment_hsv cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
     train_start = time.time()
 
     # - - - - - - - - flip aug - - - - - - - -
@@ -763,6 +837,7 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
     if rank == 0:
         cost = time.time() - train_start
         # logger.info('horizonflip cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
     train_start = time.time()
 
 
@@ -800,10 +875,16 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
         y1 = torch.clamp(y1, min=0., max=H)
         y2 = torch.clamp(y2, min=0., max=H)
         xy = torch.stack((x1, y1, x2, y2), 2)   # [N, n, 4]
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('trans xy cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
+    train_start = time.time()
+
 
     # filter candidates
-    area_thr2 = 8.
-    keep = torch_box_candidates(box1=bboxes.reshape((N, n, 4)), box2=xy, area_thr2=area_thr2)
+    area_thr = 8.
+    keep = torch_box_candidates_area(box2=xy, area_thr=area_thr)
     if use_mosaic:
         keep = keep & labels_keep
     num_gts = keep.sum(1)
@@ -817,6 +898,17 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
     new_bboxes[gt_position] = xy[keep]
     new_classes[gt_position] = all_mosaic_labels[keep][:, :1]
     new_targets = torch.cat([new_classes, new_bboxes], dim=2)
+
+    if rank == 0:
+        cost = time.time() - train_start
+        # logger.info('filter bbox cost time: %.6f s.' % (cost, ))
+        # percent.append(cost)
+        # percent = np.array(percent)
+        # sum_ = np.sum(percent)
+        # percent /= sum_
+        # logger.info(percent)
+        # logger.info('')
+    train_start = time.time()
 
     # for batch_idx in range(N):
     #     all_mosaic_labels[batch_idx, :num_gts[batch_idx], :1] = all_mosaic_labels[batch_idx][keep[batch_idx]][:, :1]
