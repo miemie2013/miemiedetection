@@ -481,8 +481,7 @@ def torch_mixup(origin_img, origin_labels, labels_keep, cp_img, cp_labels, mixup
         # percent.append(cost)
     train_start = time.time()
 
-    # keep = torch_box_candidates(box1=old_bbox, box2=cp_labels[:, :, 1:5], wh_thr=5)
-    keep = torch_box_candidates_area(box2=cp_labels[:, :, 1:5])
+    keep = torch_box_candidates(box1=old_bbox, box2=cp_labels[:, :, 1:5], wh_thr=5)
     labels_keep = torch.cat([labels_keep, keep], 1)
     if rank == 0:
         cost = time.time() - train_start
