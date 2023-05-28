@@ -39,12 +39,12 @@ def torch_box_candidates(box1, box2, wh_thr=2, ar_thr=20, area_thr=0.2):
     )  # candidates
 
 
-def torch_box_candidates_area(box2, area_thr=0.5):
+def torch_box_candidates_wh(box2, wh_thr=1.):
     '''
     box2 is trans gt,  shape=[N, n, 4]
     '''
     w2, h2 = box2[:, :, 2] - box2[:, :, 0], box2[:, :, 3] - box2[:, :, 1]
-    return w2 * h2 > area_thr
+    return ((w2 > wh_thr) & (h2 > wh_thr))
 
 
 _constant_cache = dict()
@@ -883,8 +883,8 @@ def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,
 
 
     # filter candidates
-    area_thr = 8.
-    keep = torch_box_candidates_area(box2=xy, area_thr=area_thr)
+    wh_thr = 1.
+    keep = torch_box_candidates_wh(box2=xy, wh_thr=wh_thr)
     if use_mosaic:
         keep = keep & labels_keep
     num_gts = keep.sum(1)
