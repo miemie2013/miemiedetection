@@ -127,6 +127,7 @@ class YOLOXExp(COCOBaseExp):
                     ann_folder=self.ann_folder,
                     name=self.train_image_folder,
                     img_size=self.input_size,
+                    wh_thr=1.,
                 )
         else:
             with wait_for_the_master(local_rank):

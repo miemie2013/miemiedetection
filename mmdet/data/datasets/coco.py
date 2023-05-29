@@ -229,6 +229,7 @@ class SimpleCOCODataset(torch.utils.data.Dataset):
         ann_folder="annotations",
         name="train2017",
         img_size=(416, 416),
+        wh_thr=1.,
     ):
         if data_dir is None:
             data_dir = os.path.join(get_yolox_datadir(), "COCO")
@@ -244,6 +245,7 @@ class SimpleCOCODataset(torch.utils.data.Dataset):
         self.name = name
         self.img_size = img_size
         self.max_labels = 0
+        self.wh_thr = wh_thr
         self.annotations = self._load_coco_annotations()
         logger.info("max_labels = %d"%self.max_labels)
 
@@ -265,7 +267,7 @@ class SimpleCOCODataset(torch.utils.data.Dataset):
             y1 = np.max((0, obj["bbox"][1]))
             x2 = np.min((width, x1 + np.max((0, obj["bbox"][2]))))
             y2 = np.min((height, y1 + np.max((0, obj["bbox"][3]))))
-            if obj["area"] > 0 and x2 >= x1 and y2 >= y1:
+            if obj["area"] > 0 and x2 >= x1 + self.wh_thr and y2 >= y1 + self.wh_thr:
                 obj["clean_bbox"] = [x1, y1, x2, y2]
                 objs.append(obj)
 
