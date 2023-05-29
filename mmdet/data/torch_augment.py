@@ -654,7 +654,7 @@ def torch_augment_hsv(img, rank, hgain=0.015, sgain=0.7, vgain=0.4, max_angle=18
         # logger.info('')
     train_start = time.time()
     aug_imgs = torch.cat([new_B, new_G, new_R], 1)
-    aug_imgs = aug_imgs.to(dtype)  # to float16
+    aug_imgs = aug_imgs.to(dtype)
     return aug_imgs
 
 def yolox_torch_aug(imgs, targets, mosaic_cache, mixup_cache,

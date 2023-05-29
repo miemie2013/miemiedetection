@@ -142,7 +142,7 @@ tensorboard --logdir=./YOLOX_outputs/
 
 (测速。极速体验。)
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 8 -b 64 -eb 64 -w 4 -ew 4 -lrs 0.1 --fp16 -c yolox_s.pth     > yolox_s_simple.log 2>&1 &
+nohup python tools/train.py -f exps/yolox/yolox_s_simple_voc2012.py -d 8 -b 64 -eb 64 -w 4 -ew 4 -lrs 0.1 --fp16 -c yolox_s.pth     > yolox_s_simple_8gpu.log 2>&1 &
 
 
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5
