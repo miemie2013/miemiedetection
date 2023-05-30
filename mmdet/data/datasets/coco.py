@@ -247,7 +247,7 @@ class SimpleCOCODataset(torch.utils.data.Dataset):
         self.max_labels = 0
         self.wh_thr = wh_thr
         self.annotations = self._load_coco_annotations()
-        logger.info("max_labels = %d"%self.max_labels)
+        logger.info("SimpleCOCODataset.max_labels = %d"%self.max_labels)
 
     def __len__(self):
         return len(self.ids)
