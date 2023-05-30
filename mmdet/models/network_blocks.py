@@ -2,8 +2,11 @@
 # -*- encoding: utf-8 -*-
 # Copyright (c) 2014-2021 Megvii Inc. All rights reserved.
 
+import random
+import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class SiLU(nn.Module):
@@ -28,6 +31,37 @@ def get_activation(name="silu", inplace=True):
     else:
         raise AttributeError("Unsupported act type: {}".format(name))
     return module
+
+
+
+class MyBatchNorm2d(torch.nn.Module):
+    def __init__(
+        self,
+        num_features,
+        eps=1e-3,
+        momentum=0.03,
+    ):
+        super(MyBatchNorm2d, self).__init__()
+        self.num_features = num_features
+        self.eps = eps
+        self.momentum = momentum
+        self.weight = torch.nn.Parameter(torch.full([num_features], np.float32(1.)))
+        self.bias = torch.nn.Parameter(torch.full([num_features], np.float32(0.)))
+        self.register_buffer('running_mean', torch.zeros([num_features]))
+        self.register_buffer('running_var', torch.ones([num_features]))
+
+    def forward(self, x):
+        if self.training:
+            mean = torch.mean(x, [0, 2, 3], keepdim=True)
+            var = torch.var(x, [0, 2, 3], keepdim=True)
+            self.running_mean.copy_(self.running_mean.lerp(mean[0, :, 0, 0].to(torch.float32), self.momentum))
+            self.running_var.copy_(self.running_var.lerp(var[0, :, 0, 0].to(torch.float32), self.momentum))
+            normX = (x - mean) / (var + self.eps).sqrt()
+        else:
+            normX = (x - self.running_mean.reshape((1, self.num_features, 1, 1))) / (self.running_var.reshape((1, self.num_features, 1, 1)) + self.eps).sqrt()
+        y = normX * self.weight.reshape((1, self.num_features, 1, 1)).to(x.dtype) + self.bias.reshape((1, self.num_features, 1, 1)).to(x.dtype)
+        return y
+
 
 
 class BaseConv(nn.Module):
