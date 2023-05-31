@@ -428,20 +428,14 @@ def torch_mixup(origin_img, origin_labels, labels_keep, cp_img, cp_labels, mixup
 
     origin_h, origin_w = cp_img.shape[2:4]
     target_h, target_w = origin_img.shape[2:4]
-    if origin_h > target_h:
+    if origin_h >= target_h and origin_w >= target_w:
         # mixup的图片被放大时
-        y_offset = random.randint(0, origin_h - target_h - 1)
-        x_offset = random.randint(0, origin_w - target_w - 1)
+        y_offset = random.randint(0, max(origin_h - target_h - 1, 0))
+        x_offset = random.randint(0, max(origin_w - target_w - 1, 0))
         padded_cropped_img = cp_img[:, :, y_offset: y_offset + target_h, x_offset: x_offset + target_w]
-    elif origin_h == target_h:
-        x_offset, y_offset = 0, 0
-        padded_cropped_img = cp_img
     else:
         # mixup的图片被缩小时
         padded_cropped_img = F.pad(cp_img, [0, target_w - origin_w, 0, target_h - origin_h])
-        # aaaaaaaaaa2 = cp_img[1].cpu().detach().numpy()
-        # aaaaaaaaaa2 = aaaaaaaaaa2.transpose((1, 2, 0))
-        # cv2.imwrite("aaa2.jpg", aaaaaaaaaa2)
         x_offset, y_offset = 0, 0
     if rank == 0:
         cost = time.time() - train_start
