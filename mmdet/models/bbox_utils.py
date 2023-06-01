@@ -13,12 +13,70 @@ import torch as T
 import torch.nn.functional as F
 import torch.nn as nn
 import numpy as np
-# import paddle.fluid as fluid
-# from paddle import ParamAttr
-# from paddle.regularizer import L2Decay
-# from paddle.nn.initializer import Uniform
-# from paddle.nn.initializer import Constant
-# from paddle.vision.ops import DeformConv2D
+
+
+def bbox2delta(src_boxes, tgt_boxes, weights=[1.0, 1.0, 1.0, 1.0]):
+    """Encode bboxes to deltas.
+    """
+    src_w = src_boxes[:, 2] - src_boxes[:, 0]
+    src_h = src_boxes[:, 3] - src_boxes[:, 1]
+    src_ctr_x = src_boxes[:, 0] + 0.5 * src_w
+    src_ctr_y = src_boxes[:, 1] + 0.5 * src_h
+
+    tgt_w = tgt_boxes[:, 2] - tgt_boxes[:, 0]
+    tgt_h = tgt_boxes[:, 3] - tgt_boxes[:, 1]
+    tgt_ctr_x = tgt_boxes[:, 0] + 0.5 * tgt_w
+    tgt_ctr_y = tgt_boxes[:, 1] + 0.5 * tgt_h
+
+    wx, wy, ww, wh = weights
+    dx = wx * (tgt_ctr_x - src_ctr_x) / src_w
+    dy = wy * (tgt_ctr_y - src_ctr_y) / src_h
+    dw = ww * torch.log(tgt_w / src_w)
+    dh = wh * torch.log(tgt_h / src_h)
+
+    deltas = torch.stack((dx, dy, dw, dh), dim=1)
+    return deltas
+
+
+def delta2bbox(deltas, boxes, weights=[1.0, 1.0, 1.0, 1.0], max_shape=None):
+    """Decode deltas to boxes. Used in RCNNBox,CascadeHead,RCNNHead,RetinaHead.
+    Note: return tensor shape [n,1,4]
+        If you want to add a reshape, please add after the calling code instead of here.
+    """
+    clip_scale = math.log(1000.0 / 16)
+
+    widths = boxes[:, 2] - boxes[:, 0]
+    heights = boxes[:, 3] - boxes[:, 1]
+    ctr_x = boxes[:, 0] + 0.5 * widths
+    ctr_y = boxes[:, 1] + 0.5 * heights
+
+    wx, wy, ww, wh = weights
+    dx = deltas[:, 0::4] / wx
+    dy = deltas[:, 1::4] / wy
+    dw = deltas[:, 2::4] / ww
+    dh = deltas[:, 3::4] / wh
+    # Prevent sending too large values into paddle.exp()
+    dw = torch.clamp(dw, max=clip_scale)
+    dh = torch.clamp(dh, max=clip_scale)
+
+    pred_ctr_x = dx * widths.unsqueeze(1) + ctr_x.unsqueeze(1)
+    pred_ctr_y = dy * heights.unsqueeze(1) + ctr_y.unsqueeze(1)
+    pred_w = torch.exp(dw) * widths.unsqueeze(1)
+    pred_h = torch.exp(dh) * heights.unsqueeze(1)
+
+    pred_boxes = []
+    pred_boxes.append(pred_ctr_x - 0.5 * pred_w)
+    pred_boxes.append(pred_ctr_y - 0.5 * pred_h)
+    pred_boxes.append(pred_ctr_x + 0.5 * pred_w)
+    pred_boxes.append(pred_ctr_y + 0.5 * pred_h)
+    pred_boxes = torch.stack(pred_boxes, dim=-1)
+
+    if max_shape is not None:
+        pred_boxes[..., 0::2] = torch.clamp(pred_boxes[..., 0::2], min=0., max=max_shape[1])
+        pred_boxes[..., 1::2] = torch.clamp(pred_boxes[..., 1::2], min=0., max=max_shape[0])
+    return pred_boxes
+
+
 
 def bbox_iou(box1, box2, giou=False, diou=False, ciou=False, eps=1e-9):
     """calculate the iou of box1 and box2

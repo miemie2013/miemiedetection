@@ -312,6 +312,14 @@ class Normal:
         normal_(tensor, mean=self.mean, std=self.std)
 
 
+class Constant:
+    def __init__(self, value=0.):
+        self.value = value
+
+    def init(self, tensor):
+        constant_(tensor, value=self.value)
+
+
 class XavierUniform:
     def __init__(self, fan_in=None, fan_out=None, gain=1., reverse=False):
         self._fan_in = fan_in

@@ -26,6 +26,7 @@ from .heads.fcos_head import FCOSHead
 from .heads.ppyoloe_head import PPYOLOEHead
 from .heads.gfl_head import GFLHead
 from .heads.pico_head import PicoHeadV2, PicoFeat
+from .heads.detr_head import *
 
 
 from .necks.yolo_pafpn import YOLOPAFPN
@@ -42,8 +43,16 @@ from .architectures.yolox import YOLOX
 from .architectures.fcos import FCOS
 from .architectures.solo import SOLO
 from .architectures.picodet import PicoDet
+from .architectures.detr import DETR
 
 from .assigners.atss_assigner import ATSSAssigner
 from .assigners.task_aligned_assigner import TaskAlignedAssigner
 from .assigners.position_assigner import PositionAssigner
+
+from .transformers.deformable_transformer import *
+from .transformers.detr_transformer import *
+from .transformers.hybrid_encoder import *
+from .transformers.position_encoding import *
+from .transformers.rtdetr_transformer import *
+from .transformers.utils import *
 

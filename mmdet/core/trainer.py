@@ -312,7 +312,7 @@ class Trainer:
         if self.args.occupy:
             occupy_mem(self.local_rank)
 
-        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'SOLO', 'FCOS']:
+        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'RTDETR', 'SOLO', 'FCOS']:
             # 多卡训练时，使用同步bn。
             # torch.nn.SyncBatchNorm.convert_sync_batchnorm()的使用一定要在创建优化器之后，创建DDP之前。
             if self.is_distributed:
