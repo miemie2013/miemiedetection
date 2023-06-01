@@ -119,7 +119,7 @@ class ConvNormLayer(nn.Module):
                  dcn_v2=False):
         super(ConvNormLayer, self).__init__()
         assert norm_type in ['bn', 'sync_bn']
-        assert lr == 1.0           # 假定是这样，创建可训练参数组时的代码就不用很复杂
+        # assert lr == 1.0           # 假定是这样，创建可训练参数组时的代码就不用很复杂
         assert norm_decay == 0.0   # 假定是这样，创建可训练参数组时的代码就不用很复杂
         self.norm_type = norm_type
         self.act = act

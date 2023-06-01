@@ -38,9 +38,9 @@ class CSPRepLayer(nn.Module):
         super(CSPRepLayer, self).__init__()
         hidden_channels = int(out_channels * expansion)
         self.conv1 = BaseConv(
-            in_channels, hidden_channels, ksize=1, stride=1, bias=bias, act=act)
+            in_channels, hidden_channels, ksize=1, stride=1, bias=bias)
         self.conv2 = BaseConv(
-            in_channels, hidden_channels, ksize=1, stride=1, bias=bias, act=act)
+            in_channels, hidden_channels, ksize=1, stride=1, bias=bias)
         self.bottlenecks = nn.Sequential(*[
             RepVggBlock(
                 hidden_channels, hidden_channels, act=act)
@@ -53,7 +53,7 @@ class CSPRepLayer(nn.Module):
                 ksize=1,
                 stride=1,
                 bias=bias,
-                act=act)
+                )
         else:
             self.conv3 = nn.Identity()
 
@@ -82,13 +82,13 @@ class TransformerLayer(nn.Module):
         self.self_attn = MultiHeadAttention(d_model, nhead, attn_dropout)
         # Implementation of Feedforward model
         self.linear1 = nn.Linear(d_model, dim_feedforward)
-        self.dropout = nn.Dropout(act_dropout, mode="upscale_in_train")
+        self.dropout = nn.Dropout(act_dropout)
         self.linear2 = nn.Linear(dim_feedforward, d_model)
 
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
-        self.dropout1 = nn.Dropout(dropout, mode="upscale_in_train")
-        self.dropout2 = nn.Dropout(dropout, mode="upscale_in_train")
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
         self.activation = getattr(F, activation)
         self._reset_parameters()
 
@@ -168,7 +168,7 @@ class HybridEncoder(nn.Module):
         for idx in range(len(in_channels) - 1, 0, -1):
             self.lateral_convs.append(
                 BaseConv(
-                    hidden_dim, hidden_dim, 1, 1, act=act))
+                    hidden_dim, hidden_dim, 1, 1))
             self.fpn_blocks.append(
                 CSPRepLayer(
                     hidden_dim * 2,
@@ -183,7 +183,7 @@ class HybridEncoder(nn.Module):
         for idx in range(len(in_channels) - 1):
             self.downsample_convs.append(
                 BaseConv(
-                    hidden_dim, hidden_dim, 3, stride=2, act=act))
+                    hidden_dim, hidden_dim, 3, stride=2))
             self.pan_blocks.append(
                 CSPRepLayer(
                     hidden_dim * 2,
@@ -208,24 +208,24 @@ class HybridEncoder(nn.Module):
                                            h,
                                            embed_dim=256,
                                            temperature=10000.):
-        grid_w = paddle.arange(int(w), dtype=paddle.float32)
-        grid_h = paddle.arange(int(h), dtype=paddle.float32)
-        grid_w, grid_h = paddle.meshgrid(grid_w, grid_h)
+        grid_w = torch.arange(int(w), dtype=torch.float32)
+        grid_h = torch.arange(int(h), dtype=torch.float32)
+        grid_w, grid_h = torch.meshgrid(grid_w, grid_h)
         assert embed_dim % 4 == 0, \
             'Embed dimension must be divisible by 4 for 2D sin-cos position embedding'
         pos_dim = embed_dim // 4
-        omega = paddle.arange(pos_dim, dtype=paddle.float32) / pos_dim
+        omega = torch.arange(pos_dim, dtype=torch.float32) / pos_dim
         omega = 1. / (temperature**omega)
 
         out_w = grid_w.flatten()[..., None] @omega[None]
         out_h = grid_h.flatten()[..., None] @omega[None]
 
-        return paddle.concat(
+        return torch.cat(
             [
-                paddle.sin(out_w), paddle.cos(out_w), paddle.sin(out_h),
-                paddle.cos(out_h)
+                torch.sin(out_w), torch.cos(out_w), torch.sin(out_h),
+                torch.cos(out_h)
             ],
-            axis=1)[None, :, :]
+            dim=1)[None, :, :]
 
     def forward(self, feats, for_mot=False):
         assert len(feats) == len(self.in_channels)
@@ -236,8 +236,7 @@ class HybridEncoder(nn.Module):
             for i, enc_ind in enumerate(self.use_encoder_idx):
                 h, w = proj_feats[enc_ind].shape[2:]
                 # flatten [B, C, H, W] to [B, HxW, C]
-                src_flatten = proj_feats[enc_ind].flatten(2).transpose(
-                    [0, 2, 1])
+                src_flatten = proj_feats[enc_ind].flatten(2).permute([0, 2, 1])
                 if self.training or self.eval_size is None:
                     pos_embed = self.build_2d_sincos_position_embedding(
                         w, h, self.hidden_dim, self.pe_temperature)

@@ -12,7 +12,6 @@ import torch.nn as nn
 
 from mmdet.data import *
 from mmdet.exp.datasets.coco_base import COCOBaseExp
-from mmdet.models.backbones.lcnet import make_divisible
 
 
 class RTDETR_Method_Exp(COCOBaseExp):
@@ -176,7 +175,8 @@ class RTDETR_Method_Exp(COCOBaseExp):
         self.eval_data_num_workers = 2
 
     def get_model(self):
-        from mmdet.models import ResNet, HybridEncoder, RTDETRTransformer, DINOHead, PicoHeadV2, DETR, PicoFeat
+        from mmdet.models import ResNet, HybridEncoder, RTDETRTransformer, DINOHead, DETR, PicoFeat
+        from mmdet.models.transformers.hybrid_encoder import TransformerLayer
         from mmdet.models.necks.lc_pan import LCPAN
         from mmdet.models.losses.iou_losses import GIoULoss
         from mmdet.models.losses.varifocal_loss import VarifocalLoss
@@ -187,9 +187,14 @@ class RTDETR_Method_Exp(COCOBaseExp):
                 Backbone = ResNet
             backbone = Backbone(**self.backbone)
             Neck = None
+            encoder_layer = None
             if self.neck_type == 'HybridEncoder':
                 Neck = HybridEncoder
-            neck = Neck(**self.neck)
+                encoder_layer_cfg = self.neck.pop('encoder_layer')
+                name = encoder_layer_cfg.pop('name')
+                if name == 'TransformerLayer':
+                    encoder_layer = TransformerLayer(**encoder_layer_cfg)
+            neck = Neck(encoder_layer=encoder_layer, **self.neck)
             Transformer = None
             if self.transformer_type == 'RTDETRTransformer':
                 Transformer = RTDETRTransformer

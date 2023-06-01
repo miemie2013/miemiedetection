@@ -23,6 +23,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from loguru import logger
 
 from ..layers import MultiHeadAttention
 from .position_encoding import PositionEmbedding
@@ -42,6 +43,7 @@ class MSDeformableAttention(nn.Module):
         """
         Multi-Scale Deformable Attention Module
         """
+        logger.warning("MSDeformableAttention.lr = %f"%lr_mult)
         super(MSDeformableAttention, self).__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads
@@ -54,9 +56,7 @@ class MSDeformableAttention(nn.Module):
 
         self.sampling_offsets = nn.Linear(
             embed_dim,
-            self.total_points * 2,
-            weight_attr=ParamAttr(learning_rate=lr_mult),
-            bias_attr=ParamAttr(learning_rate=lr_mult))
+            self.total_points * 2)
 
         self.attention_weights = nn.Linear(embed_dim, self.total_points)
         self.value_proj = nn.Linear(embed_dim, embed_dim)
@@ -71,21 +71,23 @@ class MSDeformableAttention(nn.Module):
 
         self._reset_parameters()
 
+    @torch.no_grad()
     def _reset_parameters(self):
         # sampling_offsets
         constant_(self.sampling_offsets.weight)
-        thetas = paddle.arange(
+        thetas = torch.arange(
             self.num_heads,
-            dtype=paddle.float32) * (2.0 * math.pi / self.num_heads)
-        grid_init = paddle.stack([thetas.cos(), thetas.sin()], -1)
-        grid_init = grid_init / grid_init.abs().max(-1, keepdim=True)
+            dtype=torch.float32) * (2.0 * math.pi / self.num_heads)
+        grid_init = torch.stack([thetas.cos(), thetas.sin()], -1)
+        aaaa, bbbbb = grid_init.abs().max(-1, keepdim=True)
+        grid_init = grid_init / aaaa
         grid_init = grid_init.reshape([self.num_heads, 1, 1, 2]).tile(
             [1, self.num_levels, self.num_points, 1])
-        scaling = paddle.arange(
+        scaling = torch.arange(
             1, self.num_points + 1,
-            dtype=paddle.float32).reshape([1, 1, -1, 1])
+            dtype=torch.float32).reshape([1, 1, -1, 1])
         grid_init *= scaling
-        self.sampling_offsets.bias.set_value(grid_init.flatten())
+        self.sampling_offsets.bias.copy_(grid_init.flatten())
         # attention_weights
         constant_(self.attention_weights.weight)
         constant_(self.attention_weights.bias)

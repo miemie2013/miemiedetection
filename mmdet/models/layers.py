@@ -1146,16 +1146,8 @@ class MultiHeadAttention(nn.Module):
         assert self.head_dim * num_heads == self.embed_dim, "embed_dim must be divisible by num_heads"
 
         if self._qkv_same_embed_dim:
-            self.in_proj_weight = self.create_parameter(
-                shape=[embed_dim, 3 * embed_dim],
-                attr=None,
-                dtype=self._dtype,
-                is_bias=False)
-            self.in_proj_bias = self.create_parameter(
-                shape=[3 * embed_dim],
-                attr=None,
-                dtype=self._dtype,
-                is_bias=True)
+            self.in_proj_weight = torch.nn.Parameter(torch.randn([embed_dim, 3 * embed_dim]))
+            self.in_proj_bias = torch.nn.Parameter(torch.full([3 * embed_dim], np.float32(0.)))
         else:
             self.q_proj = nn.Linear(embed_dim, embed_dim)
             self.k_proj = nn.Linear(self.kdim, embed_dim)
@@ -1176,7 +1168,7 @@ class MultiHeadAttention(nn.Module):
     def compute_qkv(self, tensor, index):
         if self._qkv_same_embed_dim:
             tensor = F.linear(
-                x=tensor,
+                tensor,
                 weight=self.in_proj_weight[:, index * self.embed_dim:(index + 1)
                                            * self.embed_dim],
                 bias=self.in_proj_bias[index * self.embed_dim:(index + 1) *
@@ -1184,8 +1176,7 @@ class MultiHeadAttention(nn.Module):
                 if self.in_proj_bias is not None else None)
         else:
             tensor = getattr(self, self._type_list[index])(tensor)
-        tensor = tensor.reshape(
-            [0, 0, self.num_heads, self.head_dim]).transpose([0, 2, 1, 3])
+        tensor = tensor.reshape([0, 0, self.num_heads, self.head_dim]).permute([0, 2, 1, 3])
         return tensor
 
     def forward(self, query, key=None, value=None, attn_mask=None):

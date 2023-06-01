@@ -21,19 +21,42 @@ class DETR(torch.nn.Module):
         self.with_mask = with_mask
         self.exclude_post_process = exclude_post_process
 
-    def forward(self, x, scale_factor=None, targets=None):
+    def forward(self, inputs, scale_factor=None, targets=None):
         '''
         获得损失（训练）、推理 都要放在forward()中进行，否则DDP会计算错误结果。
         '''
-        body_feats = self.backbone(x)
-        fpn_feats = self.neck(body_feats)
-        out = self.head(fpn_feats, export_post_process=True)
+        # Backbone
+        body_feats = self.backbone(inputs['image'])
+
+        # Neck
+        if self.neck is not None:
+            body_feats = self.neck(body_feats)
+
+        # Transformer
+        pad_mask = inputs.get('pad_mask', None)
+        out_transformer = self.transformer(body_feats, pad_mask, inputs)
+
+        # DETR Head
         if self.training:
-            out = self.head.get_loss(out, targets)
-            return out
+            detr_losses = self.detr_head(out_transformer, body_feats, inputs)
+            # detr_losses.update({
+            #     'loss': paddle.add_n(
+            #         [v for k, v in detr_losses.items() if 'log' not in k])
+            # })
+            return detr_losses
         else:
-            out = self.head.post_process(out, scale_factor)
-            return out
+            preds = self.detr_head(out_transformer, body_feats)
+            if self.exclude_post_process:
+                bbox, bbox_num, mask = preds
+            else:
+                bbox, bbox_num, mask = self.post_process(
+                    preds, inputs['im_shape'], inputs['scale_factor'],
+                    inputs['image'].shape[2:])
+
+            output = {'bbox': bbox, 'bbox_num': bbox_num}
+            if self.with_mask:
+                output['mask'] = mask
+            return output
 
 
 

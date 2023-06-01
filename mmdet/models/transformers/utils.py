@@ -36,7 +36,7 @@ __all__ = [
 
 
 def _get_clones(module, N):
-    return nn.LayerList([copy.deepcopy(module) for _ in range(N)])
+    return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 
 def bbox_cxcywh_to_xyxy(x):

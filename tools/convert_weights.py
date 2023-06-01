@@ -483,6 +483,19 @@ def main(exp, args):
             delattr(model, "yolo_head")
     elif model_class_name == 'FCOS':
         pass
+    elif model_class_name == 'DETR':
+        temp_x = torch.randn((1, 3, 640, 640))
+        temp_im_shape = torch.ones((1, 2)) * 640
+        temp_ori_shape = torch.ones((1, 2)) * 640
+        if args.device == "gpu":
+            temp_x = temp_x.cuda()
+            temp_im_shape = temp_im_shape.cuda()
+            temp_ori_shape = temp_ori_shape.cuda()
+
+        inputs = {}
+        inputs['image'] = temp_x
+        temp_out = model(inputs)
+        aaaaaa = 1
     else:
         raise NotImplementedError("Architectures \'{}\' is not implemented.".format(model_class_name))
 

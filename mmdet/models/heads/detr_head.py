@@ -16,9 +16,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import paddle
-import paddle.nn as nn
-import paddle.nn.functional as F
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import pycocotools.mask as mask_util
 from ..initializer import linear_init_, constant_
 from ..transformers.utils import inverse_sigmoid
@@ -26,7 +26,7 @@ from ..transformers.utils import inverse_sigmoid
 __all__ = ['DETRHead', 'DeformableDETRHead', 'DINOHead', 'MaskDINOHead']
 
 
-class MLP(nn.Layer):
+class MLP(nn.Module):
     """This code is based on
         https://github.com/facebookresearch/detr/blob/main/models/detr.py
     """
@@ -35,11 +35,12 @@ class MLP(nn.Layer):
         super().__init__()
         self.num_layers = num_layers
         h = [hidden_dim] * (num_layers - 1)
-        self.layers = nn.LayerList(
+        self.layers = nn.ModuleList(
             nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
 
         self._reset_parameters()
 
+    @torch.no_grad()
     def _reset_parameters(self):
         for l in self.layers:
             linear_init_(l)
@@ -50,7 +51,7 @@ class MLP(nn.Layer):
         return x
 
 
-class MultiHeadAttentionMap(nn.Layer):
+class MultiHeadAttentionMap(nn.Module):
     """This code is based on
         https://github.com/facebookresearch/detr/blob/main/models/segmentation.py
 
@@ -100,7 +101,7 @@ class MultiHeadAttentionMap(nn.Layer):
         return weights
 
 
-class MaskHeadFPNConv(nn.Layer):
+class MaskHeadFPNConv(nn.Module):
     """This code is based on
         https://github.com/facebookresearch/detr/blob/main/models/segmentation.py
 
@@ -120,7 +121,7 @@ class MaskHeadFPNConv(nn.Layer):
 
         self.conv0 = self._make_layers(input_dim, input_dim, 3, num_groups,
                                        weight_attr, bias_attr)
-        self.conv_inter = nn.LayerList()
+        self.conv_inter = nn.ModuleList()
         for in_dims, out_dims in zip(inter_dims[:-1], inter_dims[1:]):
             self.conv_inter.append(
                 self._make_layers(in_dims, out_dims, 3, num_groups, weight_attr,
@@ -134,7 +135,7 @@ class MaskHeadFPNConv(nn.Layer):
             weight_attr=weight_attr,
             bias_attr=bias_attr)
 
-        self.adapter = nn.LayerList()
+        self.adapter = nn.ModuleList()
         for i in range(len(fpn_dims)):
             self.adapter.append(
                 nn.Conv2D(
@@ -180,7 +181,7 @@ class MaskHeadFPNConv(nn.Layer):
         return x
 
 
-class DETRHead(nn.Layer):
+class DETRHead(nn.Module):
     __shared__ = ['num_classes', 'hidden_dim', 'use_focal_loss']
     __inject__ = ['loss']
 
@@ -286,7 +287,7 @@ class DETRHead(nn.Layer):
             return (outputs_bbox[-1], outputs_logit[-1], outputs_seg)
 
 
-class DeformableDETRHead(nn.Layer):
+class DeformableDETRHead(nn.Module):
     __shared__ = ['num_classes', 'hidden_dim']
     __inject__ = ['loss']
 
@@ -361,7 +362,7 @@ class DeformableDETRHead(nn.Layer):
             return (outputs_bbox[-1], outputs_logit[-1], None)
 
 
-class DINOHead(nn.Layer):
+class DINOHead(nn.Module):
     __inject__ = ['loss']
 
     def __init__(self, loss='DINOLoss'):
@@ -457,7 +458,7 @@ class DINOHead(nn.Layer):
             return (dec_out_bboxes[-1], dec_out_logits[-1], None)
 
 
-class MaskDINOHead(nn.Layer):
+class MaskDINOHead(nn.Module):
     __inject__ = ['loss']
 
     def __init__(self, loss='DINOLoss'):

@@ -62,7 +62,7 @@ wget https://bj.bcebos.com/v1/paddledet/models/rtdetr_hgnetv2_x_6x_coco.pdparams
 
 wget https://paddledet.bj.bcebos.com/models/pretrained/ResNet50_vd_ssld_v2_pretrained.pdparams
 
-
+复现训练时请仔细核对每个参数的 lr、 L2Decay
 
 python tools/convert_weights.py -f exps/rtdetr/rtdetr_r50vd_6x_coco.py -c rtdetr_r50vd_6x_coco.pdparams -oc rtdetr_r50vd_6x_coco.pth -nc 80
 

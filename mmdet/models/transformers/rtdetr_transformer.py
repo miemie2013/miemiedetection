@@ -122,19 +122,13 @@ class TransformerDecoderLayer(nn.Module):
         # self attention
         self.self_attn = MultiHeadAttention(d_model, n_head, dropout=dropout)
         self.dropout1 = nn.Dropout(dropout)
-        self.norm1 = nn.LayerNorm(
-            d_model,
-            weight_attr=ParamAttr(regularizer=L2Decay(0.0)),
-            bias_attr=ParamAttr(regularizer=L2Decay(0.0)))
+        self.norm1 = nn.LayerNorm(d_model)
 
         # cross attention
         self.cross_attn = PPMSDeformableAttention(d_model, n_head, n_levels,
                                                   n_points, 1.0)
         self.dropout2 = nn.Dropout(dropout)
-        self.norm2 = nn.LayerNorm(
-            d_model,
-            weight_attr=ParamAttr(regularizer=L2Decay(0.0)),
-            bias_attr=ParamAttr(regularizer=L2Decay(0.0)))
+        self.norm2 = nn.LayerNorm(d_model)
 
         # ffn
         self.linear1 = nn.Linear(d_model, dim_feedforward, weight_attr,
@@ -145,9 +139,7 @@ class TransformerDecoderLayer(nn.Module):
                                  bias_attr)
         self.dropout4 = nn.Dropout(dropout)
         self.norm3 = nn.LayerNorm(
-            d_model,
-            weight_attr=ParamAttr(regularizer=L2Decay(0.0)),
-            bias_attr=ParamAttr(regularizer=L2Decay(0.0)))
+            d_model)
         self._reset_parameters()
 
     def _reset_parameters(self):
@@ -306,8 +298,8 @@ class RTDETRTransformer(nn.Module):
         # denoising part
         self.denoising_class_embed = nn.Embedding(
             num_classes,
-            hidden_dim,
-            weight_attr=ParamAttr(initializer=nn.initializer.Normal()))
+            hidden_dim)
+        normal_(self.denoising_class_embed.weight)
         self.num_denoising = num_denoising
         self.label_noise_ratio = label_noise_ratio
         self.box_noise_scale = box_noise_scale
@@ -321,10 +313,7 @@ class RTDETRTransformer(nn.Module):
         # encoder head
         self.enc_output = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim),
-            nn.LayerNorm(
-                hidden_dim,
-                weight_attr=ParamAttr(regularizer=L2Decay(0.0)),
-                bias_attr=ParamAttr(regularizer=L2Decay(0.0))))
+            nn.LayerNorm(hidden_dim))
         self.enc_score_head = nn.Linear(hidden_dim, num_classes)
         self.enc_bbox_head = MLP(hidden_dim, hidden_dim, 4, num_layers=3)
 
@@ -374,29 +363,23 @@ class RTDETRTransformer(nn.Module):
         self.input_proj = nn.ModuleList()
         for in_channels in backbone_feat_channels:
             self.input_proj.append(
-                nn.Sequential(
-                    ('conv', nn.Conv2D(
+                nn.Sequential(nn.Conv2d(
                         in_channels,
                         self.hidden_dim,
                         kernel_size=1,
-                        bias_attr=False)), ('norm', nn.BatchNorm2D(
-                            self.hidden_dim,
-                            weight_attr=ParamAttr(regularizer=L2Decay(0.0)),
-                            bias_attr=ParamAttr(regularizer=L2Decay(0.0))))))
+                        bias=False), nn.BatchNorm2d(
+                            self.hidden_dim)))
         in_channels = backbone_feat_channels[-1]
         for _ in range(self.num_levels - len(backbone_feat_channels)):
             self.input_proj.append(
-                nn.Sequential(
-                    ('conv', nn.Conv2D(
+                nn.Sequential(nn.Conv2d(
                         in_channels,
                         self.hidden_dim,
                         kernel_size=3,
                         stride=2,
                         padding=1,
-                        bias_attr=False)), ('norm', nn.BatchNorm2D(
-                            self.hidden_dim,
-                            weight_attr=ParamAttr(regularizer=L2Decay(0.0)),
-                            bias_attr=ParamAttr(regularizer=L2Decay(0.0))))))
+                        bias=False), nn.BatchNorm2d(
+                            self.hidden_dim)))
             in_channels = self.hidden_dim
 
     def _get_encoder_input(self, feats):
