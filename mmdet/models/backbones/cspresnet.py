@@ -68,34 +68,6 @@ class ConvBNLayer(nn.Module):
             bottom_names = ncnn_utils.activation(ncnn_data, bottom_names, self.act_name)
         return bottom_names
 
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        if isinstance(self.conv, torch.nn.Conv2d):
-            if self.conv.weight.requires_grad:
-                param_group_conv = {'params': [self.conv.weight]}
-                param_group_conv['lr'] = base_lr * 1.0
-                param_group_conv['base_lr'] = base_lr * 1.0
-                param_group_conv['weight_decay'] = base_wd
-                param_group_conv['need_clip'] = need_clip
-                param_group_conv['clip_norm'] = clip_norm
-                param_groups.append(param_group_conv)
-        if self.bn is not None:
-            if self.bn.weight.requires_grad:
-                param_group_norm_weight = {'params': [self.bn.weight]}
-                param_group_norm_weight['lr'] = base_lr * 1.0
-                param_group_norm_weight['base_lr'] = base_lr * 1.0
-                param_group_norm_weight['weight_decay'] = 0.0
-                param_group_norm_weight['need_clip'] = need_clip
-                param_group_norm_weight['clip_norm'] = clip_norm
-                param_groups.append(param_group_norm_weight)
-            if self.bn.bias.requires_grad:
-                param_group_norm_bias = {'params': [self.bn.bias]}
-                param_group_norm_bias['lr'] = base_lr * 1.0
-                param_group_norm_bias['base_lr'] = base_lr * 1.0
-                param_group_norm_bias['weight_decay'] = 0.0
-                param_group_norm_bias['need_clip'] = need_clip
-                param_group_norm_bias['clip_norm'] = clip_norm
-                param_groups.append(param_group_norm_bias)
-
 
 class RepVggBlock(nn.Module):
     def __init__(self, ch_in, ch_out, act='relu', act_name='relu', alpha=False):
@@ -142,22 +114,6 @@ class RepVggBlock(nn.Module):
         # 最后是激活
         bottom_names = ncnn_utils.activation(ncnn_data, bottom_names, self.act_name)
         return bottom_names
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        if self.alpha:
-            if self.alpha.requires_grad:
-                param_group_alpha = {'params': [self.alpha]}
-                param_group_alpha['lr'] = base_lr * 1.0
-                param_group_alpha['base_lr'] = base_lr * 1.0
-                param_group_alpha['weight_decay'] = base_wd
-                param_group_alpha['need_clip'] = need_clip
-                param_group_alpha['clip_norm'] = clip_norm
-                param_groups.append(param_group_alpha)
-        if hasattr(self, 'conv'):
-            self.conv.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        else:
-            self.conv1.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            self.conv2.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
     def convert_to_deploy(self):
         if not hasattr(self, 'conv'):
@@ -235,10 +191,6 @@ class BasicBlock(nn.Module):
             bottom_names = self.conv2.export_ncnn(ncnn_data, bottom_names)
         return bottom_names
 
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        self.conv1.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.conv2.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-
 
 class EffectiveSELayer(nn.Module):
     """ Effective Squeeze-Excitation
@@ -271,26 +223,6 @@ class EffectiveSELayer(nn.Module):
         bottom_names = [bottom_names[0], x_se[0]]
         bottom_names = ncnn_utils.binaryOp(ncnn_data, bottom_names, op='Mul')
         return bottom_names
-
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        if isinstance(self.fc, torch.nn.Conv2d):
-            if self.fc.weight.requires_grad:
-                param_group_conv_weight = {'params': [self.fc.weight]}
-                param_group_conv_weight['lr'] = base_lr * 1.0
-                param_group_conv_weight['base_lr'] = base_lr * 1.0
-                param_group_conv_weight['weight_decay'] = base_wd
-                param_group_conv_weight['need_clip'] = need_clip
-                param_group_conv_weight['clip_norm'] = clip_norm
-                param_groups.append(param_group_conv_weight)
-            if self.fc.bias.requires_grad:
-                param_group_conv_bias = {'params': [self.fc.bias]}
-                param_group_conv_bias['lr'] = base_lr * 1.0
-                param_group_conv_bias['base_lr'] = base_lr * 1.0
-                param_group_conv_bias['weight_decay'] = base_wd
-                param_group_conv_bias['need_clip'] = need_clip
-                param_group_conv_bias['clip_norm'] = clip_norm
-                param_groups.append(param_group_conv_bias)
 
 
 class CSPResStage(nn.Module):
@@ -357,17 +289,6 @@ class CSPResStage(nn.Module):
             bottom_names = self.attn.export_ncnn(ncnn_data, bottom_names)
         bottom_names = self.conv3.export_ncnn(ncnn_data, bottom_names)
         return bottom_names
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        if self.conv_down is not None:
-            self.conv_down.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.conv1.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.conv2.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        for layer in self.blocks:
-            layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        if self.attn is not None:
-            self.attn.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.conv3.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
 
 class CSPResNet(nn.Module):
@@ -440,12 +361,6 @@ class CSPResNet(nn.Module):
             if idx in self.return_idx:
                 out_names.append(bottom_names[0])
         return out_names
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        for layer in self.stem:
-            layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        for idx, stage in enumerate(self.stages):
-            stage.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
     @property
     def out_shape(self):

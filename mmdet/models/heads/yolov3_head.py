@@ -164,14 +164,6 @@ class DetectionBlock(torch.nn.Module):
             tip = ly(tip)
         return route, tip
 
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        for layer in self.layers:
-            if isinstance(layer, Conv2dUnit):
-                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        for layer in self.tip_layers:
-            if isinstance(layer, Conv2dUnit):
-                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-
 
 class YOLOv3Head2(torch.nn.Module):
     def __init__(self,
@@ -289,15 +281,6 @@ class YOLOv3Head2(torch.nn.Module):
                 upsample = torch.nn.Upsample(scale_factor=2, mode='nearest')
                 self.upsample_layers.append(conv_unit)
                 self.upsample_layers.append(upsample)
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        for detection_block in self.detection_blocks:
-            detection_block.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        for layer in self.yolo_output_convs:
-            layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        for layer in self.upsample_layers:
-            if isinstance(layer, Conv2dUnit):
-                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
     def _get_outputs(self, body_feats):
         outputs = []
@@ -468,25 +451,6 @@ class YOLOv3Head(torch.nn.Module):
             for mask in masks:
                 assert mask < anchor_num, "anchor mask index overflow"
                 self.mask_anchors[-1].extend(anchors[mask])
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        for layer in self.yolo_outputs:
-            if layer.weight.requires_grad:
-                param_group_conv_w = {'params': [layer.weight]}
-                param_group_conv_w['lr'] = base_lr
-                param_group_conv_w['base_lr'] = base_lr
-                param_group_conv_w['weight_decay'] = base_wd
-                param_group_conv_w['need_clip'] = need_clip
-                param_group_conv_w['clip_norm'] = clip_norm
-                param_groups.append(param_group_conv_w)
-            if layer.bias.requires_grad:
-                param_group_conv_b = {'params': [layer.bias]}
-                param_group_conv_b['lr'] = base_lr
-                param_group_conv_b['base_lr'] = base_lr
-                param_group_conv_b['weight_decay'] = 0.0
-                param_group_conv_b['need_clip'] = need_clip
-                param_group_conv_b['clip_norm'] = clip_norm
-                param_groups.append(param_group_conv_b)
 
     def get_loss(self, feats, gt_bbox, targets):
         assert len(feats) == len(self.anchors)

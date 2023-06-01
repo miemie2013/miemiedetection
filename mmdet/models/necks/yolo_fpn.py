@@ -109,20 +109,6 @@ class PPYOLODetBlock(nn.Module):
         kwargs.update(name='{}.{}'.format(name, conv_name), data_format=data_format)
         self.tip = layer(*args, **kwargs)
 
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        for layer in self.conv_module:
-            if isinstance(layer, CoordConv):
-                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            elif isinstance(layer, ConvBNLayer):
-                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            elif isinstance(layer, SPP):
-                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            elif isinstance(layer, DropBlock):
-                pass
-            else:
-                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.tip.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-
     def forward(self, inputs):
         route = self.conv_module(inputs)
         tip = self.tip(route)
@@ -273,12 +259,6 @@ class PPYOLOFPN(nn.Module):
         layer = getattr(self, name)
         return layer
 
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        for i, ch_in in enumerate(self.in_channels[::-1]):
-            self.yolo_blocks[i].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            if i < self.num_blocks - 1:
-                self.routes[i].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-
     def forward(self, blocks, for_mot=False):
         assert len(blocks) == self.num_blocks
         blocks = blocks[::-1]
@@ -384,22 +364,6 @@ class PPYOLODetBlockCSP(nn.Module):
             kwargs.update(name=name + layer_name, data_format=data_format)
             layer_name = layer_name.replace('.', '_')
             self.conv_module.add_module(layer_name, layer(*args, **kwargs))
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        for layer in self.conv_module:
-            if isinstance(layer, CoordConv):
-                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            elif isinstance(layer, ConvBNLayer):
-                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            elif isinstance(layer, SPP):
-                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            elif isinstance(layer, DropBlock):
-                pass
-            else:
-                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.conv1.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.conv2.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.conv3.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
     def forward(self, inputs):
         conv_left = self.conv1(inputs)
@@ -567,16 +531,6 @@ class PPYOLOPAN(nn.Module):
             self._out_channels.append(channel * 2)
 
         self._out_channels = self._out_channels[::-1]
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        for i, ch_in in enumerate(self.in_channels[::-1]):
-            self.fpn_blocks[i].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            if i < self.num_blocks - 1:
-                self.fpn_routes[i].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        for module in self.pan_blocks:
-            module.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        for module in self.pan_routes:
-            module.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
     def forward(self, blocks, for_mot=False):
         assert len(blocks) == self.num_blocks

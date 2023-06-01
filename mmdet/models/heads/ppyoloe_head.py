@@ -65,25 +65,6 @@ class ESEAttn(nn.Module):
         bottom_names = self.conv.export_ncnn(ncnn_data, bottom_names)
         return bottom_names
 
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        self.conv.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        if self.fc.weight.requires_grad:
-            param_group_conv_weight = {'params': [self.fc.weight]}
-            param_group_conv_weight['lr'] = base_lr * 1.0
-            param_group_conv_weight['base_lr'] = base_lr * 1.0
-            param_group_conv_weight['weight_decay'] = base_wd
-            param_group_conv_weight['need_clip'] = need_clip
-            param_group_conv_weight['clip_norm'] = clip_norm
-            param_groups.append(param_group_conv_weight)
-        if self.fc.bias.requires_grad:
-            param_group_conv_bias = {'params': [self.fc.bias]}
-            param_group_conv_bias['lr'] = base_lr * 1.0
-            param_group_conv_bias['base_lr'] = base_lr * 1.0
-            param_group_conv_bias['weight_decay'] = base_wd
-            param_group_conv_bias['need_clip'] = need_clip
-            param_group_conv_bias['clip_norm'] = clip_norm
-            param_groups.append(param_group_conv_bias)
-
 
 class PPYOLOEHead(nn.Module):
     __shared__ = ['num_classes', 'eval_size', 'trt', 'exclude_nms']
@@ -160,43 +141,6 @@ class PPYOLOEHead(nn.Module):
         # projection conv
         self.proj_conv = nn.Conv2d(self.reg_max + 1, 1, 1, bias=False)
         self._init_weights()
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        for i in range(len(self.in_channels)):
-            self.stem_cls[i].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            self.stem_reg[i].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            if self.pred_cls[i].weight.requires_grad:
-                param_group_conv_weight = {'params': [self.pred_cls[i].weight]}
-                param_group_conv_weight['lr'] = base_lr * 1.0
-                param_group_conv_weight['base_lr'] = base_lr * 1.0
-                param_group_conv_weight['weight_decay'] = base_wd
-                param_group_conv_weight['need_clip'] = need_clip
-                param_group_conv_weight['clip_norm'] = clip_norm
-                param_groups.append(param_group_conv_weight)
-            if self.pred_cls[i].bias.requires_grad:
-                param_group_conv_bias = {'params': [self.pred_cls[i].bias]}
-                param_group_conv_bias['lr'] = base_lr * 1.0
-                param_group_conv_bias['base_lr'] = base_lr * 1.0
-                param_group_conv_bias['weight_decay'] = base_wd
-                param_group_conv_bias['need_clip'] = need_clip
-                param_group_conv_bias['clip_norm'] = clip_norm
-                param_groups.append(param_group_conv_bias)
-            if self.pred_reg[i].weight.requires_grad:
-                param_group_conv_weight2 = {'params': [self.pred_reg[i].weight]}
-                param_group_conv_weight2['lr'] = base_lr * 1.0
-                param_group_conv_weight2['base_lr'] = base_lr * 1.0
-                param_group_conv_weight2['weight_decay'] = base_wd
-                param_group_conv_weight2['need_clip'] = need_clip
-                param_group_conv_weight2['clip_norm'] = clip_norm
-                param_groups.append(param_group_conv_weight2)
-            if self.pred_reg[i].bias.requires_grad:
-                param_group_conv_bias2 = {'params': [self.pred_reg[i].bias]}
-                param_group_conv_bias2['lr'] = base_lr * 1.0
-                param_group_conv_bias2['base_lr'] = base_lr * 1.0
-                param_group_conv_bias2['weight_decay'] = base_wd
-                param_group_conv_bias2['need_clip'] = need_clip
-                param_group_conv_bias2['clip_norm'] = clip_norm
-                param_groups.append(param_group_conv_bias2)
 
     @classmethod
     def from_config(cls, cfg, input_shape):

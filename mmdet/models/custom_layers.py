@@ -575,6 +575,7 @@ class ConvBNLayer(nn.Module):
                  data_format='NCHW',
                  name=''):
         super(ConvBNLayer, self).__init__()
+        assert norm_decay == 0.0   # 假定是这样，创建可训练参数组时的代码就不用很复杂
 
         self.conv = nn.Conv2d(
             in_channels=ch_in,
@@ -732,9 +733,6 @@ class CoordConv(torch.nn.Module):
             name=name)
         self.data_format = data_format
 
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        self.conv.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-
     def forward(self, x):
         gx, gy = add_coord(x, self.data_format)
         if self.data_format == 'NCHW':
@@ -809,9 +807,6 @@ class SPP(torch.nn.Module):
             name=name,
             act=act,
             data_format=data_format)
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        self.conv.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
     def forward(self, x):
         outs = [x]

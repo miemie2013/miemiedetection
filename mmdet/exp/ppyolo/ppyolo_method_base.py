@@ -283,8 +283,6 @@ class PPYOLO_Method_Exp(COCOBaseExp):
             if self.backbone_type == 'ResNet':
                 Backbone = ResNet
             backbone = Backbone(**self.backbone)
-            # 冻结骨干网络
-            backbone.fix_bn()
             Fpn = None
             if self.fpn_type == 'PPYOLOFPN':
                 Fpn = PPYOLOFPN
@@ -365,15 +363,63 @@ class PPYOLO_Method_Exp(COCOBaseExp):
     def preprocess(self, inputs, targets, tsize):
         return 1
 
-    def get_optimizer(self, batch_size, param_groups, momentum, weight_decay):
+    def get_optimizer(self, batch_size):
         if "optimizer" not in self.__dict__:
             if self.warmup_epochs > 0:
                 lr = self.basic_lr_per_img * batch_size * self.start_factor
             else:
                 lr = self.basic_lr_per_img * batch_size
 
-            optimizer = torch.optim.SGD(
-                param_groups, lr=lr, momentum=momentum, weight_decay=weight_decay
+            # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
+            no_L2, use_L2 = [], []
+            for name, param in self.model.named_parameters():
+                # 只加入需要梯度的参数。
+                if not param.requires_grad:
+                    continue
+                if name.startswith('backbone.'):
+                    if name.endswith('.conv.weight'):
+                        use_L2.append(param)
+                    elif name.endswith('.norm.weight'):
+                        no_L2.append(param)
+                    elif name.endswith('.norm.bias'):
+                        no_L2.append(param)
+                    elif name.endswith('.conv_offset.weight'):   # 可变形卷积的conv_offset.weight, 需要L2
+                        use_L2.append(param)
+                    elif name.endswith('.conv_offset.bias'):     # 可变形卷积的conv_offset.bias,   需要L2
+                        use_L2.append(param)
+                    else:
+                        raise NotImplementedError("param name \'{}\' is not implemented.".format(name))
+                elif name.startswith('neck.'):
+                    if name.endswith('.conv.weight'):
+                        use_L2.append(param)
+                    elif name.endswith('.batch_norm.weight'):
+                        no_L2.append(param)
+                    elif name.endswith('.batch_norm.bias'):
+                        no_L2.append(param)
+                    else:
+                        raise NotImplementedError("param name \'{}\' is not implemented.".format(name))
+                elif name.startswith('yolo_head.'):
+                    if name.endswith('.yolo_output_0.weight'):
+                        use_L2.append(param)
+                    elif name.endswith('.yolo_output_0.bias'):
+                        no_L2.append(param)
+                    elif name.endswith('.yolo_output_1.weight'):
+                        use_L2.append(param)
+                    elif name.endswith('.yolo_output_1.bias'):
+                        no_L2.append(param)
+                    elif name.endswith('.yolo_output_2.weight'):
+                        use_L2.append(param)
+                    elif name.endswith('.yolo_output_2.bias'):
+                        no_L2.append(param)
+                    else:
+                        raise NotImplementedError("param name \'{}\' is not implemented.".format(name))
+                else:
+                    raise NotImplementedError("param name \'{}\' is not implemented.".format(name))
+            optimizer = torch.optim.SGD(no_L2, lr=lr, momentum=self.momentum)
+            for param_group in optimizer.param_groups:
+                param_group["lr_factor"] = 1.0   # 设置 no_L2 的学习率
+            optimizer.add_param_group(
+                {"params": use_L2, "weight_decay": self.weight_decay, "lr_factor": 1.0}
             )
             self.optimizer = optimizer
 

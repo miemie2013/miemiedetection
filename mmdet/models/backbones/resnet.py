@@ -119,6 +119,8 @@ class ConvNormLayer(nn.Module):
                  dcn_v2=False):
         super(ConvNormLayer, self).__init__()
         assert norm_type in ['bn', 'sync_bn']
+        assert lr == 1.0           # 假定是这样，创建可训练参数组时的代码就不用很复杂
+        assert norm_decay == 0.0   # 假定是这样，创建可训练参数组时的代码就不用很复杂
         self.norm_type = norm_type
         self.act = act
         self.dcn_v2 = dcn_v2
@@ -151,17 +153,7 @@ class ConvNormLayer(nn.Module):
             torch.nn.init.constant_(self.conv_offset.bias, 0.0)
 
             # 自实现的DCNv2
-            self.conv = MyDCNv2(
-                in_channels=ch_in,
-                out_channels=ch_out,
-                kernel_size=filter_size,
-                stride=stride,
-                padding=(filter_size - 1) // 2,
-                dilation=1,
-                groups=groups,
-                bias=False)
-            # 官方DCN
-            # self.conv = torchvision.ops.DeformConv2d(
+            # self.conv = MyDCNv2(
             #     in_channels=ch_in,
             #     out_channels=ch_out,
             #     kernel_size=filter_size,
@@ -170,6 +162,16 @@ class ConvNormLayer(nn.Module):
             #     dilation=1,
             #     groups=groups,
             #     bias=False)
+            # 官方DCN
+            self.conv = torchvision.ops.DeformConv2d(
+                in_channels=ch_in,
+                out_channels=ch_out,
+                kernel_size=filter_size,
+                stride=stride,
+                padding=(filter_size - 1) // 2,
+                dilation=1,
+                groups=groups,
+                bias=False)
 
             self.dcn_w_lr = lr
             # 初始化权重
@@ -233,65 +235,6 @@ class ConvNormLayer(nn.Module):
                 bottom_names = ncnn_utils.fuse_deformconv_bn(ncnn_data, [bottom_names[0], offset[0], mask[0]], self.conv, self.norm)
                 bottom_names = ncnn_utils.activation(ncnn_data, bottom_names, act_name)
         return bottom_names
-
-    def fix_bn(self):
-        if self.norm is not None:
-            if self.freeze_norm:
-                self.norm.eval()
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        if isinstance(self.conv, torch.nn.Conv2d):
-            if self.conv.weight.requires_grad:
-                param_group_conv = {'params': [self.conv.weight]}
-                param_group_conv['lr'] = base_lr * self.conv_w_lr
-                param_group_conv['base_lr'] = base_lr * self.conv_w_lr
-                param_group_conv['weight_decay'] = base_wd
-                param_group_conv['need_clip'] = need_clip
-                param_group_conv['clip_norm'] = clip_norm
-                param_groups.append(param_group_conv)
-        elif isinstance(self.conv, (MyDCNv2, torchvision.ops.DeformConv2d)):   # 自实现的DCNv2、官方DCNv2
-            if self.conv_offset.weight.requires_grad:
-                param_group_conv_offset_w = {'params': [self.conv_offset.weight]}
-                param_group_conv_offset_w['lr'] = base_lr
-                param_group_conv_offset_w['base_lr'] = base_lr
-                param_group_conv_offset_w['weight_decay'] = base_wd
-                param_group_conv_offset_w['need_clip'] = need_clip
-                param_group_conv_offset_w['clip_norm'] = clip_norm
-                param_groups.append(param_group_conv_offset_w)
-            if self.conv_offset.bias.requires_grad:
-                param_group_conv_offset_b = {'params': [self.conv_offset.bias]}
-                param_group_conv_offset_b['lr'] = base_lr
-                param_group_conv_offset_b['base_lr'] = base_lr
-                param_group_conv_offset_b['weight_decay'] = base_wd
-                param_group_conv_offset_b['need_clip'] = need_clip
-                param_group_conv_offset_b['clip_norm'] = clip_norm
-                param_groups.append(param_group_conv_offset_b)
-            if self.conv.weight.requires_grad:
-                param_group_dcn_weight = {'params': [self.conv.weight]}
-                param_group_dcn_weight['lr'] = base_lr * self.dcn_w_lr
-                param_group_dcn_weight['base_lr'] = base_lr * self.dcn_w_lr
-                param_group_dcn_weight['weight_decay'] = base_wd
-                param_group_dcn_weight['need_clip'] = need_clip
-                param_group_dcn_weight['clip_norm'] = clip_norm
-                param_groups.append(param_group_dcn_weight)
-        if self.norm is not None:
-            if not self.freeze_norm:
-                if self.norm.weight.requires_grad:
-                    param_group_norm_weight = {'params': [self.norm.weight]}
-                    param_group_norm_weight['lr'] = base_lr * self.norm_lr
-                    param_group_norm_weight['base_lr'] = base_lr * self.norm_lr
-                    param_group_norm_weight['weight_decay'] = 0.0
-                    param_group_norm_weight['need_clip'] = need_clip
-                    param_group_norm_weight['clip_norm'] = clip_norm
-                    param_groups.append(param_group_norm_weight)
-                if self.norm.bias.requires_grad:
-                    param_group_norm_bias = {'params': [self.norm.bias]}
-                    param_group_norm_bias['lr'] = base_lr * self.norm_lr
-                    param_group_norm_bias['base_lr'] = base_lr * self.norm_lr
-                    param_group_norm_bias['weight_decay'] = 0.0
-                    param_group_norm_bias['need_clip'] = need_clip
-                    param_group_norm_bias['clip_norm'] = clip_norm
-                    param_groups.append(param_group_norm_bias)
 
 
 class SELayer(nn.Module):
@@ -444,32 +387,6 @@ class BasicBlock(nn.Module):
         out = ncnn_utils.activation(ncnn_data, out, 'relu')
         return out
 
-    def fix_bn(self):
-        self.branch2a.fix_bn()
-        self.branch2b.fix_bn()
-        if self.std_senet:
-            self.se.fix_bn()
-        if not self.shortcut:
-            if isinstance(self.short, nn.Sequential):
-                for layer in self.short:
-                    if isinstance(layer, ConvNormLayer):
-                        layer.fix_bn()
-            else:
-                self.short.fix_bn()
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        self.branch2a.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.branch2b.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        if self.std_senet:
-            self.se.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        if not self.shortcut:
-            if isinstance(self.short, nn.Sequential):
-                for layer in self.short:
-                    if isinstance(layer, ConvNormLayer):
-                        layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            else:
-                self.short.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-
 
 class BottleNeck(nn.Module):
     expansion = 4
@@ -613,34 +530,6 @@ class BottleNeck(nn.Module):
         out = ncnn_utils.activation(ncnn_data, out, 'relu')
         return out
 
-    def fix_bn(self):
-        self.branch2a.fix_bn()
-        self.branch2b.fix_bn()
-        self.branch2c.fix_bn()
-        if self.std_senet:
-            self.se.fix_bn()
-        if not self.shortcut:
-            if isinstance(self.short, nn.Sequential):
-                for layer in self.short:
-                    if isinstance(layer, ConvNormLayer):
-                        layer.fix_bn()
-            else:
-                self.short.fix_bn()
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        self.branch2a.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.branch2b.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.branch2c.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        if self.std_senet:
-            self.se.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        if not self.shortcut:
-            if isinstance(self.short, nn.Sequential):
-                for layer in self.short:
-                    if isinstance(layer, ConvNormLayer):
-                        layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            else:
-                self.short.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-
 
 class Blocks(nn.Module):
     def __init__(self,
@@ -693,14 +582,6 @@ class Blocks(nn.Module):
         for block in self.blocks:
             bottom_names = block.export_ncnn(ncnn_data, bottom_names)
         return bottom_names
-
-    def fix_bn(self):
-        for block in self.blocks:
-            block.fix_bn()
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        for block in self.blocks:
-            block.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
 
 class ResNet(nn.Module):
@@ -859,26 +740,6 @@ class ResNet(nn.Module):
             x = stage(x)
             if idx in self.return_idx:
                 outs.append(x)
-
-        # Debug. calc ddd with ncnn output.
-        # import numpy as np
-        # y2 = outs[2].cpu().detach().numpy()
-        # ncnn_output = 'D://GitHub/ncnn2/build/examples/output.txt'
-        # with open(ncnn_output, 'r', encoding='utf-8') as f:
-        #     for line in f:
-        #         line = line.strip()
-        # line = line[:-1]
-        # ss = line.split(',')
-        # y = []
-        # for s in ss:
-        #     y.append(float(s))
-        # y = np.array(y).astype(np.float32)
-        # y = np.reshape(y, y2.shape)
-        # print(y2.shape)
-        # ddd = np.sum((y - y2) ** 2)
-        # print('ddd=%.9f' % ddd)
-        # ddd2 = np.mean((y - y2) ** 2)
-        # print('ddd=%.9f' % ddd2)
         return outs
 
     def export_ncnn(self, ncnn_data, bottom_names):
@@ -891,19 +752,6 @@ class ResNet(nn.Module):
             if idx in self.return_idx:
                 out_names.append(bottom_names[0])
         return out_names
-
-    def fix_bn(self):
-        for layer in self.conv1:
-            layer.fix_bn()
-        for idx, stage in enumerate(self.res_layers):
-            stage.fix_bn()
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        for layer in self.conv1:
-            layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        for idx, stage in enumerate(self.res_layers):
-            stage.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-
 
 class Res5Head(nn.Module):
     def __init__(self, depth=50):

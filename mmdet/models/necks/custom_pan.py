@@ -73,9 +73,6 @@ class SPP(nn.Module):
         bottom_names = self.conv.export_ncnn(ncnn_data, bottom_names)
         return bottom_names
 
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        self.conv.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-
 
 class CSPStage(nn.Module):
     def __init__(self, block_fn, ch_in, ch_out, n, act='swish', act_name='swish', spp=False):
@@ -119,13 +116,6 @@ class CSPStage(nn.Module):
 
         bottom_names = self.conv3.export_ncnn(ncnn_data, bottom_names)
         return bottom_names
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        self.conv1.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.conv2.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        for layer in self.convs:
-            layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.conv3.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
 
 class CustomCSPPAN(nn.Module):
@@ -290,17 +280,6 @@ class CustomCSPPAN(nn.Module):
             pan_feats.append(route)
 
         return pan_feats[::-1]
-
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        for i in range(self.num_blocks):
-            for layer in self.fpn_stages[i]:
-                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            if i < self.num_blocks - 1:
-                self.fpn_routes[i].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        for i in reversed(range(self.num_blocks - 1)):
-            self.pan_routes[i].add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-            for layer in self.pan_stages[i]:
-                layer.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
 
     @classmethod
     def from_config(cls, cfg, input_shape):
