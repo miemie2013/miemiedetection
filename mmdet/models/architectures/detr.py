@@ -35,10 +35,5 @@ class DETR(torch.nn.Module):
             out = self.head.post_process(out, scale_factor)
             return out
 
-    def add_param_group(self, param_groups, base_lr, base_wd, need_clip, clip_norm):
-        self.backbone.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.neck.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-        self.head.add_param_group(param_groups, base_lr, base_wd, need_clip, clip_norm)
-
 
 
