@@ -15,7 +15,7 @@ import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 
-from mmdet.data import DataPrefetcher, PPYOLODataPrefetcher, PPYOLOEDataPrefetcher, SOLODataPrefetcher, yolox_torch_aug, yolox_torch_aug2
+from mmdet.data import DataPrefetcher, PPYOLODataPrefetcher, PPYOLOEDataPrefetcher, SOLODataPrefetcher
 from mmdet.data.data_prefetcher import FCOSDataPrefetcher
 from mmdet.slim import PPYOLOEDistillModel
 from mmdet.utils import (
@@ -301,8 +301,8 @@ class Trainer:
         logger.info('Trainable params: %s' % format(trainable_params, ","))
         logger.info('Non-trainable params: %s' % format(nontrainable_params, ","))
         if self.archi_name == 'YOLOX':
-            logger.info("use torch_augment:")
-            logger.info(self.exp.torch_augment)
+            # logger.info("use torch_augment:")
+            # logger.info(self.exp.torch_augment)
             if self.exp.torch_augment:
                 # Mosaic cache
                 self.mosaic_max_cached_images = 40
@@ -343,12 +343,6 @@ class Trainer:
 
         if self.archi_name == 'YOLOX':
             inps, targets = self.prefetcher.next()
-            if self.exp.torch_augment:
-                # 先转fp16再增强会掉精度，所以用fp32做增强
-                with torch.no_grad():
-                    inps, targets = yolox_torch_aug(inps, targets, self.mosaic_cache, self.mixup_cache,
-                                                    self.mosaic_max_cached_images, self.mixup_max_cached_images,
-                                                    self.random_pop, self.exp, self.use_mosaic, self.rank)
             inps = inps.to(self.data_type)
             targets = targets.to(self.data_type)
             targets.requires_grad = False
