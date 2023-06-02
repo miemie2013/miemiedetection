@@ -1,10 +1,12 @@
 import numpy as np
 import sys
 import paddle
+import paddle.nn as nn
+import paddle.nn.functional as F
 from test_code.ppdet_resnet import ResNet, load_weight
 
 
-class MyNet(paddle.nn.Layer):
+class MyNet(nn.Layer):
     def __init__(self, backbone):
         super(MyNet, self).__init__()
         self.backbone = backbone
@@ -31,8 +33,9 @@ load_weight(model, param_path)
 
 
 grad_clip = None
+# grad_clip = nn.ClipGradByGlobalNorm(clip_norm=0.1)
 momentum = 0.9
-lr = 0.9
+lr = 0.005
 weight_decay = 0.0005
 _params = model.parameters()
 params = [param for param in _params if param.trainable is True]
