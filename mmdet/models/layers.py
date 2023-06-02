@@ -1087,44 +1087,10 @@ def _convert_attention_mask(attn_mask, dtype):
     Returns:
         Tensor: A Tensor with shape same as input `attn_mask`, with data type `dtype`.
     """
-    return nn.layer.transformer._convert_attention_mask(attn_mask, dtype)
+    return -1
 
 
 class MultiHeadAttention(nn.Module):
-    """
-    Attention mapps queries and a set of key-value pairs to outputs, and
-    Multi-Head Attention performs multiple parallel attention to jointly attending
-    to information from different representation subspaces.
-
-    Please refer to `Attention Is All You Need <https://arxiv.org/pdf/1706.03762.pdf>`_
-    for more details.
-
-    Parameters:
-        embed_dim (int): The expected feature size in the input and output.
-        num_heads (int): The number of heads in multi-head attention.
-        dropout (float, optional): The dropout probability used on attention
-            weights to drop some attention targets. 0 for no dropout. Default 0
-        kdim (int, optional): The feature size in key. If None, assumed equal to
-            `embed_dim`. Default None.
-        vdim (int, optional): The feature size in value. If None, assumed equal to
-            `embed_dim`. Default None.
-        need_weights (bool, optional): Indicate whether to return the attention
-            weights. Default False.
-
-    Examples:
-
-        .. code-block:: python
-
-            import paddle
-
-            # encoder input: [batch_size, sequence_length, d_model]
-            query = paddle.rand((2, 4, 128))
-            # self attention mask: [batch_size, num_heads, query_len, query_len]
-            attn_mask = paddle.rand((2, 2, 4, 4))
-            multi_head_attn = paddle.nn.MultiHeadAttention(128, 2)
-            output = multi_head_attn(query, None, None, attn_mask=attn_mask)  # [2, 4, 128]
-    """
-
     def __init__(self,
                  embed_dim,
                  num_heads,
@@ -1146,7 +1112,8 @@ class MultiHeadAttention(nn.Module):
         assert self.head_dim * num_heads == self.embed_dim, "embed_dim must be divisible by num_heads"
 
         if self._qkv_same_embed_dim:
-            self.in_proj_weight = torch.nn.Parameter(torch.randn([embed_dim, 3 * embed_dim]))
+            # 要注意，pytorch的fc层和paddle的fc层的权重weight需要转置一下才能等价！！！
+            self.in_proj_weight = torch.nn.Parameter(torch.randn([3 * embed_dim, embed_dim]))
             self.in_proj_bias = torch.nn.Parameter(torch.full([3 * embed_dim], np.float32(0.)))
         else:
             self.q_proj = nn.Linear(embed_dim, embed_dim)
@@ -1167,58 +1134,18 @@ class MultiHeadAttention(nn.Module):
 
     def compute_qkv(self, tensor, index):
         if self._qkv_same_embed_dim:
-            tensor = F.linear(
-                tensor,
-                weight=self.in_proj_weight[:, index * self.embed_dim:(index + 1)
-                                           * self.embed_dim],
-                bias=self.in_proj_bias[index * self.embed_dim:(index + 1) *
-                                       self.embed_dim]
-                if self.in_proj_bias is not None else None)
+            # 要注意，pytorch的fc层和paddle的fc层的权重weight需要转置一下才能等价！！！
+            weight = self.in_proj_weight[index * self.embed_dim:(index + 1) * self.embed_dim, :]
+            bias = self.in_proj_bias[index * self.embed_dim:(index + 1) * self.embed_dim] if self.in_proj_bias is not None else None
+            tensor = F.linear(tensor, weight=weight, bias=bias)
         else:
             tensor = getattr(self, self._type_list[index])(tensor)
-        tensor = tensor.reshape([0, 0, self.num_heads, self.head_dim]).permute([0, 2, 1, 3])
+        N, HW, _ = tensor.shape
+        tensor = tensor.reshape([N, HW, self.num_heads, self.head_dim])
+        tensor = tensor.permute([0, 2, 1, 3])   # [N, num_heads, HW, head_dim]
         return tensor
 
     def forward(self, query, key=None, value=None, attn_mask=None):
-        r"""
-        Applies multi-head attention to map queries and a set of key-value pairs
-        to outputs.
-
-        Parameters:
-            query (Tensor): The queries for multi-head attention. It is a
-                tensor with shape `[batch_size, query_length, embed_dim]`. The
-                data type should be float32 or float64.
-            key (Tensor, optional): The keys for multi-head attention. It is
-                a tensor with shape `[batch_size, key_length, kdim]`. The
-                data type should be float32 or float64. If None, use `query` as
-                `key`. Default None.
-            value (Tensor, optional): The values for multi-head attention. It
-                is a tensor with shape `[batch_size, value_length, vdim]`.
-                The data type should be float32 or float64. If None, use `query` as
-                `value`. Default None.
-            attn_mask (Tensor, optional): A tensor used in multi-head attention
-                to prevents attention to some unwanted positions, usually the
-                paddings or the subsequent positions. It is a tensor with shape
-                broadcasted to `[batch_size, n_head, sequence_length, sequence_length]`.
-                When the data type is bool, the unwanted positions have `False`
-                values and the others have `True` values. When the data type is
-                int, the unwanted positions have 0 values and the others have 1
-                values. When the data type is float, the unwanted positions have
-                `-INF` values and the others have 0 values. It can be None when
-                nothing wanted or needed to be prevented attention to. Default None.
-
-        Returns:
-            Tensor|tuple: It is a tensor that has the same shape and data type \
-                as `query`, representing attention output. Or a tuple if \
-                `need_weights` is True or `cache` is not None. If `need_weights` \
-                is True, except for attention output, the tuple also includes \
-                the attention weights tensor shaped `[batch_size, num_heads, query_length, key_length]`. \
-                If `cache` is not None, the tuple then includes the new cache \
-                having the same type as `cache`, and if it is `StaticCache`, it \
-                is same as the input `cache`, if it is `Cache`, the new cache \
-                reserves tensors concatanating raw tensors with intermediate \
-                results of current query.
-        """
         key = query if key is None else key
         value = query if value is None else value
         # compute q ,k ,v
@@ -1226,7 +1153,7 @@ class MultiHeadAttention(nn.Module):
                    for i, t in enumerate([query, key, value]))
 
         # scale dot product attention
-        product = paddle.matmul(x=q, y=k, transpose_y=True)
+        product = q.matmul(k.permute([0, 1, 3, 2]))    # [N, num_heads, HW, HW]
         scaling = float(self.head_dim)**-0.5
         product = product * scaling
 
@@ -1234,21 +1161,23 @@ class MultiHeadAttention(nn.Module):
             # Support bool or int mask
             attn_mask = _convert_attention_mask(attn_mask, product.dtype)
             product = product + attn_mask
-        weights = F.softmax(product)
+        # paddle的softmax dim默认是-1，所以这里显式写上-1
+        weights = F.softmax(product, dim=-1)
         if self.dropout:
             weights = F.dropout(
                 weights,
                 self.dropout,
                 training=self.training,
                 mode="upscale_in_train")
-        out = paddle.matmul(weights, v)
+        out = torch.matmul(weights, v)    # [N, num_heads, HW, head_dim]
 
         # combine heads
-        out = paddle.transpose(out, perm=[0, 2, 1, 3])
-        out = paddle.reshape(x=out, shape=[0, 0, out.shape[2] * out.shape[3]])
+        out = out.permute([0, 2, 1, 3])    # [N, HW, num_heads, head_dim]
+        N, HW, _, _ = out.shape
+        out = torch.reshape(out, [N, HW, out.shape[2] * out.shape[3]])    # [N, HW, embed_dim]
 
         # project to output
-        out = self.out_proj(out)
+        out = self.out_proj(out)    # [N, HW, embed_dim]
 
         outs = [out]
         if self.need_weights:

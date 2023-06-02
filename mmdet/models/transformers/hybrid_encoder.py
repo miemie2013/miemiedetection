@@ -204,16 +204,15 @@ class HybridEncoder(nn.Module):
                 setattr(self, f'pos_embed{idx}', pos_embed)
 
     @staticmethod
-    def build_2d_sincos_position_embedding(w,
-                                           h,
+    def build_2d_sincos_position_embedding(w, h, device,
                                            embed_dim=256,
                                            temperature=10000.):
-        grid_w = torch.arange(int(w), dtype=torch.float32)
-        grid_h = torch.arange(int(h), dtype=torch.float32)
+        grid_w = torch.arange(int(w), dtype=torch.float32, device=device)
+        grid_h = torch.arange(int(h), dtype=torch.float32, device=device)
         grid_w, grid_h = torch.meshgrid(grid_w, grid_h)
         assert embed_dim % 4 == 0, 'Embed dimension must be divisible by 4 for 2D sin-cos position embedding'
         pos_dim = embed_dim // 4
-        omega = torch.arange(pos_dim, dtype=torch.float32) / pos_dim   # [pos_dim, ]  下标归一化到0到1之间
+        omega = torch.arange(pos_dim, dtype=torch.float32, device=device) / pos_dim   # [pos_dim, ]  下标归一化到0到1之间
         omega = 1. / (temperature**omega)    # [pos_dim, ]  omega从1递减到接近 1/temperature
         omega = omega.unsqueeze(0)   # [1, pos_dim]
 

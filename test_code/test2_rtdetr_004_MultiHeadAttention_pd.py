@@ -141,13 +141,9 @@ class MultiHeadAttention(nn.Layer):
 
     def compute_qkv(self, tensor, index):
         if self._qkv_same_embed_dim:
-            tensor = F.linear(
-                x=tensor,
-                weight=self.in_proj_weight[:, index * self.embed_dim:(index + 1)
-                                           * self.embed_dim],
-                bias=self.in_proj_bias[index * self.embed_dim:(index + 1) *
-                                       self.embed_dim]
-                if self.in_proj_bias is not None else None)
+            weight = self.in_proj_weight[:, index * self.embed_dim:(index + 1) * self.embed_dim]
+            bias = self.in_proj_bias[index * self.embed_dim:(index + 1) * self.embed_dim] if self.in_proj_bias is not None else None
+            tensor = F.linear(x=tensor, weight=weight, bias=bias)
         else:
             tensor = getattr(self, self._type_list[index])(tensor)
         N, HW, _ = tensor.shape
