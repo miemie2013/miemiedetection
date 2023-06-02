@@ -63,6 +63,15 @@ wget https://bj.bcebos.com/v1/paddledet/models/rtdetr_hgnetv2_x_6x_coco.pdparams
 wget https://paddledet.bj.bcebos.com/models/pretrained/ResNet50_vd_ssld_v2_pretrained.pdparams
 
 复现训练时请仔细核对每个参数的 lr、 L2Decay
+forward流程：
+骨干网络出来3个张量，形状是[N, 512, 80, 80], [N, 1024, 40, 40], [N, 2048, 20, 20],
+进入 HybridEncoder,
+先分别用3个conv(1x1卷积)+bn进行降维(相关层名字是input_proj)，形状变成[N, 256, 80, 80], [N, 256, 40, 40], [N, 256, 20, 20], 256是hidden_dim,
+
+
+encoder_layer(TransformerLayer) 被放进 HybridEncoder 的 self.encoder(nn.ModuleList)
+self.encoder里有1个元素，类型是 TransformerEncoder(encoder_layer, num_encoder_layers)
+
 
 python tools/convert_weights.py -f exps/rtdetr/rtdetr_r50vd_6x_coco.py -c rtdetr_r50vd_6x_coco.pdparams -oc rtdetr_r50vd_6x_coco.pth -nc 80
 
