@@ -129,17 +129,21 @@ class RTDETR_Method_Exp(COCOBaseExp):
             with_cutmix=False,
             with_mosaic=False,
         )
+        # ColorDistort
+        self.colorDistort = dict()
+        # RandomExpand
+        self.randomExpand = dict(
+            fill_value=[123.675, 116.28, 103.53],
+        )
         # RandomCrop
         self.randomCrop = dict()
         # RandomFlipImage
         self.randomFlipImage = dict(
             is_normalized=False,
         )
-        # ColorDistort
-        self.colorDistort = dict()
         # RandomShape
         self.randomShape = dict(
-            sizes=[352, 384, 416, 448, 480],
+            sizes=[480, 512, 544, 576, 608, 640, 640, 640, 672, 704, 736, 768, 800],
             random_inter=True,
             resize_box=True,
         )
@@ -159,6 +163,10 @@ class RTDETR_Method_Exp(COCOBaseExp):
         self.padGT = dict(
             num_max_boxes=200,
         )
+        # NormalizeBox
+        self.normalizeBox = dict()
+        # BboxXYXY2XYWH
+        self.bboxXYXY2XYWH = dict()
         # ResizeImage
         self.resizeImage = dict(
             target_size=640,
@@ -168,13 +176,16 @@ class RTDETR_Method_Exp(COCOBaseExp):
         # 预处理顺序。增加一些数据增强时这里也要加上，否则train.py中相当于没加！
         self.sample_transforms_seq = []
         self.sample_transforms_seq.append('decodeImage')
+        self.sample_transforms_seq.append('colorDistort')
+        self.sample_transforms_seq.append('randomExpand')
         self.sample_transforms_seq.append('randomCrop')
         self.sample_transforms_seq.append('randomFlipImage')
-        self.sample_transforms_seq.append('colorDistort')
         self.sample_transforms_seq.append('randomShape')
         self.sample_transforms_seq.append('normalizeImage')
         self.sample_transforms_seq.append('permute')
         self.sample_transforms_seq.append('padGT')
+        self.sample_transforms_seq.append('normalizeBox')
+        self.sample_transforms_seq.append('bboxXYXY2XYWH')
         self.batch_transforms_seq = []
         # self.batch_transforms_seq.append('padGT')
 
@@ -269,7 +280,7 @@ class RTDETR_Method_Exp(COCOBaseExp):
         # Check https://github.com/pytorch/pytorch/issues/63311 for more details.
         dataloader_kwargs["worker_init_fn"] = worker_init_reset_seed
 
-        # collater = PicoDetTrainCollater(self.context, batch_transforms, self.n_layers)
+        # collater = PPYOLOETrainCollater(self.context, batch_transforms, self.n_layers)
         # dataloader_kwargs["collate_fn"] = collater
         train_loader = torch.utils.data.DataLoader(self.dataset, **dataloader_kwargs)
 
@@ -288,26 +299,61 @@ class RTDETR_Method_Exp(COCOBaseExp):
             else:
                 lr = self.basic_lr_per_img * batch_size
 
-            pg0, pg1, pg2 = [], [], []  # optimizer parameter groups
-
-            for k, v in self.model.named_modules():
-                if hasattr(v, "bias") and isinstance(v.bias, nn.Parameter):
-                    if v.bias.requires_grad:
-                        pg2.append(v.bias)  # biases
-                if isinstance(v, nn.BatchNorm2d) or "bn" in k:
-                    if v.weight.requires_grad:
-                        pg0.append(v.weight)  # no decay
-                elif hasattr(v, "weight") and isinstance(v.weight, nn.Parameter):
-                    if v.weight.requires_grad:
-                        pg1.append(v.weight)  # apply decay
-
-            optimizer = torch.optim.SGD(
-                pg0, lr=lr, momentum=self.momentum, nesterov=True
-            )
+            # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
+            no_L2, use_L2 = [], []
+            for name, param in self.model.named_parameters():
+                # 只加入需要梯度的参数。
+                if not param.requires_grad:
+                    continue
+                if name.startswith('backbone.'):
+                    if name.endswith('.conv.weight'):
+                        use_L2.append(param)
+                    elif name.endswith('.bn.weight'):
+                        no_L2.append(param)
+                    elif name.endswith('.bn.bias'):
+                        no_L2.append(param)
+                    elif name.endswith('.alpha'):   # alpha需要L2
+                        use_L2.append(param)
+                    elif name.endswith('.fc.weight'):
+                        use_L2.append(param)
+                    elif name.endswith('.fc.bias'):
+                        use_L2.append(param)
+                    else:
+                        raise NotImplementedError("param name \'{}\' is not implemented.".format(name))
+                elif name.startswith('neck.'):
+                    if name.endswith('.conv.weight'):
+                        use_L2.append(param)
+                    elif name.endswith('.bn.weight'):
+                        no_L2.append(param)
+                    elif name.endswith('.bn.bias'):
+                        no_L2.append(param)
+                    else:
+                        raise NotImplementedError("param name \'{}\' is not implemented.".format(name))
+                elif name.startswith('yolo_head.'):
+                    if name.endswith('.conv.weight'):
+                        use_L2.append(param)
+                    elif name.endswith('.bn.weight'):
+                        no_L2.append(param)
+                    elif name.endswith('.bn.bias'):
+                        no_L2.append(param)
+                    elif name.endswith('.fc.weight'):
+                        use_L2.append(param)
+                    elif name.endswith('.fc.bias'):
+                        use_L2.append(param)
+                    elif name.endswith('.0.weight') or name.endswith('.1.weight') or name.endswith('.2.weight'):
+                        use_L2.append(param)
+                    elif name.endswith('.0.bias') or name.endswith('.1.bias') or name.endswith('.2.bias'):
+                        use_L2.append(param)
+                    else:
+                        raise NotImplementedError("param name \'{}\' is not implemented.".format(name))
+                else:
+                    raise NotImplementedError("param name \'{}\' is not implemented.".format(name))
+            optimizer = torch.optim.SGD(no_L2, lr=lr, momentum=self.momentum)
+            for param_group in optimizer.param_groups:
+                param_group["lr_factor"] = 1.0   # 设置 no_L2 的学习率
             optimizer.add_param_group(
-                {"params": pg1, "weight_decay": self.weight_decay}
-            )  # add pg1 with weight_decay
-            optimizer.add_param_group({"params": pg2})
+                {"params": use_L2, "weight_decay": self.weight_decay, "lr_factor": 1.0}
+            )
             self.optimizer = optimizer
 
         return self.optimizer
@@ -379,4 +425,4 @@ class RTDETR_Method_Exp(COCOBaseExp):
         return evaluator
 
     def eval(self, model, evaluator, is_distributed, half=False):
-        return evaluator.evaluate_ppyoloe(model, is_distributed, half)
+        return evaluator.evaluate_rtdetr(model, is_distributed, half)

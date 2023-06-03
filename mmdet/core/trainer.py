@@ -78,9 +78,7 @@ class Trainer:
             pass
         elif self.archi_name in ['PPYOLOE', 'PicoDet']:
             pass
-        elif self.archi_name == 'SOLO':
-            pass
-        elif self.archi_name == 'FCOS':
+        elif self.archi_name == 'RTDETR':
             pass
         else:
             raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
@@ -185,6 +183,33 @@ class Trainer:
             logger.info("init prefetcher, this might take one minute or less...")
             self.prefetcher = PPYOLODataPrefetcher(self.train_loader, self.n_layers)
         elif self.archi_name == 'PPYOLOE':
+            # 是否进行梯度裁剪
+            self.need_clip = hasattr(self.exp, 'clip_grad_by_norm')
+            self.clip_norm = 1000000.0
+            if self.need_clip:
+                self.clip_norm = getattr(self.exp, 'clip_grad_by_norm')
+
+            # solver related init
+            self.optimizer = self.exp.get_optimizer(self.args.batch_size)
+
+            # value of epoch will be set in `resume_train`
+            model = self.resume_train(model, distill_loss)
+            if self.slim_exp:
+                slim_model = self.resume_slim_model(slim_model)
+                model = PPYOLOEDistillModel(model, slim_model, distill_loss)
+
+
+            self.train_loader = self.exp.get_data_loader(
+                batch_size=self.args.batch_size,
+                is_distributed=self.is_distributed,
+                num_gpus=self.world_size,
+                cache_img=self.args.cache,
+            )
+            self.n_layers = self.exp.n_layers
+
+            logger.info("init prefetcher, this might take one minute or less...")
+            self.prefetcher = PPYOLOEDataPrefetcher(self.train_loader, self.n_layers)
+        elif self.archi_name == 'RTDETR':
             # 是否进行梯度裁剪
             self.need_clip = hasattr(self.exp, 'clip_grad_by_norm')
             self.clip_norm = 1000000.0

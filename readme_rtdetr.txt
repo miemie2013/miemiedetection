@@ -73,7 +73,9 @@ encoder_layer(TransformerLayer) 被放进 HybridEncoder 的 self.encoder(nn.Modu
 self.encoder里有1个元素，类型是 TransformerEncoder(encoder_layer, num_encoder_layers)
 
 
-python tools/convert_weights.py -f exps/rtdetr/rtdetr_r50vd_6x_coco.py -c rtdetr_r50vd_6x_coco.pdparams -oc rtdetr_r50vd_6x_coco.pth -nc 80
+python tools/convert_weights.py -f exps/rtdetr/rtdetr_r18vd_6x_coco.py -c rtdetr_r18vd_dec3_6x_coco.pdparams -oc rtdetr_r18vd_dec3_6x_coco.pth -nc 80 --device gpu
+
+python tools/convert_weights.py -f exps/rtdetr/rtdetr_r50vd_6x_coco.py -c rtdetr_r50vd_6x_coco.pdparams -oc rtdetr_r50vd_6x_coco.pth -nc 80 --device gpu
 
 
 python tools/convert_weights.py -f exps/rtdetr/rtdetr_r50vd_6x_coco.py -c ResNet50_vd_ssld_v2_pretrained.pdparams -oc ResNet50_vd_ssld_v2_pretrained.pth -nc 80 --only_backbone True
@@ -82,6 +84,8 @@ python tools/convert_weights.py -f exps/rtdetr/rtdetr_r50vd_6x_coco.py -c ResNet
 
 
 ----------------------- 预测 -----------------------
+python tools/demo.py image -f exps/rtdetr/rtdetr_r18vd_6x_coco.py -c rtdetr_r18vd_dec3_6x_coco.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
+
 python tools/demo.py image -f exps/rtdetr/rtdetr_r50vd_6x_coco.py -c rtdetr_r50vd_6x_coco.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
 
@@ -102,6 +106,9 @@ nohup xxx     > ppyolo.log 2>&1 &
 
 
 - - - - - - - - - - - - - - - - - - - - - -
+python tools/train.py -f exps/rtdetr/rtdetr_r18vd_6x_coco.py -d 1 -b 2 -eb 2 -w 0 -ew 0 -c rtdetr_r18vd_dec3_6x_coco.pth
+
+python tools/train.py -f exps/rtdetr/rtdetr_r50vd_6x_coco.py -d 1 -b 2 -eb 2 -w 0 -ew 0 -c rtdetr_r50vd_6x_coco.pth
 
 
 
@@ -139,7 +146,6 @@ python tools/eval.py -f exps/rtdetr/rtdetr_r50vd_6x_coco.py -d 1 -b 8 -w 4 -c rt
 
 
 ----------------------- 复现COCO上的精度 -----------------------
-
 
 
 

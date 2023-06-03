@@ -496,6 +496,8 @@ def main(exp, args):
         inputs['image'] = temp_x
         inputs['im_shape'] = temp_im_shape
         inputs['scale_factor'] = temp_ori_shape
+        model.cuda()
+        model.eval()
         temp_out = model(inputs)
 
         with open(args.ckpt, 'rb') as f:
