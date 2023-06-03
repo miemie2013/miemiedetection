@@ -47,6 +47,8 @@ class ConvBNLayer(nn.Module):
             bias=False)
 
         self.bn = nn.BatchNorm2d(ch_out)
+        self.bn.weight.weight_decay = 0.0
+        self.bn.bias.weight_decay = 0.0
         self.act_name = act_name
         if act is None or isinstance(act, (str, dict)):
             self.act = get_act_fn(act)

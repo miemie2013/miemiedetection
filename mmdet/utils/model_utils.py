@@ -28,7 +28,7 @@ def get_model_info(archi_name, model, tsize):
         img = torch.zeros((1, 3, stride, stride), device=next(model.parameters()).device)
         im_size = torch.ones((1, 2), device=next(model.parameters()).device)
         flops, params = profile(deepcopy(model), inputs=(img, im_size), verbose=False)
-    elif archi_name in ['PPYOLOE', 'PicoDet']:
+    elif archi_name in ['PPYOLOE', 'PicoDet', 'RTDETR']:
         # stride = 64
         # img = torch.zeros((1, 3, stride, stride), device=next(model.parameters()).device)
         # scale_factor = torch.ones((1, 2), device=next(model.parameters()).device)

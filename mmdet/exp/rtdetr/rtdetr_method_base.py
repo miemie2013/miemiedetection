@@ -28,7 +28,6 @@ class RTDETR_Method_Exp(COCOBaseExp):
         self.ema_decay_type = "exponential"
         self.ema_filter_no_grad = True
         self.weight_decay = 0.0001
-        self.momentum = 0.9
         self.print_interval = 20
         self.eval_interval = 10
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
@@ -300,59 +299,32 @@ class RTDETR_Method_Exp(COCOBaseExp):
                 lr = self.basic_lr_per_img * batch_size
 
             # 不可以加正则化的参数：norm层(比如bn层、affine_channel层、gn层)的scale、offset；卷积层的偏移参数。
-            no_L2, use_L2 = [], []
+            no_decay, use_decay = {}, {}
+            eps = 1e-9
             for name, param in self.model.named_parameters():
                 # 只加入需要梯度的参数。
                 if not param.requires_grad:
                     continue
-                if name.startswith('backbone.'):
-                    if name.endswith('.conv.weight'):
-                        use_L2.append(param)
-                    elif name.endswith('.bn.weight'):
-                        no_L2.append(param)
-                    elif name.endswith('.bn.bias'):
-                        no_L2.append(param)
-                    elif name.endswith('.alpha'):   # alpha需要L2
-                        use_L2.append(param)
-                    elif name.endswith('.fc.weight'):
-                        use_L2.append(param)
-                    elif name.endswith('.fc.bias'):
-                        use_L2.append(param)
-                    else:
-                        raise NotImplementedError("param name \'{}\' is not implemented.".format(name))
-                elif name.startswith('neck.'):
-                    if name.endswith('.conv.weight'):
-                        use_L2.append(param)
-                    elif name.endswith('.bn.weight'):
-                        no_L2.append(param)
-                    elif name.endswith('.bn.bias'):
-                        no_L2.append(param)
-                    else:
-                        raise NotImplementedError("param name \'{}\' is not implemented.".format(name))
-                elif name.startswith('yolo_head.'):
-                    if name.endswith('.conv.weight'):
-                        use_L2.append(param)
-                    elif name.endswith('.bn.weight'):
-                        no_L2.append(param)
-                    elif name.endswith('.bn.bias'):
-                        no_L2.append(param)
-                    elif name.endswith('.fc.weight'):
-                        use_L2.append(param)
-                    elif name.endswith('.fc.bias'):
-                        use_L2.append(param)
-                    elif name.endswith('.0.weight') or name.endswith('.1.weight') or name.endswith('.2.weight'):
-                        use_L2.append(param)
-                    elif name.endswith('.0.bias') or name.endswith('.1.bias') or name.endswith('.2.bias'):
-                        use_L2.append(param)
-                    else:
-                        raise NotImplementedError("param name \'{}\' is not implemented.".format(name))
+                param_lr = 1.
+                if hasattr(param, 'param_lr'):
+                    param_lr = getattr(param, 'param_lr')
+                param_weight_decay = -1.   # -1 means use decay.  0 means no decay.
+                if hasattr(param, 'weight_decay'):
+                    param_weight_decay = getattr(param, 'weight_decay')
+                    assert abs(param_weight_decay - 0.0) < eps
+                if param_weight_decay < -0.5:
+                    if param_lr not in use_decay.keys():
+                        use_decay[param_lr] = []
+                    use_decay[param_lr].append(param)
                 else:
-                    raise NotImplementedError("param name \'{}\' is not implemented.".format(name))
-            optimizer = torch.optim.SGD(no_L2, lr=lr, momentum=self.momentum)
+                    if param_lr not in no_decay.keys():
+                        no_decay[param_lr] = []
+                    no_decay[param_lr].append(param)
+            optimizer = torch.optim.AdamW(no_decay, betas=(0.9, 0.999), lr=lr, eps=1e-8, amsgrad=True)
             for param_group in optimizer.param_groups:
-                param_group["lr_factor"] = 1.0   # 设置 no_L2 的学习率
+                param_group["lr_factor"] = 1.0  # 设置 no_decay 的学习率
             optimizer.add_param_group(
-                {"params": use_L2, "weight_decay": self.weight_decay, "lr_factor": 1.0}
+                {"params": use_decay, "weight_decay": self.weight_decay, "lr_factor": 1.0}
             )
             self.optimizer = optimizer
 

@@ -190,6 +190,8 @@ class ConvNormLayer(nn.Module):
             # 所以这里设置momentum = 0.0 让bn的均值和方差不会改变。并且model.train()之后要马上调用model.fix_bn()（让训练bn时的前向传播就是预测时bn的前向传播）
             momentum = 0.0 if freeze_norm else 0.1
             self.norm = nn.BatchNorm2d(ch_out, affine=True, momentum=momentum)
+            self.norm.weight.weight_decay = float(norm_decay)
+            self.norm.bias.weight_decay = float(norm_decay)
         norm_params = self.norm.parameters()
 
         if freeze_norm:

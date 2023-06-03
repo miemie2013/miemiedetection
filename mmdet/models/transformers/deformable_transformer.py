@@ -44,6 +44,7 @@ class MSDeformableAttention(nn.Module):
         Multi-Scale Deformable Attention Module
         """
         logger.warning("MSDeformableAttention.lr = %f"%lr_mult)
+        assert lr_mult == 1.0
         super(MSDeformableAttention, self).__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads

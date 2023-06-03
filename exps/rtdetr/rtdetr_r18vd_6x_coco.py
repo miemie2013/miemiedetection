@@ -30,8 +30,9 @@ class Exp(RTDETR_Method_Exp):
         self.backbone = dict(
             depth=18,
             variant='d',
-            freeze_at=-1,
             return_idx=[1, 2, 3],
+            freeze_at=-1,
+            freeze_norm=False,
         )
         self.neck_type = 'HybridEncoder'
         self.neck = dict(
