@@ -1167,8 +1167,7 @@ class MultiHeadAttention(nn.Module):
             weights = F.dropout(
                 weights,
                 self.dropout,
-                training=self.training,
-                mode="upscale_in_train")
+                training=self.training)
         out = torch.matmul(weights, v)    # [N, num_heads, HW, head_dim]
 
         # combine heads
