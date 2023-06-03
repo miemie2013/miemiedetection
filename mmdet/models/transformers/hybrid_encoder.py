@@ -150,6 +150,8 @@ class HybridEncoder(nn.Module):
         for in_channel in in_channels:
             conv_layer = nn.Conv2d(in_channel, hidden_dim, kernel_size=1, bias=False)
             bn_layer = nn.BatchNorm2d(hidden_dim)   # bn的weight和bias不使用L2正则
+            bn_layer.weight.weight_decay = 0.0
+            bn_layer.bias.weight_decay = 0.0
             self.input_proj.append(nn.Sequential(conv_layer, bn_layer))
         # encoder transformer,  num_encoder_layers==1
         self.encoder = nn.ModuleList([

@@ -123,12 +123,16 @@ class TransformerDecoderLayer(nn.Module):
         self.self_attn = MultiHeadAttention(d_model, n_head, dropout=dropout)
         self.dropout1 = nn.Dropout(dropout)
         self.norm1 = nn.LayerNorm(d_model)
+        self.norm1.weight.weight_decay = 0.0
+        self.norm1.bias.weight_decay = 0.0
 
         # cross attention
         self.cross_attn = PPMSDeformableAttention(d_model, n_head, n_levels,
                                                   n_points, 1.0)
         self.dropout2 = nn.Dropout(dropout)
         self.norm2 = nn.LayerNorm(d_model)
+        self.norm2.weight.weight_decay = 0.0
+        self.norm2.bias.weight_decay = 0.0
 
         # ffn
         self.linear1 = nn.Linear(d_model, dim_feedforward, bias=bias_attr)
@@ -136,8 +140,9 @@ class TransformerDecoderLayer(nn.Module):
         self.dropout3 = nn.Dropout(dropout)
         self.linear2 = nn.Linear(dim_feedforward, d_model, bias=bias_attr)
         self.dropout4 = nn.Dropout(dropout)
-        self.norm3 = nn.LayerNorm(
-            d_model)
+        self.norm3 = nn.LayerNorm(d_model)
+        self.norm3.weight.weight_decay = 0.0
+        self.norm3.bias.weight_decay = 0.0
         self._reset_parameters()
 
     def _reset_parameters(self):
@@ -309,9 +314,10 @@ class RTDETRTransformer(nn.Module):
         self.query_pos_head = MLP(4, 2 * hidden_dim, hidden_dim, num_layers=2)
 
         # encoder head
-        self.enc_output = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim))
+        layerNorm = nn.LayerNorm(hidden_dim)
+        layerNorm.weight.weight_decay = 0.0
+        layerNorm.bias.weight_decay = 0.0
+        self.enc_output = nn.Sequential(nn.Linear(hidden_dim, hidden_dim), layerNorm)
         self.enc_score_head = nn.Linear(hidden_dim, num_classes)
         self.enc_bbox_head = MLP(hidden_dim, hidden_dim, 4, num_layers=3)
 
@@ -361,15 +367,20 @@ class RTDETRTransformer(nn.Module):
     def _build_input_proj_layer(self, backbone_feat_channels):
         self.input_proj = nn.ModuleList()
         for in_channels in backbone_feat_channels:
+            batchNorm2d = nn.BatchNorm2d(self.hidden_dim)
+            batchNorm2d.weight.weight_decay = 0.0
+            batchNorm2d.bias.weight_decay = 0.0
             self.input_proj.append(
                 nn.Sequential(nn.Conv2d(
                         in_channels,
                         self.hidden_dim,
                         kernel_size=1,
-                        bias=False), nn.BatchNorm2d(
-                            self.hidden_dim)))
+                        bias=False), batchNorm2d))
         in_channels = backbone_feat_channels[-1]
         for _ in range(self.num_levels - len(backbone_feat_channels)):
+            batchNorm2d = nn.BatchNorm2d(self.hidden_dim)
+            batchNorm2d.weight.weight_decay = 0.0
+            batchNorm2d.bias.weight_decay = 0.0
             self.input_proj.append(
                 nn.Sequential(nn.Conv2d(
                         in_channels,
@@ -377,8 +388,7 @@ class RTDETRTransformer(nn.Module):
                         kernel_size=3,
                         stride=2,
                         padding=1,
-                        bias=False), nn.BatchNorm2d(
-                            self.hidden_dim)))
+                        bias=False), batchNorm2d))
             in_channels = self.hidden_dim
 
     def _get_encoder_input(self, feats):

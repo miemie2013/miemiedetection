@@ -43,8 +43,6 @@ class MSDeformableAttention(nn.Module):
         """
         Multi-Scale Deformable Attention Module
         """
-        logger.warning("MSDeformableAttention.lr = %f"%lr_mult)
-        assert lr_mult == 1.0
         super(MSDeformableAttention, self).__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads
@@ -55,9 +53,9 @@ class MSDeformableAttention(nn.Module):
         self.head_dim = embed_dim // num_heads
         assert self.head_dim * num_heads == self.embed_dim, "embed_dim must be divisible by num_heads"
 
-        self.sampling_offsets = nn.Linear(
-            embed_dim,
-            self.total_points * 2)
+        self.sampling_offsets = nn.Linear(embed_dim, self.total_points * 2)
+        self.sampling_offsets.weight.param_lr = float(lr_mult)
+        self.sampling_offsets.bias.param_lr = float(lr_mult)
 
         self.attention_weights = nn.Linear(embed_dim, self.total_points)
         self.value_proj = nn.Linear(embed_dim, embed_dim)
@@ -419,11 +417,9 @@ class DeformableTransformer(nn.Module):
         self.tgt_embed = nn.Embedding(num_queries, hidden_dim)
         self.query_pos_embed = nn.Embedding(num_queries, hidden_dim)
 
-        self.reference_points = nn.Linear(
-            hidden_dim,
-            2,
-            weight_attr=ParamAttr(learning_rate=lr_mult),
-            bias_attr=ParamAttr(learning_rate=lr_mult))
+        self.reference_points = nn.Linear(hidden_dim, 2)
+        self.reference_points.weight.param_lr = float(lr_mult)
+        self.reference_points.bias.param_lr = float(lr_mult)
 
         self.input_proj = nn.ModuleList()
         for in_channels in in_feats_channel:
