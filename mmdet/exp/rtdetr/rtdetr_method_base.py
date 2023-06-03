@@ -305,7 +305,7 @@ class RTDETR_Method_Exp(COCOBaseExp):
                 # 只加入需要梯度的参数。
                 if not param.requires_grad:
                     continue
-                param_lr = 1.
+                param_lr = 1.0
                 if hasattr(param, 'param_lr'):
                     param_lr = getattr(param, 'param_lr')
                 param_weight_decay = -1.   # -1 means use decay.  0 means no decay.
@@ -320,12 +320,15 @@ class RTDETR_Method_Exp(COCOBaseExp):
                     if param_lr not in no_decay.keys():
                         no_decay[param_lr] = []
                     no_decay[param_lr].append(param)
-            optimizer = torch.optim.AdamW(no_decay, betas=(0.9, 0.999), lr=lr, eps=1e-8, amsgrad=True)
+            optimizer = torch.optim.AdamW(no_decay[1.0], betas=(0.9, 0.999), lr=lr, eps=1e-8, amsgrad=True)
             for param_group in optimizer.param_groups:
-                param_group["lr_factor"] = 1.0  # 设置 no_decay 的学习率
-            optimizer.add_param_group(
-                {"params": use_decay, "weight_decay": self.weight_decay, "lr_factor": 1.0}
-            )
+                param_group["lr_factor"] = 1.0   # 设置 no_decay[1.0] 的学习率
+            for param_lr_ in no_decay.keys():
+                if param_lr_ == 1.0:
+                    continue
+                optimizer.add_param_group({"params": no_decay[param_lr_], "lr_factor": param_lr_})
+            for param_lr_ in use_decay.keys():
+                optimizer.add_param_group({"params": use_decay[param_lr_], "lr_factor": param_lr_, "weight_decay": self.weight_decay})
             self.optimizer = optimizer
 
         return self.optimizer
