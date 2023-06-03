@@ -494,8 +494,105 @@ def main(exp, args):
 
         inputs = {}
         inputs['image'] = temp_x
+        inputs['im_shape'] = temp_im_shape
+        inputs['scale_factor'] = temp_ori_shape
         temp_out = model(inputs)
-        aaaaaa = 1
+
+        with open(args.ckpt, 'rb') as f:
+            state_dict = pickle.load(f) if six.PY2 else pickle.load(f, encoding='latin1')
+        # state_dict = fluid.io.load_program_state(args.ckpt)
+        backbone_dic = {}
+        fpn_dic = {}
+        transformer_dic = {}
+        others = {}
+        for key, value in state_dict.items():
+            if 'tracked' in key:
+                continue
+            if 'backbone' in key:
+                backbone_dic[key] = value
+            elif 'neck' in key:
+                fpn_dic[key] = value
+            elif 'transformer' in key:
+                transformer_dic[key] = value
+            else:
+                others[key] = value
+        backbone_dic2 = {}
+        fpn_dic2 = {}
+        transformer_dic2 = {}
+        others2 = {}
+        for key, value in model_std.items():
+            if 'tracked' in key:
+                continue
+            if 'backbone' in key:
+                backbone_dic2[key] = value
+            elif 'neck' in key:
+                fpn_dic2[key] = value
+            elif 'transformer' in key:
+                transformer_dic2[key] = value
+            else:
+                others2[key] = value
+        print('======================== find weights not in transformer_dic2 ========================')
+        for key, value in transformer_dic.items():
+            if key not in transformer_dic2.keys():
+                print(key)
+        print('======================== find weights not in transformer_dic ========================')
+        for key, value in transformer_dic2.items():
+            if key not in transformer_dic.keys():
+                print(key)
+        print('======================== find Embedding Layer name and Linear name ========================')
+        Embedding_Layer_names = []
+        Linear_Layer_names = []
+        for key, module in model.named_modules():
+            if isinstance(module, nn.Embedding):
+                print(key)
+                Embedding_Layer_names.append(key)
+            if isinstance(module, nn.Linear):
+                print(key)
+                Linear_Layer_names.append(key)
+        print('======================== copy weights ========================')
+        for key in state_dict.keys():
+            name2 = key
+            w = state_dict[key]
+            if 'StructuredToParameterName@@' in key:
+                continue
+            else:
+                if key.startswith('transformer.input_proj.'):
+                    name2 = name2.replace('.conv.', '.0.')
+                    name2 = name2.replace('.norm.', '.1.')
+                if '._mean' in key:
+                    name2 = name2.replace('._mean', '.running_mean')
+                if '._variance' in key:
+                    name2 = name2.replace('._variance', '.running_var')
+                if len(w.shape) == 2:
+                    # 要注意，pytorch的fc层和paddle的fc层的权重weight需要转置一下才能等价！！！
+                    # 但是Embedding层的权重不需要转置
+                    layer_type = -1   # 0代表是Embedding层的权重, 1代表是Linear层的权重
+                    for prefix in Embedding_Layer_names:
+                        if name2.startswith(prefix):
+                            layer_type = 0
+                            break
+                    for prefix in Linear_Layer_names:
+                        if name2.startswith(prefix):
+                            layer_type = 1
+                            break
+                    if layer_type == 1:
+                        print('transpose param: name=\'%s\' '%name2)
+                        w = w.transpose([1, 0])
+                    elif layer_type == 0:
+                        pass
+                    elif layer_type == -1:
+                        need_zhuanzhi = False
+                        if name2.endswith('.in_proj_weight'):  # MultiHeadAttention 的 in_proj_weight 需要转置
+                            need_zhuanzhi = True
+                        if need_zhuanzhi:
+                            print('transpose param: name=\'%s\' '%name2)
+                            w = w.transpose([1, 0])
+                        else:
+                            raise NotImplementedError(name2)
+                copy(name2, w, model_std)
+        if args.only_backbone:
+            delattr(model, "neck")
+            delattr(model, "yolo_head")
     else:
         raise NotImplementedError("Architectures \'{}\' is not implemented.".format(model_class_name))
 

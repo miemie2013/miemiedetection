@@ -37,13 +37,11 @@ class CSPRepLayer(nn.Module):
                  act="silu"):
         super(CSPRepLayer, self).__init__()
         hidden_channels = int(out_channels * expansion)
-        self.conv1 = BaseConv(
-            in_channels, hidden_channels, ksize=1, stride=1, bias=bias)
-        self.conv2 = BaseConv(
-            in_channels, hidden_channels, ksize=1, stride=1, bias=bias)
+        self.conv1 = BaseConv(in_channels, hidden_channels, ksize=1, stride=1, bias=bias, act=act)
+        self.conv2 = BaseConv(in_channels, hidden_channels, ksize=1, stride=1, bias=bias, act=act)
         self.bottlenecks = nn.Sequential(*[
             RepVggBlock(
-                hidden_channels, hidden_channels, act=act)
+                hidden_channels, hidden_channels, act=act, act_name=act)
             for _ in range(num_blocks)
         ])
         if hidden_channels != out_channels:
@@ -53,7 +51,7 @@ class CSPRepLayer(nn.Module):
                 ksize=1,
                 stride=1,
                 bias=bias,
-                )
+                act=act)
         else:
             self.conv3 = nn.Identity()
 
@@ -159,16 +157,11 @@ class HybridEncoder(nn.Module):
             for _ in range(len(use_encoder_idx))
         ])
 
-        act = get_act_fn(
-            act, trt=trt) if act is None or isinstance(act,
-                                                       (str, dict)) else act
         # top-down fpn
         self.lateral_convs = nn.ModuleList()
         self.fpn_blocks = nn.ModuleList()
         for idx in range(len(in_channels) - 1, 0, -1):
-            self.lateral_convs.append(
-                BaseConv(
-                    hidden_dim, hidden_dim, 1, 1))
+            self.lateral_convs.append(BaseConv(hidden_dim, hidden_dim, 1, 1, act=act))
             self.fpn_blocks.append(
                 CSPRepLayer(
                     hidden_dim * 2,
@@ -181,9 +174,7 @@ class HybridEncoder(nn.Module):
         self.downsample_convs = nn.ModuleList()
         self.pan_blocks = nn.ModuleList()
         for idx in range(len(in_channels) - 1):
-            self.downsample_convs.append(
-                BaseConv(
-                    hidden_dim, hidden_dim, 3, stride=2))
+            self.downsample_convs.append(BaseConv(hidden_dim, hidden_dim, 3, stride=2, act=act))
             self.pan_blocks.append(
                 CSPRepLayer(
                     hidden_dim * 2,
@@ -236,29 +227,25 @@ class HybridEncoder(nn.Module):
                 h, w = proj_feats[enc_ind].shape[2:]
                 # flatten [B, C, H, W] to [B, HxW, C]
                 src_flatten = proj_feats[enc_ind].flatten(2).permute([0, 2, 1])
+                device = src_flatten.device
                 if self.training or self.eval_size is None:
-                    pos_embed = self.build_2d_sincos_position_embedding(
-                        w, h, self.hidden_dim, self.pe_temperature)
+                    pos_embed = self.build_2d_sincos_position_embedding(w, h, device, self.hidden_dim, self.pe_temperature)
                 else:
                     pos_embed = getattr(self, f'pos_embed{enc_ind}', None)
                 memory = self.encoder[i](src_flatten, pos_embed=pos_embed)
-                proj_feats[enc_ind] = memory.transpose([0, 2, 1]).reshape(
-                    [-1, self.hidden_dim, h, w])
+                proj_feats[enc_ind] = memory.permute([0, 2, 1]).reshape([-1, self.hidden_dim, h, w])
 
         # top-down fpn
         inner_outs = [proj_feats[-1]]
         for idx in range(len(self.in_channels) - 1, 0, -1):
             feat_heigh = inner_outs[0]
             feat_low = proj_feats[idx - 1]
-            feat_heigh = self.lateral_convs[len(self.in_channels) - 1 - idx](
-                feat_heigh)
+            feat_heigh = self.lateral_convs[len(self.in_channels) - 1 - idx](feat_heigh)
             inner_outs[0] = feat_heigh
 
-            upsample_feat = F.interpolate(
-                feat_heigh, scale_factor=2., mode="nearest")
-            inner_out = self.fpn_blocks[len(self.in_channels) - 1 - idx](
-                paddle.concat(
-                    [upsample_feat, feat_low], axis=1))
+            upsample_feat = F.interpolate(feat_heigh, scale_factor=2., mode="nearest")
+            feat_ = torch.cat([upsample_feat, feat_low], dim=1)
+            inner_out = self.fpn_blocks[len(self.in_channels) - 1 - idx](feat_)
             inner_outs.insert(0, inner_out)
 
         # bottom-up pan
@@ -267,8 +254,8 @@ class HybridEncoder(nn.Module):
             feat_low = outs[-1]
             feat_height = inner_outs[idx + 1]
             downsample_feat = self.downsample_convs[idx](feat_low)
-            out = self.pan_blocks[idx](paddle.concat(
-                [downsample_feat, feat_height], axis=1))
+            feat_ = torch.cat([downsample_feat, feat_height], dim=1)
+            out = self.pan_blocks[idx](feat_)
             outs.append(out)
 
         return outs

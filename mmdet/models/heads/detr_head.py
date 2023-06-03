@@ -370,8 +370,7 @@ class DINOHead(nn.Module):
         self.loss = loss
 
     def forward(self, out_transformer, body_feats, inputs=None):
-        (dec_out_bboxes, dec_out_logits, enc_topk_bboxes, enc_topk_logits,
-         dn_meta) = out_transformer
+        (dec_out_bboxes, dec_out_logits, enc_topk_bboxes, enc_topk_logits, dn_meta) = out_transformer
         if self.training:
             assert inputs is not None
             assert 'gt_bbox' in inputs and 'gt_class' in inputs

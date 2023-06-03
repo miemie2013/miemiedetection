@@ -40,8 +40,8 @@ def _get_clones(module, N):
 
 
 def bbox_cxcywh_to_xyxy(x):
-    cxcy, wh = paddle.split(x, 2, axis=-1)
-    return paddle.concat([cxcy - 0.5 * wh, cxcy + 0.5 * wh], axis=-1)
+    cxcy, wh = torch.split(x, 2, dim=-1)
+    return torch.cat([cxcy - 0.5 * wh, cxcy + 0.5 * wh], dim=-1)
 
 
 def bbox_xyxy_to_cxcywh(x):
@@ -63,8 +63,8 @@ def sigmoid_focal_loss(logit, label, normalizer=1.0, alpha=0.25, gamma=2.0):
 
 
 def inverse_sigmoid(x, eps=1e-5):
-    x = x.clip(min=0., max=1.)
-    return paddle.log(x.clip(min=eps) / (1 - x).clip(min=eps))
+    x = torch.clamp(x, min=eps, max=1. - eps)
+    return torch.log(x / (1. - x))
 
 
 def deformable_attention_core_func(value, value_spatial_shapes,
@@ -84,17 +84,19 @@ def deformable_attention_core_func(value, value_spatial_shapes,
     bs, _, n_head, c = value.shape
     _, Len_q, _, n_levels, n_points, _ = sampling_locations.shape
 
-    split_shape = [h * w for h, w in value_spatial_shapes]
-    value_list = value.split(split_shape, axis=1)
+    split_shape = [int(h * w) for h, w in value_spatial_shapes]
+    value_list = torch.split(value, split_shape, dim=1)
     sampling_grids = 2 * sampling_locations - 1
     sampling_value_list = []
     for level, (h, w) in enumerate(value_spatial_shapes):
+        h = int(h)
+        w = int(w)
         # N_, H_*W_, M_, D_ -> N_, H_*W_, M_*D_ -> N_, M_*D_, H_*W_ -> N_*M_, D_, H_, W_
-        value_l_ = value_list[level].flatten(2).transpose(
-            [0, 2, 1]).reshape([bs * n_head, c, h, w])
+        value_l_ = value_list[level].flatten(2)
+        value_l_ = value_l_.permute([0, 2, 1]).reshape([bs * n_head, c, h, w])
         # N_, Lq_, M_, P_, 2 -> N_, M_, Lq_, P_, 2 -> N_*M_, Lq_, P_, 2
-        sampling_grid_l_ = sampling_grids[:, :, :, level].transpose(
-            [0, 2, 1, 3, 4]).flatten(0, 1)
+        sampling_grid_l_ = sampling_grids[:, :, :, level].permute([0, 2, 1, 3, 4])
+        sampling_grid_l_ = sampling_grid_l_.flatten(0, 1)
         # N_*M_, D_, Lq_, P_
         sampling_value_l_ = F.grid_sample(
             value_l_,
@@ -104,13 +106,12 @@ def deformable_attention_core_func(value, value_spatial_shapes,
             align_corners=False)
         sampling_value_list.append(sampling_value_l_)
     # (N_, Lq_, M_, L_, P_) -> (N_, M_, Lq_, L_, P_) -> (N_*M_, 1, Lq_, L_*P_)
-    attention_weights = attention_weights.transpose([0, 2, 1, 3, 4]).reshape(
-        [bs * n_head, 1, Len_q, n_levels * n_points])
-    output = (paddle.stack(
-        sampling_value_list, axis=-2).flatten(-2) *
-              attention_weights).sum(-1).reshape([bs, n_head * c, Len_q])
-
-    return output.transpose([0, 2, 1])
+    attention_weights = attention_weights.permute([0, 2, 1, 3, 4]).reshape([bs * n_head, 1, Len_q, n_levels * n_points])
+    output = torch.stack(sampling_value_list, dim=-2)
+    output = output.flatten(-2)
+    output = output * attention_weights
+    output = output.sum(-1).reshape([bs, n_head * c, Len_q])
+    return output.permute([0, 2, 1])
 
 
 def get_valid_ratio(mask):

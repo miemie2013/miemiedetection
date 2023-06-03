@@ -479,6 +479,105 @@ class PPYOLOEPredictor(object):
         vis_res = vis(img, bboxes, scores, cls, cls_conf, self.cls_names)
         return vis_res
 
+class RTDETRPredictor(object):
+    def __init__(
+        self,
+        model,
+        exp,
+        trt_file=None,
+        device="cpu",
+        fp16=False,
+        legacy=False,
+    ):
+        self.model = model
+        self.cls_names = get_classes(exp.cls_names)
+        self.num_classes = exp.num_classes
+        # if exp.nms_cfg['nms_type'] == 'matrix_nms':
+        #     self.confthre = exp.nms_cfg['post_threshold']
+        # elif exp.nms_cfg['nms_type'] == 'multiclass_nms':
+        #     self.confthre = exp.nms_cfg['score_threshold']
+        self.confthre = 0.15
+        self.test_size = exp.test_size
+        self.device = device
+        self.fp16 = fp16
+
+        # 预测时的数据预处理
+        self.context = exp.context
+        self.to_rgb = exp.decodeImage['to_rgb']
+        target_size = self.test_size[0]
+        resizeImage = ResizeImage(target_size=target_size, interp=exp.resizeImage['interp'])
+        normalizeImage = NormalizeImage(**exp.normalizeImage)
+        permute = Permute(**exp.permute)
+        self.preproc = RTDETRValTransform(self.context, self.to_rgb, resizeImage, normalizeImage, permute)
+
+        # TensorRT
+        if trt_file is not None:
+            from torch2trt import TRTModule
+
+            model_trt = TRTModule()
+            model_trt.load_state_dict(torch.load(trt_file))
+
+            x = torch.ones(1, 3, exp.test_size[0], exp.test_size[1]).cuda()
+            self.model(x)
+            self.model = model_trt
+
+    def inference(self, img):
+        img_info = {"id": 0}
+        if isinstance(img, str):
+            img_info["file_name"] = os.path.basename(img)
+            img = cv2.imread(img)
+        else:
+            img_info["file_name"] = None
+
+        height, width = img.shape[:2]
+        img_info["height"] = height
+        img_info["width"] = width
+        img_info["raw_img"] = img
+
+        img, scale_factor, im_shape = self.preproc(img)
+        img = torch.from_numpy(img)
+        scale_factor = torch.from_numpy(scale_factor)
+        im_shape = torch.from_numpy(im_shape)
+        img = img.float()
+        scale_factor = scale_factor.float()
+        im_shape = im_shape.float()
+        if self.device == "gpu":
+            img = img.cuda()
+            scale_factor = scale_factor.cuda()
+            im_shape = im_shape.cuda()
+            if self.fp16:
+                img = img.half()  # to FP16
+                scale_factor = scale_factor.half()  # to FP16
+                im_shape = im_shape.half()  # to FP16
+
+        with torch.no_grad():
+            t0 = time.time()
+            inputs = {}
+            inputs['image'] = img
+            inputs['scale_factor'] = scale_factor
+            inputs['im_shape'] = im_shape
+            outputs = self.model(inputs)
+            logger.info("Infer time: {:.4f}s".format(time.time() - t0))
+        return outputs, img_info
+
+    def visual(self, output, img_info, cls_conf=0.35):
+        bbox_num = output['bbox_num']
+        output = output['bbox']
+        img = img_info["raw_img"]
+        # matrixNMS返回的结果为-1时表示没有物体
+        if output[0][0] < -0.5:
+            return img
+        output = output.cpu()
+
+        bboxes = output[:, 2:6]
+
+        cls = output[:, 0]
+        scores = output[:, 1]
+
+        # vis_res = vis2(img, bboxes, scores, cls, cls_conf, self.cls_names)
+        vis_res = vis(img, bboxes, scores, cls, cls_conf, self.cls_names)
+        return vis_res
+
 
 class FCOSPredictor(object):
     def __init__(
@@ -677,20 +776,13 @@ def main(exp, args):
         if args.tsize is not None:
             exp.test_size = [args.tsize, args.tsize]
             exp.head['eval_size'] = exp.test_size
-    elif archi_name == 'SOLO':
-        # SOLO使用的是matrix_nms，修改matrix_nms的配置。
-        if args.conf is not None:
-            exp.nms_cfg['score_threshold'] = args.conf
-            exp.nms_cfg['post_threshold'] = args.conf
-        if args.tsize is not None:
-            exp.test_size = (args.tsize, args.tsize)
-    elif archi_name == 'FCOS':
-        # FCOS暂时使用的是matrix_nms，修改matrix_nms的配置。
-        if args.conf is not None:
-            exp.nms_cfg['score_threshold'] = args.conf
-            exp.nms_cfg['post_threshold'] = args.conf
-        if args.tsize is not None:
-            exp.test_size = (args.tsize, exp.test_size[1])
+    elif archi_name == 'RTDETR':
+        pass
+        # if args.conf is not None:
+        #     exp.nms_cfg['score_threshold'] = args.conf
+        #     exp.nms_cfg['post_threshold'] = args.conf
+        # if args.tsize is not None:
+        #     exp.test_size = (args.tsize, exp.test_size[1])
     else:
         raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
 
@@ -777,7 +869,7 @@ def main(exp, args):
             model, exp, trt_file,
             args.device, args.fp16, args.legacy,
         )
-    elif archi_name in ['PPYOLOE', 'PicoDet']:
+    elif archi_name in ['PPYOLOE', 'PicoDet', 'RTDETR']:
         # 加载模型权重
         if not args.trt:
             if args.ckpt is None:
@@ -808,10 +900,16 @@ def main(exp, args):
         else:
             trt_file = None
 
-        predictor = PPYOLOEPredictor(
-            model, exp, trt_file,
-            args.device, args.fp16, args.legacy,
-        )
+        if archi_name in ['PPYOLOE', 'PicoDet']:
+            predictor = PPYOLOEPredictor(
+                model, exp, trt_file,
+                args.device, args.fp16, args.legacy,
+            )
+        if archi_name in ['RTDETR', ]:
+            predictor = RTDETRPredictor(
+                model, exp, trt_file,
+                args.device, args.fp16, args.legacy,
+            )
     elif archi_name == 'SOLO':
         # 加载模型权重
         if not args.trt:

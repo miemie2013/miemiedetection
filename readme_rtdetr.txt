@@ -82,13 +82,8 @@ python tools/convert_weights.py -f exps/rtdetr/rtdetr_r50vd_6x_coco.py -c ResNet
 
 
 ----------------------- 预测 -----------------------
-python tools/demo.py image -f exps/picodet/picodet_s_416_coco_lcnet.py -c picodet_s_416_coco_lcnet.pth --path assets/000000000019.jpg --conf 0.15 --tsize 416 --save_result --device gpu
+python tools/demo.py image -f exps/rtdetr/rtdetr_r50vd_6x_coco.py -c rtdetr_r50vd_6x_coco.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
-python tools/demo.py image -f exps/picodet/picodet_m_416_coco_lcnet.py -c picodet_m_416_coco_lcnet.pth --path assets/000000000019.jpg --conf 0.15 --tsize 416 --save_result --device gpu
-
-python tools/demo.py image -f exps/picodet/picodet_l_320_coco_lcnet.py -c picodet_l_320_coco_lcnet.pth --path assets/000000000019.jpg --conf 0.15 --tsize 320 --save_result --device gpu
-python tools/demo.py image -f exps/picodet/picodet_l_416_coco_lcnet.py -c picodet_l_416_coco_lcnet.pth --path assets/000000000019.jpg --conf 0.15 --tsize 416 --save_result --device gpu
-python tools/demo.py image -f exps/picodet/picodet_l_640_coco_lcnet.py -c picodet_l_640_coco_lcnet.pth --path assets/000000000019.jpg --conf 0.15 --tsize 640 --save_result --device gpu
 
 
 

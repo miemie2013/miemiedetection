@@ -81,6 +81,7 @@ class RTDETR_Method_Exp(COCOBaseExp):
         self.transformer = dict(
             num_queries=300,
             position_embed_type='sine',
+            backbone_feat_channels=[self.hidden_dim, self.hidden_dim, self.hidden_dim],
             feat_strides=[8, 16, 32],
             num_levels=3,
             nhead=8,
@@ -106,8 +107,8 @@ class RTDETR_Method_Exp(COCOBaseExp):
                 ),
             ),
         )
+        self.post_process_type = 'DETRPostProcess'
         self.post_cfg = dict(
-            name='DETRPostProcess',
             num_top_queries=300,
         )
 
@@ -175,12 +176,9 @@ class RTDETR_Method_Exp(COCOBaseExp):
         self.eval_data_num_workers = 2
 
     def get_model(self):
-        from mmdet.models import ResNet, HybridEncoder, RTDETRTransformer, DINOHead, DETR, PicoFeat
+        from mmdet.models import ResNet, HybridEncoder, RTDETRTransformer, DINOHead, DETR
         from mmdet.models.transformers.hybrid_encoder import TransformerLayer
-        from mmdet.models.necks.lc_pan import LCPAN
-        from mmdet.models.losses.iou_losses import GIoULoss
-        from mmdet.models.losses.varifocal_loss import VarifocalLoss
-        from mmdet.models.losses.gfocal_loss import DistributionFocalLoss
+        from mmdet.models.post_process import DETRPostProcess
         if getattr(self, "model", None) is None:
             Backbone = None
             if self.backbone_type == 'ResNet':
@@ -203,11 +201,11 @@ class RTDETR_Method_Exp(COCOBaseExp):
             if self.detr_head_type == 'DINOHead':
                 Detr_head = DINOHead
             detr_head = Detr_head(**self.detr_head)
-            # Post_process = None
-            # if self.post_process_type == 'DETRPostProcess':
-            #     Post_process = DETRPostProcess
-            # post_process = Post_process(**self.post_process)
-            self.model = DETR(backbone, transformer, detr_head, neck, post_process=None, with_mask=False, exclude_post_process=False)
+            Post_process = None
+            if self.post_process_type == 'DETRPostProcess':
+                Post_process = DETRPostProcess
+            post_process = Post_process(**self.post_cfg)
+            self.model = DETR(backbone, transformer, detr_head, neck, post_process=post_process, with_mask=False, exclude_post_process=False)
         return self.model
 
     def get_data_loader(
