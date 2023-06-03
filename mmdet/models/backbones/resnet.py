@@ -134,9 +134,9 @@ class ConvNormLayer(nn.Module):
                 padding=(filter_size - 1) // 2,
                 groups=groups,
                 bias=False)
-            self.conv_w_lr = lr
             # 初始化权重
             torch.nn.init.xavier_normal_(self.conv.weight, gain=1.)
+            self.conv.weight.param_lr = float(lr)
         else:
             self.offset_channel = 2 * filter_size ** 2
             self.mask_channel = filter_size ** 2
@@ -172,14 +172,12 @@ class ConvNormLayer(nn.Module):
                 dilation=1,
                 groups=groups,
                 bias=False)
-
-            self.dcn_w_lr = lr
             # 初始化权重
             torch.nn.init.xavier_normal_(self.conv.weight, gain=1.)
+            self.conv.weight.param_lr = float(lr)
 
         self.freeze_norm = freeze_norm
         norm_lr = 0. if freeze_norm else lr
-        self.norm_lr = norm_lr
         self.norm_decay = norm_decay
         self.freeze_norm = freeze_norm
 
@@ -192,6 +190,8 @@ class ConvNormLayer(nn.Module):
             self.norm = nn.BatchNorm2d(ch_out, affine=True, momentum=momentum)
             self.norm.weight.weight_decay = float(norm_decay)
             self.norm.bias.weight_decay = float(norm_decay)
+            self.norm.weight.param_lr = float(norm_lr)
+            self.norm.bias.param_lr = float(norm_lr)
         norm_params = self.norm.parameters()
 
         if freeze_norm:
