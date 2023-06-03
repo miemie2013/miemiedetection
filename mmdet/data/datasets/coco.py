@@ -921,10 +921,16 @@ class PPYOLOE_COCOTrainDataset(torch.utils.data.Dataset):
                 self.random_shapes.append(shape)
 
         # 输出特征图数量
-        fpn_strides = cfg.head.get('fpn_strides', None)
-        if fpn_strides is None:
-            fpn_strides = cfg.head.get('fpn_stride', None)
-        self.n_layers = len(fpn_strides)
+        if hasattr(cfg, 'head'):
+            fpn_strides = cfg.head.get('fpn_strides', None)
+            if fpn_strides is None:
+                fpn_strides = cfg.head.get('fpn_stride', None)
+            self.n_layers = len(fpn_strides)
+        elif hasattr(cfg, 'transformer'):
+            fpn_strides = cfg.transformer.get('feat_strides', None)
+            self.n_layers = len(fpn_strides)
+        else:
+            raise NotImplementedError
         self._epoch = 0
 
 

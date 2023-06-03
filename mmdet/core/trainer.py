@@ -220,10 +220,7 @@ class Trainer:
             self.optimizer = self.exp.get_optimizer(self.args.batch_size)
 
             # value of epoch will be set in `resume_train`
-            model = self.resume_train(model, distill_loss)
-            if self.slim_exp:
-                slim_model = self.resume_slim_model(slim_model)
-                model = PPYOLOEDistillModel(model, slim_model, distill_loss)
+            model = self.resume_train(model)
 
 
             self.train_loader = self.exp.get_data_loader(
@@ -283,7 +280,7 @@ class Trainer:
             if self.archi_name == 'YOLOX':
                 self.ema_model = ModelEMA(model, self.exp.ema_decay)
                 self.ema_model.updates = self.max_iter * self.start_epoch
-            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'SOLO', 'FCOS']:
+            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'RTDETR']:
                 ema_decay = getattr(self.exp, 'ema_decay', 0.9998)
                 cycle_epoch = getattr(self.exp, 'cycle_epoch', -1)
                 ema_decay_type = getattr(self.exp, 'ema_decay_type', 'threshold')
@@ -433,6 +430,36 @@ class Trainer:
                 获得损失（训练）、推理 都要放在forward()中进行，否则DDP会计算错误结果。
                 '''
                 outputs = self.model(inps, None, targets)
+        elif self.archi_name in ['RTDETR', ]:
+            inps, gt_class, gt_bbox, pad_gt_mask, im_ids = self.prefetcher.next()
+            inps = inps.to(self.data_type)
+            gt_class = gt_class.to(self.data_type)
+            gt_bbox = gt_bbox.to(self.data_type)
+            pad_gt_mask = pad_gt_mask.to(self.data_type)
+
+            # miemie2013: 剪掉填充的gt
+            num_boxes = pad_gt_mask.sum([1, 2])
+            num_max_boxes = num_boxes.max().to(torch.int32)
+            pad_gt_mask = pad_gt_mask[:, :num_max_boxes, :]
+            gt_class = gt_class[:, :num_max_boxes, :]
+            gt_bbox = gt_bbox[:, :num_max_boxes, :]
+            gt_class.requires_grad = False
+            gt_bbox.requires_grad = False
+            pad_gt_mask.requires_grad = False
+            data_end_time = time.time()
+
+            with torch.cuda.amp.autocast(enabled=self.amp_training):
+                inputs = dict(
+                    image=inps,
+                    gt_class=gt_class,
+                    gt_bbox=gt_bbox,
+                    pad_gt_mask=pad_gt_mask,
+                    epoch_id=self.epoch,
+                )
+                '''
+                获得损失（训练）、推理 都要放在forward()中进行，否则DDP会计算错误结果。
+                '''
+                outputs = self.model(inputs)
         else:
             raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 
@@ -505,10 +532,8 @@ class Trainer:
             pass
         elif self.archi_name == 'PicoDet':
             pass
-        elif self.archi_name == 'SOLO':
+        elif self.archi_name == 'RTDETR':
             pass
-        elif self.archi_name == 'FCOS':
-            self.train_loader.dataset.set_epoch(self.epoch)
         else:
             raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 

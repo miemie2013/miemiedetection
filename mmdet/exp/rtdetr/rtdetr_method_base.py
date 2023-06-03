@@ -342,8 +342,9 @@ class RTDETR_Method_Exp(COCOBaseExp):
             iters_per_epoch,
             self.max_epoch,
             warmup_epochs=self.warmup_epochs,
-            cosinedecay_epochs=self.cosinedecay_epochs,
             warmup_lr_start=lr * self.start_factor,
+            milestones=self.milestones_epoch,
+            gamma=self.decay_gamma,
         )
         return scheduler
 
