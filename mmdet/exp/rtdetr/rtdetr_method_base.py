@@ -52,6 +52,7 @@ class RTDETR_Method_Exp(COCOBaseExp):
         self.output_dir = "RTDETR_outputs"
         self.hidden_dim = 256
         self.use_focal_loss = True
+        self.with_mask = False
         self.backbone_type = 'ResNet'
         self.backbone = dict(
             depth=50,
@@ -76,6 +77,7 @@ class RTDETR_Method_Exp(COCOBaseExp):
                 activation='gelu',
             ),
             expansion=1.,
+            eval_size=self.test_size,
         )
         self.transformer_type = 'RTDETRTransformer'
         self.transformer = dict(
@@ -93,6 +95,9 @@ class RTDETR_Method_Exp(COCOBaseExp):
             label_noise_ratio=0.5,
             box_noise_scale=1.0,
             learnt_init_query=False,
+            num_classes=self.num_classes,
+            hidden_dim=self.hidden_dim,
+            eval_size=self.test_size,
         )
         self.detr_head_type = 'DINOHead'
         self.detr_head = dict(
@@ -110,6 +115,9 @@ class RTDETR_Method_Exp(COCOBaseExp):
         self.post_process_type = 'DETRPostProcess'
         self.post_cfg = dict(
             num_top_queries=300,
+            num_classes=self.num_classes,
+            use_focal_loss=self.use_focal_loss,
+            with_mask=self.with_mask,
         )
 
         # ---------------- 预处理相关 ---------------- #
@@ -137,8 +145,8 @@ class RTDETR_Method_Exp(COCOBaseExp):
         )
         # NormalizeImage
         self.normalizeImage = dict(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225],
+            mean=[0., 0., 0.],
+            std=[1., 1., 1.],
             is_scale=True,
             is_channel_first=False,
         )
@@ -334,6 +342,7 @@ class RTDETR_Method_Exp(COCOBaseExp):
             name=self.val_image_folder if not testdev else "test2017",
             cfg=self,
             transforms=transforms,
+            return_hw=True,
         )
 
         if is_distributed:

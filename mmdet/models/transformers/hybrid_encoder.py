@@ -189,8 +189,9 @@ class HybridEncoder(nn.Module):
         if self.eval_size:
             for idx in self.use_encoder_idx:
                 stride = self.feat_strides[idx]
+                device = torch.zeros((1, )).cuda().device
                 pos_embed = self.build_2d_sincos_position_embedding(
-                    self.eval_size[1] // stride, self.eval_size[0] // stride,
+                    self.eval_size[1] // stride, self.eval_size[0] // stride, device,
                     self.hidden_dim, self.pe_temperature)
                 setattr(self, f'pos_embed{idx}', pos_embed)
 

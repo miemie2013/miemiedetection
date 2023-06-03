@@ -549,11 +549,12 @@ class SOLO_COCOEvalDataset(torch.utils.data.Dataset):
 
 
 class PPYOLOE_COCOEvalDataset(torch.utils.data.Dataset):
-    def __init__(self, data_dir, json_file, ann_folder, name, cfg, transforms):
+    def __init__(self, data_dir, json_file, ann_folder, name, cfg, transforms, return_hw=False):
         self.data_dir = data_dir
         self.json_file = json_file
         self.ann_folder = ann_folder
         self.name = name
+        self.return_hw = return_hw
 
         # 验证集
         val_path = os.path.join(self.data_dir, self.ann_folder, self.json_file)
@@ -599,7 +600,12 @@ class PPYOLOE_COCOEvalDataset(torch.utils.data.Dataset):
         pimage = sample['image']
         scale_factor = np.array([sample['scale_factor'][1], sample['scale_factor'][0]]).astype(np.float32)
         id = sample['im_id']
-        return pimage, scale_factor, id
+        if self.return_hw:
+            _, h, w = pimage.shape
+            im_shape = np.array([h, w]).astype(np.float32)
+            return pimage, scale_factor, im_shape, id
+        else:
+            return pimage, scale_factor, id
 
 
 class FCOS_COCOEvalDataset(torch.utils.data.Dataset):

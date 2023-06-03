@@ -396,8 +396,6 @@ class RTDETRValTransform:
         sample = self.permute(sample, context)
 
         pimage = np.expand_dims(sample['image'], axis=0)
-        # scale_factor = np.array([[sample['scale_factor'][1], sample['scale_factor'][0]]]).astype(np.float32)
-        # im_shape = np.array([[sample['w'], sample['h']]]).astype(np.float32)
         scale_factor = np.array([[sample['scale_factor'][1], sample['scale_factor'][0]]]).astype(np.float32)
         im_shape = np.array([[pimage.shape[2], pimage.shape[3]]]).astype(np.float32)
         return pimage, scale_factor, im_shape

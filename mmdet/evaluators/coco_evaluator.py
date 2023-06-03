@@ -368,6 +368,99 @@ class COCOEvaluator:
         synchronize()
         return eval_results
 
+    def evaluate_rtdetr(
+        self,
+        model,
+        distributed=False,
+        half=False,
+        trt_file=None,
+        test_size=None,
+    ):
+        """
+        COCO average precision (AP) Evaluation. Iterate inference on the test dataset
+        and the results are evaluated by COCO API.
+
+        NOTE: This function will change training mode to False, please save states if needed.
+
+        Args:
+            model : model to evaluate.
+
+        Returns:
+            ap50_95 (float) : COCO AP of IoU=50:95
+            ap50 (float) : COCO AP of IoU=50
+            summary (sr): summary info of evaluation.
+        """
+        # TODO half to amp_test
+        tensor_type = torch.cuda.HalfTensor if half else torch.cuda.FloatTensor
+        model = model.eval()
+        if half:
+            model = model.half()
+        data_list = []
+        progress_bar = iter if is_main_process() else iter
+
+        inference_time = 0
+        nms_time = 0
+        n_samples = max(len(self.dataloader) - 1, 1)
+        steps = len(self.dataloader)
+        print_interval = max(steps // 5, 1) + 1
+        num_imgs = self.dataloader.dataset.num_record
+
+        if trt_file is not None:
+            from torch2trt import TRTModule
+
+            model_trt = TRTModule()
+            model_trt.load_state_dict(torch.load(trt_file))
+
+            x = torch.ones(1, 3, test_size[0], test_size[1]).cuda()
+            model(x)
+            model = model_trt
+
+        eval_start = time.time()
+        for cur_iter, (pimages, scale_factor, im_shape, ids) in enumerate(
+            progress_bar(self.dataloader)
+        ):
+            with torch.no_grad():
+                pimages = pimages.type(tensor_type)     # [N, 3, 640, 640]
+                scale_factor = scale_factor.type(tensor_type)   # [N, 2]
+                im_shape = im_shape.type(tensor_type)   # [N, 2]
+
+                # skip the the last iters since batchsize might be not enough for batch inference
+                is_time_record = cur_iter < len(self.dataloader) - 1
+                if is_time_record:
+                    start = time.time()
+
+                inputs = {'image': pimages, 'scale_factor': scale_factor, 'im_shape': im_shape, }
+                preds = model(inputs)
+                bbox_num = preds['bbox_num']
+                output = preds['bbox']
+                split_shape = bbox_num.cpu().detach().numpy().tolist()
+                preds = torch.split(output, split_shape, dim=0)
+
+                if is_time_record:
+                    infer_end = time_synchronized()
+                    inference_time += infer_end - start
+                # NMS包含在了模型里，这里记录无效...
+                if is_time_record:
+                    nms_end = time_synchronized()
+                    nms_time += nms_end - infer_end
+                if cur_iter % print_interval == 0:
+                    progress_str = "Eval iter: {}/{}".format(cur_iter + 1, steps)
+                    logger.info(progress_str)
+
+            data_list.extend(self.convert_to_coco_format3(preds, ids))
+        cost = time.time() - eval_start
+        logger.info('Eval time: %.1f s;  Speed: %.1f FPS.'%(cost, (num_imgs / cost)))
+
+        statistics = torch.cuda.FloatTensor([inference_time, nms_time, n_samples])
+        if distributed:
+            data_list = gather(data_list, dst=0)
+            data_list = list(itertools.chain(*data_list))
+            torch.distributed.reduce(statistics, dst=0)
+
+        eval_results = self.evaluate_prediction(data_list, statistics)
+        synchronize()
+        return eval_results
+
     def evaluate_solo(
         self,
         model,

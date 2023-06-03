@@ -492,11 +492,7 @@ class RTDETRPredictor(object):
         self.model = model
         self.cls_names = get_classes(exp.cls_names)
         self.num_classes = exp.num_classes
-        # if exp.nms_cfg['nms_type'] == 'matrix_nms':
-        #     self.confthre = exp.nms_cfg['post_threshold']
-        # elif exp.nms_cfg['nms_type'] == 'multiclass_nms':
-        #     self.confthre = exp.nms_cfg['score_threshold']
-        self.confthre = 0.15
+        self.confthre = exp.draw_conf
         self.test_size = exp.test_size
         self.device = device
         self.fp16 = fp16
@@ -552,10 +548,7 @@ class RTDETRPredictor(object):
 
         with torch.no_grad():
             t0 = time.time()
-            inputs = {}
-            inputs['image'] = img
-            inputs['scale_factor'] = scale_factor
-            inputs['im_shape'] = im_shape
+            inputs = {'image': img, 'scale_factor': scale_factor, 'im_shape': im_shape, }
             outputs = self.model(inputs)
             logger.info("Infer time: {:.4f}s".format(time.time() - t0))
         return outputs, img_info
@@ -777,12 +770,12 @@ def main(exp, args):
             exp.test_size = [args.tsize, args.tsize]
             exp.head['eval_size'] = exp.test_size
     elif archi_name == 'RTDETR':
-        pass
-        # if args.conf is not None:
-        #     exp.nms_cfg['score_threshold'] = args.conf
-        #     exp.nms_cfg['post_threshold'] = args.conf
-        # if args.tsize is not None:
-        #     exp.test_size = (args.tsize, exp.test_size[1])
+        if args.conf is not None:
+            exp.draw_conf = args.conf
+        if args.tsize is not None:
+            exp.test_size = [args.tsize, args.tsize]
+            exp.neck['eval_size'] = exp.test_size
+            exp.transformer['eval_size'] = exp.test_size
     else:
         raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
 

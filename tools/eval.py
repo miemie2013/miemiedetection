@@ -183,24 +183,11 @@ def main(exp, args, num_gpu):
         # logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
         # logger.info("Model Structure:\n{}".format(str(model)))
         evaluator = exp.get_evaluator(args.batch_size, is_distributed, args.test)
-    elif archi_name == 'SOLO':
-        # SOLO使用的是matrix_nms，修改matrix_nms的配置。
-        if args.conf is not None:
-            exp.nms_cfg['score_threshold'] = args.conf
-            exp.nms_cfg['post_threshold'] = args.conf
+    elif archi_name in ['RTDETR', ]:
         if args.tsize is not None:
-            exp.test_size = (args.tsize, args.tsize)
-        model = exp.get_model()
-        # logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
-        # logger.info("Model Structure:\n{}".format(str(model)))
-        evaluator = exp.get_evaluator(args.batch_size, is_distributed, args.test)
-    elif archi_name == 'FCOS':
-        # FCOS暂时使用的是matrix_nms，修改matrix_nms的配置。
-        if args.conf is not None:
-            exp.nms_cfg['score_threshold'] = args.conf
-            exp.nms_cfg['post_threshold'] = args.conf
-        if args.tsize is not None:
-            exp.test_size = (args.tsize, exp.test_size[1])
+            exp.test_size = [args.tsize, args.tsize]
+            exp.neck['eval_size'] = exp.test_size
+            exp.transformer['eval_size'] = exp.test_size
         model = exp.get_model()
         # logger.info("Model Summary: {}".format(get_model_info(archi_name, model, exp.test_size)))
         # logger.info("Model Structure:\n{}".format(str(model)))
@@ -260,12 +247,8 @@ def main(exp, args, num_gpu):
         *_, summary = evaluator.evaluate_ppyoloe(
             model, is_distributed, args.fp16, trt_file, exp.test_size
         )
-    elif archi_name == 'SOLO':
-        *_, summary = evaluator.evaluate_solo(
-            model, is_distributed, args.fp16, trt_file, exp.test_size
-        )
-    elif archi_name == 'FCOS':
-        *_, summary = evaluator.evaluate_fcos(
+    elif archi_name == 'RTDETR':
+        *_, summary = evaluator.evaluate_rtdetr(
             model, is_distributed, args.fp16, trt_file, exp.test_size
         )
     else:

@@ -351,7 +351,8 @@ class RTDETRTransformer(nn.Module):
 
         # init encoder output anchors and valid_mask
         if self.eval_size:
-            self.anchors, self.valid_mask = self._generate_anchors()
+            device = torch.zeros((1, )).cuda().device
+            self.anchors, self.valid_mask = self._generate_anchors(device=device)
 
     @classmethod
     def from_config(cls, cfg, input_shape):
