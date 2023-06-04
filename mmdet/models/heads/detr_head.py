@@ -433,17 +433,13 @@ class DINOHead(nn.Module):
                         loss.update({key: value / (dual_groups + 1)})
                     return loss
                 else:
-                    dn_out_bboxes, dec_out_bboxes = paddle.split(
-                        dec_out_bboxes, dn_meta['dn_num_split'], axis=2)
-                    dn_out_logits, dec_out_logits = paddle.split(
-                        dec_out_logits, dn_meta['dn_num_split'], axis=2)
+                    dn_out_bboxes, dec_out_bboxes = torch.split(dec_out_bboxes, dn_meta['dn_num_split'], 2)
+                    dn_out_logits, dec_out_logits = torch.split(dec_out_logits, dn_meta['dn_num_split'], 2)
             else:
                 dn_out_bboxes, dn_out_logits = None, None
 
-            out_bboxes = paddle.concat(
-                [enc_topk_bboxes.unsqueeze(0), dec_out_bboxes])
-            out_logits = paddle.concat(
-                [enc_topk_logits.unsqueeze(0), dec_out_logits])
+            out_bboxes = torch.cat([enc_topk_bboxes.unsqueeze(0), dec_out_bboxes], dim=0)
+            out_logits = torch.cat([enc_topk_logits.unsqueeze(0), dec_out_logits], dim=0)
 
             return self.loss(
                 out_bboxes,

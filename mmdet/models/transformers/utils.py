@@ -26,13 +26,14 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from mmdet.models.ops import gather_1d, scatter_1d
 
 __all__ = [
     '_get_clones', 'bbox_cxcywh_to_xyxy',
     'bbox_xyxy_to_cxcywh', 'sigmoid_focal_loss', 'inverse_sigmoid',
     'deformable_attention_core_func', 'varifocal_loss_with_logits'
 ]
+
 
 
 def _get_clones(module, N):
@@ -45,9 +46,8 @@ def bbox_cxcywh_to_xyxy(x):
 
 
 def bbox_xyxy_to_cxcywh(x):
-    x1, y1, x2, y2 = x.split(4, axis=-1)
-    return paddle.concat(
-        [(x1 + x2) / 2, (y1 + y2) / 2, (x2 - x1), (y2 - y1)], axis=-1)
+    x1, y1, x2, y2 = torch.split(x, 1, -1)
+    return torch.cat([(x1 + x2) / 2, (y1 + y2) / 2, (x2 - x1), (y2 - y1)], dim=-1)
 
 
 def sigmoid_focal_loss(logit, label, normalizer=1.0, alpha=0.25, gamma=2.0):
@@ -224,39 +224,45 @@ def get_contrastive_denoising_training_group(targets,
                                              box_noise_scale=1.0):
     if num_denoising <= 0:
         return None, None, None, None
-    num_gts = [len(t) for t in targets["gt_class"]]
+    num_gts = targets["pad_gt_mask"].sum([1, 2]).to(torch.int32).cpu().detach().numpy().tolist()
     max_gt_num = max(num_gts)
     if max_gt_num == 0:
         return None, None, None, None
 
     num_group = num_denoising // max_gt_num
     num_group = 1 if num_group == 0 else num_group
-    # pad gt to max_num of a batch
-    bs = len(targets["gt_class"])
-    input_query_class = paddle.full(
-        [bs, max_gt_num], num_classes, dtype='int32')
-    input_query_bbox = paddle.zeros([bs, max_gt_num, 4])
-    pad_gt_mask = paddle.zeros([bs, max_gt_num])
-    for i in range(bs):
-        num_gt = num_gts[i]
-        if num_gt > 0:
-            input_query_class[i, :num_gt] = targets["gt_class"][i].squeeze(-1)
-            input_query_bbox[i, :num_gt] = targets["gt_bbox"][i]
-            pad_gt_mask[i, :num_gt] = 1
+    # 原版对每张图片的gt pad到 max_gt_num, 但是我已经在数据预处理阶段 pad了，所以不需要做
+    # bs = len(targets["gt_class"])
+    # input_query_class = paddle.full([bs, max_gt_num], num_classes, dtype='int32')
+    # input_query_bbox = paddle.zeros([bs, max_gt_num, 4])
+    # pad_gt_mask = paddle.zeros([bs, max_gt_num])
+    # for i in range(bs):
+    #     num_gt = num_gts[i]
+    #     if num_gt > 0:
+    #         input_query_class[i, :num_gt] = targets["gt_class"][i].squeeze(-1)
+    #         input_query_bbox[i, :num_gt] = targets["gt_bbox"][i]
+    #         pad_gt_mask[i, :num_gt] = 1
+    input_query_class = targets["gt_class"].squeeze(-1).to(torch.int64)
+    input_query_bbox = targets["gt_bbox"]
+    pad_gt_mask = targets["pad_gt_mask"].squeeze(-1)
+    bs = input_query_bbox.shape[0]
+    device = input_query_bbox.device
+
+
     # each group has positive and negative queries.
     input_query_class = input_query_class.tile([1, 2 * num_group])
     input_query_bbox = input_query_bbox.tile([1, 2 * num_group, 1])
     pad_gt_mask = pad_gt_mask.tile([1, 2 * num_group])
     # positive and negative mask
-    negative_gt_mask = paddle.zeros([bs, max_gt_num * 2, 1])
+    negative_gt_mask = torch.zeros([bs, max_gt_num * 2, 1], device=device)
     negative_gt_mask[:, max_gt_num:] = 1
     negative_gt_mask = negative_gt_mask.tile([1, num_group, 1])
     positive_gt_mask = 1 - negative_gt_mask
     # contrastive denoising training positive index
     positive_gt_mask = positive_gt_mask.squeeze(-1) * pad_gt_mask
-    dn_positive_idx = paddle.nonzero(positive_gt_mask)[:, 1]
-    dn_positive_idx = paddle.split(dn_positive_idx,
-                                   [n * num_group for n in num_gts])
+    # nonzero() 返回[?, d], d是positive_gt_mask的维数，这里是2。 nonzero() 返回 positive_gt_mask 里非0值的坐标
+    dn_positive_idx = torch.nonzero(positive_gt_mask)[:, 1]   # 只取维度1的坐标
+    dn_positive_idx = torch.split(dn_positive_idx, [n * num_group for n in num_gts])
     # total denoising queries
     num_denoising = int(max_gt_num * 2 * num_group)
 
@@ -264,39 +270,35 @@ def get_contrastive_denoising_training_group(targets,
         input_query_class = input_query_class.flatten()
         pad_gt_mask = pad_gt_mask.flatten()
         # half of bbox prob
-        mask = paddle.rand(input_query_class.shape) < (label_noise_ratio * 0.5)
-        chosen_idx = paddle.nonzero(mask * pad_gt_mask).squeeze(-1)
+        mask = torch.rand(input_query_class.shape, device=device) < (label_noise_ratio * 0.5)
+        chosen_idx = torch.nonzero(mask * pad_gt_mask).squeeze(-1)
         # randomly put a new one here
-        new_label = paddle.randint_like(
-            chosen_idx, 0, num_classes, dtype=input_query_class.dtype)
-        input_query_class.scatter_(chosen_idx, new_label)
-        input_query_class.reshape_([bs, num_denoising])
-        pad_gt_mask.reshape_([bs, num_denoising])
+        new_label = torch.randint_like(chosen_idx, 0, num_classes, dtype=torch.int64, device=device)
+        input_query_class = scatter_1d(input_query_class, chosen_idx, new_label)
+        input_query_class = torch.reshape(input_query_class, [bs, num_denoising])
+        pad_gt_mask = torch.reshape(pad_gt_mask, [bs, num_denoising])
 
     if box_noise_scale > 0:
         known_bbox = bbox_cxcywh_to_xyxy(input_query_bbox)
 
-        diff = paddle.tile(input_query_bbox[..., 2:] * 0.5,
-                           [1, 1, 2]) * box_noise_scale
+        diff = torch.tile(input_query_bbox[..., 2:] * 0.5, [1, 1, 2]) * box_noise_scale
 
-        rand_sign = paddle.randint_like(input_query_bbox, 0, 2) * 2.0 - 1.0
-        rand_part = paddle.rand(input_query_bbox.shape)
+        # rand_sign = paddle.randint_like(input_query_bbox, 0, 2) * 2.0 - 1.0
+        rand_sign = torch.randint_like(input_query_bbox, 0, 2, dtype=torch.int64, device=device) * 2 - 1
+        rand_part = torch.rand(input_query_bbox.shape, device=device)
         rand_part = (rand_part + 1.0) * negative_gt_mask + rand_part * (
             1 - negative_gt_mask)
         rand_part *= rand_sign
         known_bbox += rand_part * diff
-        known_bbox.clip_(min=0.0, max=1.0)
+        known_bbox = torch.clamp(known_bbox, min=0.0, max=1.0)
         input_query_bbox = bbox_xyxy_to_cxcywh(known_bbox)
         input_query_bbox = inverse_sigmoid(input_query_bbox)
 
-    class_embed = paddle.concat(
-        [class_embed, paddle.zeros([1, class_embed.shape[-1]])])
-    input_query_class = paddle.gather(
-        class_embed, input_query_class.flatten(),
-        axis=0).reshape([bs, num_denoising, -1])
+    class_embed = torch.cat([class_embed, torch.zeros([1, class_embed.shape[-1]], device=device)])
+    input_query_class = gather_1d(class_embed, input_query_class.flatten()).reshape([bs, num_denoising, -1])
 
     tgt_size = num_denoising + num_queries
-    attn_mask = paddle.ones([tgt_size, tgt_size]) < 0
+    attn_mask = torch.ones([tgt_size, tgt_size], device=device) < 0
     # match query cannot see the reconstruction
     attn_mask[num_denoising:, :num_denoising] = True
     # reconstruct cannot see each other

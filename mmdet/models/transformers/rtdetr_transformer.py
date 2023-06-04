@@ -169,10 +169,11 @@ class TransformerDecoderLayer(nn.Module):
         # self attention
         q = k = self.with_pos_embed(tgt, query_pos_embed)
         if attn_mask is not None:
-            attn_mask = paddle.where(
-                attn_mask.astype('bool'),
-                paddle.zeros(attn_mask.shape, tgt.dtype),
-                paddle.full(attn_mask.shape, float("-inf"), tgt.dtype))
+            device = attn_mask.device
+            attn_mask = torch.where(
+                attn_mask.to(torch.bool),
+                torch.zeros(attn_mask.shape, dtype=tgt.dtype, device=device),
+                torch.ones(attn_mask.shape, dtype=tgt.dtype, device=device) * -100000.)
         tgt2 = self.self_attn(q, k, value=tgt, attn_mask=attn_mask)
         tgt = tgt + self.dropout1(tgt2)
         tgt = self.norm1(tgt)
@@ -523,6 +524,6 @@ class RTDETRTransformer(nn.Module):
             if self.training:
                 target = target.detach()
         if denoising_class is not None:
-            target = target.cat([denoising_class, target], 1)
+            target = torch.cat([denoising_class, target], 1)
 
         return target, reference_points_unact, enc_topk_bboxes, enc_topk_logits

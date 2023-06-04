@@ -36,6 +36,15 @@ def gather_1d(tensor, index):
     return out
 
 
+def scatter_1d(tensor, index, value):
+    assert index.ndim == 1
+    assert index.dtype == torch.int64
+    assert value.ndim == 1
+    assert value.shape[0] == index.shape[0]
+    tensor[index] = value
+    return tensor
+
+
 
 def gather_nd(tensor, index):
     if tensor.ndim == 4 and index.ndim == 2:
