@@ -17,6 +17,7 @@ from .losses.fcos_loss import FCOSLoss
 from .losses.solov2_loss import SOLOv2Loss
 from .losses.gfocal_loss import DistributionFocalLoss, QualityFocalLoss
 from .losses.varifocal_loss import VarifocalLoss
+from .losses.detr_loss import DETRLoss, DINOLoss
 
 
 from .heads.yolov3_head import YOLOv3Head
@@ -55,4 +56,5 @@ from .transformers.hybrid_encoder import *
 from .transformers.position_encoding import *
 from .transformers.rtdetr_transformer import *
 from .transformers.utils import *
+from .transformers.matchers import *
 

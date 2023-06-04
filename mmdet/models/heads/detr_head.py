@@ -446,6 +446,7 @@ class DINOHead(nn.Module):
                 out_logits,
                 inputs['gt_bbox'],
                 inputs['gt_class'],
+                inputs['pad_gt_mask'],
                 dn_out_bboxes=dn_out_bboxes,
                 dn_out_logits=dn_out_logits,
                 dn_meta=dn_meta)

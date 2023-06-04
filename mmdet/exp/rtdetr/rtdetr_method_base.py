@@ -102,12 +102,12 @@ class RTDETR_Method_Exp(COCOBaseExp):
         self.detr_head = dict(
             loss=dict(
                 name='DINOLoss',
-                loss_coeff={'class': 1.0, 'bbox': 5.0, 'giou': 2.0},
+                loss_coeff={'class': 1.0, 'bbox': 5.0, 'giou': 2.0, 'no_object': 0.1, 'mask': 1.0, 'dice': 1.0},
                 aux_loss=True,
                 use_vfl=True,
                 matcher=dict(
                     name='HungarianMatcher',
-                    matcher_coeff={'class': 2.0, 'bbox': 5.0, 'giou': 2.0},
+                    matcher_coeff={'class': 2.0, 'bbox': 5.0, 'giou': 2.0, 'mask': 1.0, 'dice': 1.0},
                 ),
             ),
         )
@@ -194,7 +194,7 @@ class RTDETR_Method_Exp(COCOBaseExp):
         self.eval_data_num_workers = 2
 
     def get_model(self):
-        from mmdet.models import ResNet, HybridEncoder, RTDETRTransformer, DINOHead, DETR
+        from mmdet.models import ResNet, HybridEncoder, RTDETRTransformer, DINOHead, DETR, HungarianMatcher, DINOLoss
         from mmdet.models.transformers.hybrid_encoder import TransformerLayer
         from mmdet.models.post_process import DETRPostProcess
         if getattr(self, "model", None) is None:
@@ -216,9 +216,19 @@ class RTDETR_Method_Exp(COCOBaseExp):
                 Transformer = RTDETRTransformer
             transformer = Transformer(**self.transformer)
             Detr_head = None
+            loss = None
             if self.detr_head_type == 'DINOHead':
                 Detr_head = DINOHead
-            detr_head = Detr_head(**self.detr_head)
+                loss_cfg = self.detr_head.pop('loss')
+                name = loss_cfg.pop('name')
+                matcher_cfg = loss_cfg.pop('matcher')
+                matcher_name = matcher_cfg.pop('name')
+                matcher = None
+                if matcher_name == 'HungarianMatcher':
+                    matcher = HungarianMatcher(use_focal_loss=self.use_focal_loss, **matcher_cfg)
+                if name == 'DINOLoss':
+                    loss = DINOLoss(num_classes=self.num_classes, matcher=matcher, **loss_cfg)
+            detr_head = Detr_head(loss=loss)
             Post_process = None
             if self.post_process_type == 'DETRPostProcess':
                 Post_process = DETRPostProcess
