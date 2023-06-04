@@ -69,6 +69,10 @@ forward流程：
 先分别用3个conv(1x1卷积)+bn进行降维(相关层名字是input_proj)，形状变成[N, 256, 80, 80], [N, 256, 40, 40], [N, 256, 20, 20], 256是hidden_dim,
 
 
+mmdet/models/losses/detr_loss.py
+_get_loss_bbox()
+可能是boxes被inplace操作，导致无法训练。
+
 encoder_layer(TransformerLayer) 被放进 HybridEncoder 的 self.encoder(nn.ModuleList)
 self.encoder里有1个元素，类型是 TransformerEncoder(encoder_layer, num_encoder_layers)
 

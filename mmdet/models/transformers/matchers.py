@@ -62,6 +62,8 @@ class HungarianMatcher(nn.Module):
 
         self.giou_loss = GIoULoss()
 
+
+    @torch.no_grad()
     def forward(self,
                 boxes,
                 logits,
@@ -98,7 +100,7 @@ class HungarianMatcher(nn.Module):
 
         # We flatten to compute the cost matrices in a batch
         # [batch_size * num_queries, num_classes]
-        logits = logits.detach()
+        # logits = logits.detach()
         # paddle的softmax dim默认是-1，所以这里显式写上-1
         out_prob = None
         if self.use_focal_loss:
@@ -106,7 +108,8 @@ class HungarianMatcher(nn.Module):
         else:
             out_prob = F.softmax(logits.flatten(0, 1), dim=-1)
         # [batch_size * num_queries, 4]
-        out_bbox = boxes.detach().flatten(0, 1)
+        # out_bbox = boxes.detach().flatten(0, 1)
+        out_bbox = boxes.flatten(0, 1)
 
         # Also concat the target labels and boxes
         # tgt_ids = torch.cat(gt_class, dim=0).flatten()
@@ -147,8 +150,8 @@ class HungarianMatcher(nn.Module):
             sample_points = paddle.rand([bs, 1, self.num_sample_points, 2])
             sample_points = 2.0 * sample_points - 1.0
 
-            out_mask = F.grid_sample(
-                masks.detach(), sample_points, align_corners=False).squeeze(-2)
+            # out_mask = F.grid_sample(masks.detach(), sample_points, align_corners=False).squeeze(-2)
+            out_mask = F.grid_sample(masks, sample_points, align_corners=False).squeeze(-2)
             out_mask = out_mask.flatten(0, 1)
 
             tgt_mask = paddle.concat(gt_mask).unsqueeze(1)

@@ -483,7 +483,7 @@ class Trainer:
         if self.archi_name in ['YOLOX', 'PicoDet']:
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = lr
-        elif self.archi_name in ['PPYOLO', 'PPYOLOE']:
+        elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'RTDETR']:
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = lr * param_group['lr_factor']   # = lr * 参数自己的学习率
         else:

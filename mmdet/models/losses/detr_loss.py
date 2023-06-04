@@ -141,6 +141,7 @@ class DETRLoss(nn.Module):
             return loss
 
         src_bbox, target_bbox = self._get_src_target_assign(boxes, gt_bbox, match_indices)
+        target_bbox.requires_grad = False
         loss[name_bbox] = self.loss_coeff['bbox'] * F.l1_loss(src_bbox, target_bbox, reduction='sum') / num_gts
         loss[name_giou] = self.giou_loss(bbox_cxcywh_to_xyxy(src_bbox), bbox_cxcywh_to_xyxy(target_bbox))
         loss[name_giou] = loss[name_giou].sum() / num_gts
@@ -453,6 +454,13 @@ class DINOLoss(DETRLoss):
 
         loss_sum = 0.0
         for loss_name in total_loss.keys():
+            print(loss_name)
+            # if 'class' in loss_name:
+            #     total_loss[loss_name] = total_loss[loss_name] * 0.
+            # if 'bbox' in loss_name:
+            #     total_loss[loss_name] = total_loss[loss_name] * 0.
+            # if 'giou' in loss_name:
+            #     total_loss[loss_name] = total_loss[loss_name] * 0.
             loss_sum += total_loss[loss_name]
         total_loss['total_loss'] = loss_sum
         return total_loss
