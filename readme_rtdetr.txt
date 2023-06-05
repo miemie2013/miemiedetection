@@ -110,7 +110,12 @@ nohup xxx     > ppyolo.log 2>&1 &
 
 
 - - - - - - - - - - - - - - - - - - - - - -
+python tools/train.py -f exps/rtdetr/rtdetr_r18vd_6x_voc2012.py -d 1 -b 2 -eb 2 -w 0 -ew 0 -c rtdetr_r18vd_dec3_6x_coco.pth
+
+
+
 python tools/train.py -f exps/rtdetr/rtdetr_r18vd_6x_coco.py -d 1 -b 2 -eb 2 -w 0 -ew 0 -c rtdetr_r18vd_dec3_6x_coco.pth
+
 
 python tools/train.py -f exps/rtdetr/rtdetr_r50vd_6x_coco.py -d 1 -b 2 -eb 2 -w 0 -ew 0 -c rtdetr_r50vd_6x_coco.pth
 

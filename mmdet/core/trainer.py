@@ -74,14 +74,6 @@ class Trainer:
         # YOLOX多尺度训练，初始尺度。
         if self.archi_name == 'YOLOX':
             self.input_size = exp.input_size
-        elif self.archi_name == 'PPYOLO':
-            pass
-        elif self.archi_name in ['PPYOLOE', 'PicoDet']:
-            pass
-        elif self.archi_name == 'RTDETR':
-            pass
-        else:
-            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
         self.best_ap = 0
 
         # metric record
@@ -118,7 +110,7 @@ class Trainer:
         # model related init
         torch.cuda.set_device(self.local_rank)
 
-        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'SOLO', 'FCOS']:
+        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'RTDETR']:
             torch.backends.cudnn.benchmark = True  # Improves training speed.
             torch.backends.cuda.matmul.allow_tf32 = False  # Allow PyTorch to internally use tf32 for matmul
             torch.backends.cudnn.allow_tf32 = False  # Allow PyTorch to internally use tf32 for convolutions
@@ -263,7 +255,7 @@ class Trainer:
         if self.args.occupy:
             occupy_mem(self.local_rank)
 
-        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'RTDETR', 'SOLO', 'FCOS']:
+        if self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'RTDETR']:
             # 多卡训练时，使用同步bn。
             # torch.nn.SyncBatchNorm.convert_sync_batchnorm()的使用一定要在创建优化器之后，创建DDP之前。
             if self.is_distributed:
@@ -526,16 +518,6 @@ class Trainer:
                     logger.info("--->For other dataset, we dont modify eval_interval!")
                 if not self.no_aug:
                     self.save_ckpt(ckpt_name="last_mosaic_epoch")
-        elif self.archi_name == 'PPYOLO':
-            pass
-        elif self.archi_name == 'PPYOLOE':
-            pass
-        elif self.archi_name == 'PicoDet':
-            pass
-        elif self.archi_name == 'RTDETR':
-            pass
-        else:
-            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 
     def after_epoch(self):
         self.save_ckpt(ckpt_name="%d" % (self.epoch + 1))
@@ -579,18 +561,8 @@ class Trainer:
             log_msg = "{}, lr: {:.6f}, mem: {:.0f}Mb, {}, {}".format(progress_str, self.meter["lr"].latest, gpu_mem_usage(), time_str, loss_str, )
             if self.archi_name == 'YOLOX':
                 log_msg += (", size: {:d}, {}".format(self.input_size[0], eta_str))
-            elif self.archi_name == 'PPYOLO':
-                log_msg += (", {}".format(eta_str))
-            elif self.archi_name == 'PPYOLOE':
-                log_msg += (", {}".format(eta_str))
-            elif self.archi_name == 'PicoDet':
-                log_msg += (", {}".format(eta_str))
-            elif self.archi_name == 'SOLO':
-                log_msg += (", {}".format(eta_str))
-            elif self.archi_name == 'FCOS':
-                log_msg += (", {}".format(eta_str))
             else:
-                raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
+                log_msg += (", {}".format(eta_str))
             logger.info(log_msg)
             self.meter.clear_meters()
 
@@ -600,18 +572,6 @@ class Trainer:
                 self.input_size = self.exp.random_resize(
                     self.train_loader, self.epoch, self.rank, self.is_distributed
                 )
-        elif self.archi_name == 'PPYOLO':
-            pass
-        elif self.archi_name == 'PPYOLOE':
-            pass
-        elif self.archi_name == 'PicoDet':
-            pass
-        elif self.archi_name == 'SOLO':
-            pass
-        elif self.archi_name == 'FCOS':
-            pass
-        else:
-            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(self.archi_name))
 
     @property
     def progress_in_iter(self):
@@ -664,7 +624,7 @@ class Trainer:
         if self.use_model_ema:
             if self.archi_name == 'YOLOX':
                 evalmodel = self.ema_model.ema
-            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'SOLO', 'FCOS']:
+            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'RTDETR']:
                 cur_weight = copy.deepcopy(self.model.state_dict())
                 if self.is_distributed:
                     self.model.module.load_state_dict(self.ema_model.apply(), strict=False)
@@ -690,7 +650,7 @@ class Trainer:
             else:
                 self.model.teacher_model.eval()   # 防止老师bn层的均值方差发生变化
         if self.use_model_ema:
-            if self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'SOLO', 'FCOS']:
+            if self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'RTDETR']:
                 self.model.load_state_dict(cur_weight)
                 del cur_weight
             elif self.archi_name in ['YOLOX']:
@@ -712,7 +672,7 @@ class Trainer:
                 save_model = self.ema_model.ema if self.use_model_ema else self.model
                 if self.is_distributed and not self.use_model_ema:
                     save_model = save_model.module
-            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'SOLO', 'FCOS']:
+            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'RTDETR']:
                 if self.use_model_ema:
                     cur_weight = copy.deepcopy(self.model.state_dict())
                     if self.is_distributed:
@@ -744,7 +704,7 @@ class Trainer:
             )
             if self.archi_name == 'YOLOX':
                 pass
-            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'SOLO', 'FCOS']:
+            elif self.archi_name in ['PPYOLO', 'PPYOLOE', 'PicoDet', 'RTDETR']:
                 if self.use_model_ema:
                     self.model.load_state_dict(cur_weight)
                     del cur_weight
