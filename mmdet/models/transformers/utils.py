@@ -22,18 +22,18 @@ from __future__ import division
 from __future__ import print_function
 
 import copy
-import math
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from mmdet.models.ops import gather_1d, scatter_1d
+from mmdet.models.initializer import xavier_uniform_, constant_
 
 __all__ = [
     '_get_clones', 'bbox_cxcywh_to_xyxy',
-    'bbox_xyxy_to_cxcywh', 'sigmoid_focal_loss', 'inverse_sigmoid',
-    'deformable_attention_core_func', 'varifocal_loss_with_logits'
+    'bbox_xyxy_to_cxcywh', 'inverse_sigmoid',
+    'deformable_attention_core_func'
 ]
-
 
 
 def _get_clones(module, N):
@@ -48,18 +48,6 @@ def bbox_cxcywh_to_xyxy(x):
 def bbox_xyxy_to_cxcywh(x):
     x1, y1, x2, y2 = torch.split(x, 1, -1)
     return torch.cat([(x1 + x2) / 2, (y1 + y2) / 2, (x2 - x1), (y2 - y1)], dim=-1)
-
-
-def sigmoid_focal_loss(logit, label, normalizer=1.0, alpha=0.25, gamma=2.0):
-    prob = torch.sigmoid(logit)
-    ce_loss = F.binary_cross_entropy_with_logits(logit, label, reduction="none")
-    p_t = prob * label + (1 - prob) * (1 - label)
-    loss = ce_loss * ((1 - p_t)**gamma)
-
-    if alpha >= 0:
-        alpha_t = alpha * label + (1 - alpha) * (1 - label)
-        loss = alpha_t * loss
-    return loss.mean(1).sum() / normalizer
 
 
 def inverse_sigmoid(x, eps=1e-5):
@@ -112,107 +100,6 @@ def deformable_attention_core_func(value, value_spatial_shapes,
     output = output * attention_weights
     output = output.sum(-1).reshape([bs, n_head * c, Len_q])
     return output.permute([0, 2, 1])
-
-
-def get_valid_ratio(mask):
-    _, H, W = paddle.shape(mask)
-    valid_ratio_h = paddle.sum(mask[:, :, 0], 1) / H
-    valid_ratio_w = paddle.sum(mask[:, 0, :], 1) / W
-    # [b, 2]
-    return paddle.stack([valid_ratio_w, valid_ratio_h], -1)
-
-
-def get_denoising_training_group(targets,
-                                 num_classes,
-                                 num_queries,
-                                 class_embed,
-                                 num_denoising=100,
-                                 label_noise_ratio=0.5,
-                                 box_noise_scale=1.0):
-    if num_denoising <= 0:
-        return None, None, None, None
-    num_gts = [len(t) for t in targets["gt_class"]]
-    max_gt_num = max(num_gts)
-    if max_gt_num == 0:
-        return None, None, None, None
-
-    num_group = num_denoising // max_gt_num
-    num_group = 1 if num_group == 0 else num_group
-    # pad gt to max_num of a batch
-    bs = len(targets["gt_class"])
-    input_query_class = paddle.full(
-        [bs, max_gt_num], num_classes, dtype='int32')
-    input_query_bbox = paddle.zeros([bs, max_gt_num, 4])
-    pad_gt_mask = paddle.zeros([bs, max_gt_num])
-    for i in range(bs):
-        num_gt = num_gts[i]
-        if num_gt > 0:
-            input_query_class[i, :num_gt] = targets["gt_class"][i].squeeze(-1)
-            input_query_bbox[i, :num_gt] = targets["gt_bbox"][i]
-            pad_gt_mask[i, :num_gt] = 1
-
-    input_query_class = input_query_class.tile([1, num_group])
-    input_query_bbox = input_query_bbox.tile([1, num_group, 1])
-    pad_gt_mask = pad_gt_mask.tile([1, num_group])
-
-    dn_positive_idx = paddle.nonzero(pad_gt_mask)[:, 1]
-    dn_positive_idx = paddle.split(dn_positive_idx,
-                                   [n * num_group for n in num_gts])
-    # total denoising queries
-    num_denoising = int(max_gt_num * num_group)
-
-    if label_noise_ratio > 0:
-        input_query_class = input_query_class.flatten()
-        pad_gt_mask = pad_gt_mask.flatten()
-        # half of bbox prob
-        mask = paddle.rand(input_query_class.shape) < (label_noise_ratio * 0.5)
-        chosen_idx = paddle.nonzero(mask * pad_gt_mask).squeeze(-1)
-        # randomly put a new one here
-        new_label = paddle.randint_like(
-            chosen_idx, 0, num_classes, dtype=input_query_class.dtype)
-        input_query_class.scatter_(chosen_idx, new_label)
-        input_query_class.reshape_([bs, num_denoising])
-        pad_gt_mask.reshape_([bs, num_denoising])
-
-    if box_noise_scale > 0:
-        diff = paddle.concat(
-            [input_query_bbox[..., 2:] * 0.5, input_query_bbox[..., 2:]],
-            axis=-1) * box_noise_scale
-        diff *= (paddle.rand(input_query_bbox.shape) * 2.0 - 1.0)
-        input_query_bbox += diff
-        input_query_bbox = inverse_sigmoid(input_query_bbox)
-
-    class_embed = paddle.concat(
-        [class_embed, paddle.zeros([1, class_embed.shape[-1]])])
-    input_query_class = paddle.gather(
-        class_embed, input_query_class.flatten(),
-        axis=0).reshape([bs, num_denoising, -1])
-
-    tgt_size = num_denoising + num_queries
-    attn_mask = paddle.ones([tgt_size, tgt_size]) < 0
-    # match query cannot see the reconstruction
-    attn_mask[num_denoising:, :num_denoising] = True
-    # reconstruct cannot see each other
-    for i in range(num_group):
-        if i == 0:
-            attn_mask[max_gt_num * i:max_gt_num * (i + 1), max_gt_num * (i + 1):
-                      num_denoising] = True
-        if i == num_group - 1:
-            attn_mask[max_gt_num * i:max_gt_num * (i + 1), :max_gt_num *
-                      i] = True
-        else:
-            attn_mask[max_gt_num * i:max_gt_num * (i + 1), max_gt_num * (i + 1):
-                      num_denoising] = True
-            attn_mask[max_gt_num * i:max_gt_num * (i + 1), :max_gt_num *
-                      i] = True
-    attn_mask = ~attn_mask
-    dn_meta = {
-        "dn_positive_idx": dn_positive_idx,
-        "dn_num_group": num_group,
-        "dn_num_split": [num_denoising, num_queries]
-    }
-
-    return input_query_class, input_query_bbox, attn_mask, dn_meta
 
 
 def get_contrastive_denoising_training_group(targets,
@@ -324,89 +211,97 @@ def get_contrastive_denoising_training_group(targets,
     return input_query_class, input_query_bbox, attn_mask, dn_meta
 
 
-def get_sine_pos_embed(pos_tensor,
-                       num_pos_feats=128,
-                       temperature=10000,
-                       exchange_xy=True):
-    """generate sine position embedding from a position tensor
+class MultiHeadAttention(nn.Module):
+    def __init__(self,
+                 embed_dim,
+                 num_heads,
+                 dropout=0.,
+                 kdim=None,
+                 vdim=None,
+                 need_weights=False):
+        super(MultiHeadAttention, self).__init__()
+        self.embed_dim = embed_dim
+        self.kdim = kdim if kdim is not None else embed_dim
+        self.vdim = vdim if vdim is not None else embed_dim
+        self._qkv_same_embed_dim = self.kdim == embed_dim and self.vdim == embed_dim
 
-    Args:
-        pos_tensor (Tensor): Shape as `(None, n)`.
-        num_pos_feats (int): projected shape for each float in the tensor. Default: 128
-        temperature (int): The temperature used for scaling
-            the position embedding. Default: 10000.
-        exchange_xy (bool, optional): exchange pos x and pos y. \
-            For example, input tensor is `[x, y]`, the results will  # noqa
-            be `[pos(y), pos(x)]`. Defaults: True.
+        self.num_heads = num_heads
+        self.dropout = dropout
+        self.aaaaaa = nn.MultiheadAttention
+        self.need_weights = need_weights
 
-    Returns:
-        Tensor: Returned position embedding  # noqa
-        with shape `(None, n * num_pos_feats)`.
-    """
-    scale = 2. * math.pi
-    dim_t = 2. * paddle.floor_divide(
-        paddle.arange(num_pos_feats), paddle.to_tensor(2))
-    dim_t = scale / temperature**(dim_t / num_pos_feats)
+        self.head_dim = embed_dim // num_heads
+        assert self.head_dim * num_heads == self.embed_dim, "embed_dim must be divisible by num_heads"
 
-    def sine_func(x):
-        x *= dim_t
-        return paddle.stack(
-            (x[:, :, 0::2].sin(), x[:, :, 1::2].cos()), axis=3).flatten(2)
+        if self._qkv_same_embed_dim:
+            # 要注意，pytorch的fc层和paddle的fc层的权重weight需要转置一下才能等价！！！
+            self.in_proj_weight = torch.nn.Parameter(torch.randn([3 * embed_dim, embed_dim]))
+            self.in_proj_bias = torch.nn.Parameter(torch.full([3 * embed_dim], np.float32(0.)))
+        else:
+            self.q_proj = nn.Linear(embed_dim, embed_dim)
+            self.k_proj = nn.Linear(self.kdim, embed_dim)
+            self.v_proj = nn.Linear(self.vdim, embed_dim)
 
-    pos_res = [sine_func(x) for x in pos_tensor.split(pos_tensor.shape[-1], -1)]
-    if exchange_xy:
-        pos_res[0], pos_res[1] = pos_res[1], pos_res[0]
-    pos_res = paddle.concat(pos_res, axis=2)
-    return pos_res
+        self.out_proj = nn.Linear(embed_dim, embed_dim)
+        self._type_list = ('q_proj', 'k_proj', 'v_proj')
+
+        self._reset_parameters()
+
+    def _reset_parameters(self):
+        for p in self.parameters():
+            if p.dim() > 1:
+                xavier_uniform_(p)
+            else:
+                constant_(p)
+
+    def compute_qkv(self, tensor, index):
+        if self._qkv_same_embed_dim:
+            # 要注意，pytorch的fc层和paddle的fc层的权重weight需要转置一下才能等价！！！
+            weight = self.in_proj_weight[index * self.embed_dim:(index + 1) * self.embed_dim, :]
+            bias = self.in_proj_bias[index * self.embed_dim:(index + 1) * self.embed_dim] if self.in_proj_bias is not None else None
+            tensor = F.linear(tensor, weight=weight, bias=bias)
+        else:
+            tensor = getattr(self, self._type_list[index])(tensor)
+        N, HW, _ = tensor.shape
+        tensor = tensor.reshape([N, HW, self.num_heads, self.head_dim])
+        tensor = tensor.permute([0, 2, 1, 3])   # [N, num_heads, HW, head_dim]
+        return tensor
+
+    def forward(self, query, key=None, value=None, attn_mask=None):
+        key = query if key is None else key
+        value = query if value is None else value
+        # compute q ,k ,v
+        q, k, v = (self.compute_qkv(t, i)
+                   for i, t in enumerate([query, key, value]))
+
+        # scale dot product attention
+        product = q.matmul(k.permute([0, 1, 3, 2]))    # [N, num_heads, HW, HW]
+        scaling = float(self.head_dim)**-0.5
+        product = product * scaling
+
+        if attn_mask is not None:
+            attn_mask = attn_mask.to(product.dtype)
+            product = product + attn_mask
+        # paddle的softmax dim默认是-1，所以这里显式写上-1
+        weights = F.softmax(product, dim=-1)
+        if self.dropout:
+            weights = F.dropout(
+                weights,
+                self.dropout,
+                training=self.training)
+        out = torch.matmul(weights, v)    # [N, num_heads, HW, head_dim]
+
+        # combine heads
+        out = out.permute([0, 2, 1, 3])    # [N, HW, num_heads, head_dim]
+        N, HW, _, _ = out.shape
+        out = torch.reshape(out, [N, HW, out.shape[2] * out.shape[3]])    # [N, HW, embed_dim]
+
+        # project to output
+        out = self.out_proj(out)    # [N, HW, embed_dim]
+
+        outs = [out]
+        if self.need_weights:
+            outs.append(weights)
+        return out if len(outs) == 1 else tuple(outs)
 
 
-def mask_to_box_coordinate(mask,
-                           normalize=False,
-                           format="xyxy",
-                           dtype="float32"):
-    """
-    Compute the bounding boxes around the provided mask.
-    Args:
-        mask (Tensor:bool): [b, c, h, w]
-
-    Returns:
-        bbox (Tensor): [b, c, 4]
-    """
-    assert mask.ndim == 4
-    assert format in ["xyxy", "xywh"]
-    if mask.sum() == 0:
-        return paddle.zeros([mask.shape[0], mask.shape[1], 4], dtype=dtype)
-
-    h, w = mask.shape[-2:]
-    y, x = paddle.meshgrid(
-        paddle.arange(
-            end=h, dtype=dtype), paddle.arange(
-                end=w, dtype=dtype))
-
-    x_mask = x * mask
-    x_max = x_mask.flatten(-2).max(-1) + 1
-    x_min = paddle.where(mask, x_mask,
-                         paddle.to_tensor(1e8)).flatten(-2).min(-1)
-
-    y_mask = y * mask
-    y_max = y_mask.flatten(-2).max(-1) + 1
-    y_min = paddle.where(mask, y_mask,
-                         paddle.to_tensor(1e8)).flatten(-2).min(-1)
-    out_bbox = paddle.stack([x_min, y_min, x_max, y_max], axis=-1)
-    if normalize:
-        out_bbox /= paddle.to_tensor([w, h, w, h]).astype(dtype)
-
-    return out_bbox if format == "xyxy" else bbox_xyxy_to_cxcywh(out_bbox)
-
-
-def varifocal_loss_with_logits(pred_logits,
-                               gt_score,
-                               label,
-                               normalizer=1.0,
-                               alpha=0.75,
-                               gamma=2.0):
-    pred_score = torch.sigmoid(pred_logits)
-    weight = alpha * pred_score.pow(gamma) * (1 - label) + gt_score * label
-    loss = F.binary_cross_entropy_with_logits(
-        pred_logits, gt_score, weight=weight, reduction='none')
-    return loss.mean(1).sum() / normalizer

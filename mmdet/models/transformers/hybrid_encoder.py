@@ -16,16 +16,30 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ..ops import get_act_fn
+from mmdet.models.transformers.utils import _get_clones
 from ..network_blocks import BaseConv
 from ..backbones.cspresnet import RepVggBlock
-from .detr_transformer import TransformerEncoder
 from ..initializer import xavier_uniform_, linear_init_, constant_
-from ..layers import MultiHeadAttention
+from .utils import MultiHeadAttention
 
 __all__ = ['HybridEncoder']
 
+class TransformerEncoder(nn.Module):
+    def __init__(self, encoder_layer, num_layers, norm=None):
+        super(TransformerEncoder, self).__init__()
+        self.layers = _get_clones(encoder_layer, num_layers)
+        self.num_layers = num_layers
+        self.norm = norm
 
+    def forward(self, src, src_mask=None, pos_embed=None):
+        output = src
+        for layer in self.layers:
+            output = layer(output, src_mask=src_mask, pos_embed=pos_embed)
+
+        if self.norm is not None:
+            output = self.norm(output)
+
+        return output
 
 class CSPRepLayer(nn.Module):
     def __init__(self,

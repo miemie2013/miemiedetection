@@ -50,10 +50,7 @@ from .assigners.atss_assigner import ATSSAssigner
 from .assigners.task_aligned_assigner import TaskAlignedAssigner
 from .assigners.position_assigner import PositionAssigner
 
-from .transformers.deformable_transformer import *
-from .transformers.detr_transformer import *
 from .transformers.hybrid_encoder import *
-from .transformers.position_encoding import *
 from .transformers.rtdetr_transformer import *
 from .transformers.utils import *
 from .transformers.matchers import *

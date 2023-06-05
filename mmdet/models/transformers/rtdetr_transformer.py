@@ -21,21 +21,148 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ..layers import MultiHeadAttention
-from ..heads.detr_head import MLP
-from .deformable_transformer import MSDeformableAttention
-from ..initializer import (linear_init_, constant_, xavier_uniform_, normal_,
-                           bias_init_with_prob)
-from .utils import (_get_clones, get_sine_pos_embed,
-                    get_contrastive_denoising_training_group, inverse_sigmoid)
+from ..ops import gather_nd
+from ..initializer import (linear_init_, constant_, xavier_uniform_, normal_, bias_init_with_prob)
+from .utils import (_get_clones, get_contrastive_denoising_training_group, inverse_sigmoid)
+from .utils import MultiHeadAttention
 
 __all__ = ['RTDETRTransformer']
 
-from ..ops import gather_nd
+
+
+
+class MLP(nn.Module):
+    """This code is based on
+        https://github.com/facebookresearch/detr/blob/main/models/detr.py
+    """
+
+    def __init__(self, input_dim, hidden_dim, output_dim, num_layers):
+        super().__init__()
+        self.num_layers = num_layers
+        h = [hidden_dim] * (num_layers - 1)
+        self.layers = nn.ModuleList(
+            nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
+
+        self._reset_parameters()
+
+    @torch.no_grad()
+    def _reset_parameters(self):
+        for l in self.layers:
+            linear_init_(l)
+
+    def forward(self, x):
+        for i, layer in enumerate(self.layers):
+            x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
+        return x
+
+
+class MSDeformableAttention(nn.Module):
+    def __init__(self,
+                 embed_dim=256,
+                 num_heads=8,
+                 num_levels=4,
+                 num_points=4,
+                 lr_mult=0.1):
+        super(MSDeformableAttention, self).__init__()
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+        self.num_levels = num_levels
+        self.num_points = num_points
+        self.total_points = num_heads * num_levels * num_points
+
+        self.head_dim = embed_dim // num_heads
+        assert self.head_dim * num_heads == self.embed_dim, "embed_dim must be divisible by num_heads"
+
+        self.sampling_offsets = nn.Linear(embed_dim, self.total_points * 2)
+        self.sampling_offsets.weight.param_lr = float(lr_mult)
+        self.sampling_offsets.bias.param_lr = float(lr_mult)
+
+        self.attention_weights = nn.Linear(embed_dim, self.total_points)
+        self.value_proj = nn.Linear(embed_dim, embed_dim)
+        self.output_proj = nn.Linear(embed_dim, embed_dim)
+        from .utils import deformable_attention_core_func as ms_deformable_attn
+        self.ms_deformable_attn_core = ms_deformable_attn
+
+        self._reset_parameters()
+
+    @torch.no_grad()
+    def _reset_parameters(self):
+        # sampling_offsets
+        constant_(self.sampling_offsets.weight)
+        thetas = torch.arange(
+            self.num_heads,
+            dtype=torch.float32) * (2.0 * math.pi / self.num_heads)
+        grid_init = torch.stack([thetas.cos(), thetas.sin()], -1)
+        aaaa, bbbbb = grid_init.abs().max(-1, keepdim=True)
+        grid_init = grid_init / aaaa
+        grid_init = grid_init.reshape([self.num_heads, 1, 1, 2]).tile(
+            [1, self.num_levels, self.num_points, 1])
+        scaling = torch.arange(
+            1, self.num_points + 1,
+            dtype=torch.float32).reshape([1, 1, -1, 1])
+        grid_init *= scaling
+        self.sampling_offsets.bias.copy_(grid_init.flatten())
+        # attention_weights
+        constant_(self.attention_weights.weight)
+        constant_(self.attention_weights.bias)
+        # proj
+        xavier_uniform_(self.value_proj.weight)
+        constant_(self.value_proj.bias)
+        xavier_uniform_(self.output_proj.weight)
+        constant_(self.output_proj.bias)
+
+    def forward(self,
+                query,
+                reference_points,
+                value,
+                value_spatial_shapes,
+                value_level_start_index,
+                value_mask=None):
+        bs, Len_q = query.shape[:2]
+        Len_v = value.shape[1]
+        assert int(value_spatial_shapes.prod(1).sum()) == Len_v
+
+        value = self.value_proj(value)
+        if value_mask is not None:
+            value_mask = value_mask.astype(value.dtype).unsqueeze(-1)
+            value *= value_mask
+        value = value.reshape([bs, Len_v, self.num_heads, self.head_dim])
+
+        sampling_offsets = self.sampling_offsets(query).reshape(
+            [bs, Len_q, self.num_heads, self.num_levels, self.num_points, 2])
+        attention_weights = self.attention_weights(query).reshape(
+            [bs, Len_q, self.num_heads, self.num_levels * self.num_points])
+        attention_weights = F.softmax(attention_weights).reshape(
+            [bs, Len_q, self.num_heads, self.num_levels, self.num_points])
+
+        if reference_points.shape[-1] == 2:
+            offset_normalizer = value_spatial_shapes.flip([1]).reshape(
+                [1, 1, 1, self.num_levels, 1, 2])
+            sampling_locations = reference_points.reshape([
+                bs, Len_q, 1, self.num_levels, 1, 2
+            ]) + sampling_offsets / offset_normalizer
+        elif reference_points.shape[-1] == 4:
+            sampling_locations = (
+                reference_points[:, :, None, :, None, :2] + sampling_offsets /
+                self.num_points * reference_points[:, :, None, :, None, 2:] *
+                0.5)
+        else:
+            raise ValueError(
+                "Last dim of reference_points must be 2 or 4, but get {} instead.".
+                format(reference_points.shape[-1]))
+
+        output = self.ms_deformable_attn_core(
+            value, value_spatial_shapes, value_level_start_index,
+            sampling_locations, attention_weights)
+        output = self.output_proj(output)
+
+        return output
+
 
 
 class PPMSDeformableAttention(MSDeformableAttention):
@@ -76,12 +203,7 @@ class PPMSDeformableAttention(MSDeformableAttention):
             [bs, Len_q, self.num_heads, self.num_levels, self.num_points])
 
         if reference_points.shape[-1] == 2:
-            offset_normalizer = paddle.to_tensor(value_spatial_shapes)
-            offset_normalizer = offset_normalizer.flip([1]).reshape(
-                [1, 1, 1, self.num_levels, 1, 2])
-            sampling_locations = reference_points.reshape([
-                bs, Len_q, 1, self.num_levels, 1, 2
-            ]) + sampling_offsets / offset_normalizer
+            raise NotImplementedError
         elif reference_points.shape[-1] == 4:
             sampling_locations = (
                 reference_points[:, :, None, :, None, :2] + sampling_offsets /

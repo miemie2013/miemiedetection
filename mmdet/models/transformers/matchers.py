@@ -144,45 +144,7 @@ class HungarianMatcher(nn.Module):
             self.matcher_coeff['giou'] * cost_giou
         # Compute the mask cost and dice cost
         if self.with_mask:
-            assert (masks is not None and gt_mask is not None,
-                    'Make sure the input has `mask` and `gt_mask`')
-            # all masks share the same set of points for efficient matching
-            sample_points = paddle.rand([bs, 1, self.num_sample_points, 2])
-            sample_points = 2.0 * sample_points - 1.0
-
-            # out_mask = F.grid_sample(masks.detach(), sample_points, align_corners=False).squeeze(-2)
-            out_mask = F.grid_sample(masks, sample_points, align_corners=False).squeeze(-2)
-            out_mask = out_mask.flatten(0, 1)
-
-            tgt_mask = paddle.concat(gt_mask).unsqueeze(1)
-            sample_points = paddle.concat([
-                a.tile([b, 1, 1, 1]) for a, b in zip(sample_points, num_gts)
-                if b > 0
-            ])
-            tgt_mask = F.grid_sample(
-                tgt_mask, sample_points, align_corners=False).squeeze([1, 2])
-
-            with paddle.amp.auto_cast(enable=False):
-                # binary cross entropy cost
-                pos_cost_mask = F.binary_cross_entropy_with_logits(
-                    out_mask, paddle.ones_like(out_mask), reduction='none')
-                neg_cost_mask = F.binary_cross_entropy_with_logits(
-                    out_mask, paddle.zeros_like(out_mask), reduction='none')
-                cost_mask = paddle.matmul(
-                    pos_cost_mask, tgt_mask, transpose_y=True) + paddle.matmul(
-                        neg_cost_mask, 1 - tgt_mask, transpose_y=True)
-                cost_mask /= self.num_sample_points
-
-                # dice cost
-                out_mask = F.sigmoid(out_mask)
-                numerator = 2 * paddle.matmul(
-                    out_mask, tgt_mask, transpose_y=True)
-                denominator = out_mask.sum(
-                    -1, keepdim=True) + tgt_mask.sum(-1).unsqueeze(0)
-                cost_dice = 1 - (numerator + 1) / (denominator + 1)
-
-                C = C + self.matcher_coeff['mask'] * cost_mask + \
-                    self.matcher_coeff['dice'] * cost_dice
+            raise NotImplementedError
 
         C = C.reshape([bs, num_queries, -1])
         C = [a.squeeze(0) for a in C.chunk(bs)]  # tensor.chunk(N) paddle 和 pytorch 同义

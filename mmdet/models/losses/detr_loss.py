@@ -22,7 +22,7 @@ import torch.nn.functional as F
 from torch import distributed as dist
 
 from .iou_losses import GIoULoss
-from mmdet.models.transformers.utils import bbox_cxcywh_to_xyxy, sigmoid_focal_loss, varifocal_loss_with_logits
+from mmdet.models.transformers.utils import bbox_cxcywh_to_xyxy
 from mmdet.utils import get_world_size
 from ..bbox_utils import bbox_iou
 from ..ops import gather_1d, scatter_1d
@@ -98,21 +98,7 @@ class DETRLoss(nn.Module):
             target_label = scatter_1d(target_label.reshape([-1, 1]), index, updates.to(torch.int64))
             target_label = target_label.reshape([bs, num_query_objects])
         if self.use_focal_loss:
-            target_label = F.one_hot(target_label,
-                                     self.num_classes + 1)[..., :-1]
-            if iou_score is not None and self.use_vfl:
-                target_score = paddle.zeros([bs, num_query_objects])
-                if num_gt > 0:
-                    target_score = paddle.scatter(
-                        target_score.reshape([-1, 1]), index, iou_score)
-                target_score = target_score.reshape(
-                    [bs, num_query_objects, 1]) * target_label
-                loss_ = self.loss_coeff['class'] * varifocal_loss_with_logits(
-                    logits, target_score, target_label,
-                    num_gts / num_query_objects)
-            else:
-                loss_ = self.loss_coeff['class'] * sigmoid_focal_loss(
-                    logits, target_label, num_gts / num_query_objects)
+            raise NotImplementedError
         else:
             # loss_ = F.cross_entropy(logits, target_label, weight=self.loss_coeff['class'])
             assigned_scores = F.one_hot(target_label, self.num_classes + 1)
@@ -483,150 +469,3 @@ class DINOLoss(DETRLoss):
                         [0], dtype=torch.int64, device=device)))
         return dn_match_indices
 
-
-class MaskDINOLoss(DETRLoss):
-    __shared__ = ['num_classes', 'use_focal_loss', 'num_sample_points']
-    __inject__ = ['matcher']
-
-    def __init__(self,
-                 num_classes=80,
-                 matcher='HungarianMatcher',
-                 loss_coeff={
-                     'class': 4,
-                     'bbox': 5,
-                     'giou': 2,
-                     'mask': 5,
-                     'dice': 5
-                 },
-                 aux_loss=True,
-                 use_focal_loss=False,
-                 num_sample_points=12544,
-                 oversample_ratio=3.0,
-                 important_sample_ratio=0.75):
-        super(MaskDINOLoss, self).__init__(num_classes, matcher, loss_coeff,
-                                           aux_loss, use_focal_loss)
-        assert oversample_ratio >= 1
-        assert important_sample_ratio <= 1 and important_sample_ratio >= 0
-
-        self.num_sample_points = num_sample_points
-        self.oversample_ratio = oversample_ratio
-        self.important_sample_ratio = important_sample_ratio
-        self.num_oversample_points = int(num_sample_points * oversample_ratio)
-        self.num_important_points = int(num_sample_points *
-                                        important_sample_ratio)
-        self.num_random_points = num_sample_points - self.num_important_points
-
-    def forward(self,
-                boxes,
-                logits,
-                gt_bbox,
-                gt_class,
-                masks=None,
-                gt_mask=None,
-                postfix="",
-                dn_out_bboxes=None,
-                dn_out_logits=None,
-                dn_out_masks=None,
-                dn_meta=None,
-                **kwargs):
-        num_gts = self._get_num_gts(gt_class)
-        total_loss = super(MaskDINOLoss, self).forward(
-            boxes,
-            logits,
-            gt_bbox,
-            gt_class,
-            masks=masks,
-            gt_mask=gt_mask,
-            num_gts=num_gts)
-
-        if dn_meta is not None:
-            dn_positive_idx, dn_num_group = \
-                dn_meta["dn_positive_idx"], dn_meta["dn_num_group"]
-            assert len(gt_class) == len(dn_positive_idx)
-
-            # denoising match indices
-            dn_match_indices = DINOLoss.get_dn_match_indices(
-                gt_class, dn_positive_idx, dn_num_group)
-
-            # compute denoising training loss
-            num_gts *= dn_num_group
-            dn_loss = super(MaskDINOLoss, self).forward(
-                dn_out_bboxes,
-                dn_out_logits,
-                gt_bbox,
-                gt_class,
-                masks=dn_out_masks,
-                gt_mask=gt_mask,
-                postfix="_dn",
-                dn_match_indices=dn_match_indices,
-                num_gts=num_gts)
-            total_loss.update(dn_loss)
-        else:
-            total_loss.update(
-                {k + '_dn': paddle.to_tensor([0.])
-                 for k in total_loss.keys()})
-
-        return total_loss
-
-    def _get_loss_mask(self, masks, gt_mask, pad_gt_mask, match_indices, num_gts, postfix=""):
-        # masks: [b, query, h, w], gt_mask: list[[n, H, W]]
-        name_mask = "loss_mask" + postfix
-        name_dice = "loss_dice" + postfix
-
-        loss = dict()
-        if pad_gt_mask.sum() < 1:
-            # 由于我pad了，num_gt的计算要重新写一下
-            raise NotImplementedError
-        if sum(len(a) for a in gt_mask) == 0:
-            loss[name_mask] = paddle.to_tensor([0.])
-            loss[name_dice] = paddle.to_tensor([0.])
-            return loss
-
-        src_masks, target_masks = self._get_src_target_assign(masks, gt_mask,
-                                                              match_indices)
-        # sample points
-        sample_points = self._get_point_coords_by_uncertainty(src_masks)
-        sample_points = 2.0 * sample_points.unsqueeze(1) - 1.0
-
-        src_masks = F.grid_sample(
-            src_masks.unsqueeze(1), sample_points,
-            align_corners=False).squeeze([1, 2])
-
-        target_masks = F.grid_sample(
-            target_masks.unsqueeze(1), sample_points,
-            align_corners=False).squeeze([1, 2]).detach()
-
-        loss[name_mask] = self.loss_coeff[
-            'mask'] * F.binary_cross_entropy_with_logits(
-                src_masks, target_masks,
-                reduction='none').mean(1).sum() / num_gts
-        loss[name_dice] = self.loss_coeff['dice'] * self._dice_loss(
-            src_masks, target_masks, num_gts)
-        return loss
-
-    def _get_point_coords_by_uncertainty(self, masks):
-        # Sample points based on their uncertainty.
-        masks = masks.detach()
-        num_masks = masks.shape[0]
-        sample_points = paddle.rand(
-            [num_masks, 1, self.num_oversample_points, 2])
-
-        out_mask = F.grid_sample(
-            masks.unsqueeze(1), 2.0 * sample_points - 1.0,
-            align_corners=False).squeeze([1, 2])
-        out_mask = -paddle.abs(out_mask)
-
-        _, topk_ind = paddle.topk(out_mask, self.num_important_points, axis=1)
-        batch_ind = paddle.arange(end=num_masks, dtype=topk_ind.dtype)
-        batch_ind = batch_ind.unsqueeze(-1).tile([1, self.num_important_points])
-        topk_ind = paddle.stack([batch_ind, topk_ind], axis=-1)
-
-        sample_points = paddle.gather_nd(sample_points.squeeze(1), topk_ind)
-        if self.num_random_points > 0:
-            sample_points = paddle.concat(
-                [
-                    sample_points,
-                    paddle.rand([num_masks, self.num_random_points, 2])
-                ],
-                axis=1)
-        return sample_points
