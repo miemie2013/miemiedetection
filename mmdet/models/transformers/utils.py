@@ -202,6 +202,7 @@ def get_contrastive_denoising_training_group(targets,
             attn_mask[max_gt_num * 2 * i:max_gt_num * 2 * (i + 1), :max_gt_num *
                       2 * i] = True
     attn_mask = ~attn_mask
+    # attn_mask 会进入 MultiHeadAttention, 和 QK^T/sqrt(dk) 相加
     dn_meta = {
         "dn_positive_idx": dn_positive_idx,
         "dn_num_group": num_group,
@@ -280,7 +281,10 @@ class MultiHeadAttention(nn.Module):
         product = product * scaling
 
         if attn_mask is not None:
+            # attn_mask 进入 MultiHeadAttention, 和 QK^T/sqrt(dk) 相加
+            # attn_mask 原始值如果是 True, 则变成 0 , attn_mask 原始值如果是 False, 则变成 负无穷 .
             attn_mask = attn_mask.to(product.dtype)
+            attn_mask = attn_mask.unsqueeze(0).unsqueeze(0)
             product = product + attn_mask
         # paddle的softmax dim默认是-1，所以这里显式写上-1
         weights = F.softmax(product, dim=-1)

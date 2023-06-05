@@ -39,10 +39,11 @@ class DETR(torch.nn.Module):
         # DETR Head
         if self.training:
             detr_losses = self.detr_head(out_transformer, body_feats, inputs)
-            # detr_losses.update({
-            #     'loss': paddle.add_n(
-            #         [v for k, v in detr_losses.items() if 'log' not in k])
-            # })
+            loss_sum = 0.0
+            for loss_name in detr_losses.keys():
+                # print(loss_name)
+                loss_sum += detr_losses[loss_name]
+            detr_losses['total_loss'] = loss_sum
             return detr_losses
         else:
             preds = self.detr_head(out_transformer, body_feats)

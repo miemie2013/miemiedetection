@@ -291,6 +291,8 @@ class TransformerDecoderLayer(nn.Module):
         # self attention
         q = k = self.with_pos_embed(tgt, query_pos_embed)
         if attn_mask is not None:
+            # attn_mask 会进入 MultiHeadAttention, 和 QK^T/sqrt(dk) 相加。
+            # attn_mask 如果是 True, 则变成 0 , attn_mask 如果是 False, 则变成 负无穷 .
             device = attn_mask.device
             attn_mask = torch.where(
                 attn_mask.to(torch.bool),
