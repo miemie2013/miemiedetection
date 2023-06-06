@@ -18,11 +18,11 @@ class Exp(RTDETR_Method_Exp):
         self.cls_names = 'class_names/voc_classes.txt'
         self.ann_folder = "annotations2"
         self.train_ann = "voc2012_val2.json"
-        # self.train_ann = "voc2012_val8imgs.json"
+        self.train_ann = "voc2012_val8imgs.json"
         self.val_ann = "voc2012_val2.json"
-        # self.train_ann = "voc2012_train.json"
-        # self.val_ann = "voc2012_val_2008_000073.json"
-        # self.val_ann = "voc2012_val.json"
+        self.train_ann = "voc2012_train.json"
+        self.val_ann = "voc2012_val_2008_000073.json"
+        self.val_ann = "voc2012_val.json"
         self.train_image_folder = "JPEGImages"
         self.val_image_folder = "JPEGImages"
 
@@ -36,7 +36,7 @@ class Exp(RTDETR_Method_Exp):
         self.ema_filter_no_grad = True
         self.weight_decay = 0.0001
         self.print_interval = 20
-        self.eval_interval = 4
+        self.eval_interval = 2
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
         # learning_rate

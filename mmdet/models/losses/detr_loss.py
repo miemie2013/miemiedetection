@@ -220,18 +220,18 @@ class DETRLoss(nn.Module):
                     iou_score = None
             else:
                 iou_score = None
-            loss_class += \
+            loss_class = loss_class + \
                 self._get_loss_class(aux_logits, gt_class, pad_gt_mask, match_indices,
                                      bg_index, num_gts, postfix, iou_score)[
                                          'loss_class' + postfix]
             loss_ = self._get_loss_bbox(aux_boxes, gt_bbox, pad_gt_mask, match_indices, num_gts, postfix)
-            loss_bbox += loss_['loss_bbox' + postfix]
-            loss_giou += loss_['loss_giou' + postfix]
+            loss_bbox = loss_bbox + loss_['loss_bbox' + postfix]
+            loss_giou = loss_giou + loss_['loss_giou' + postfix]
             if masks is not None and gt_mask is not None:
                 loss_ = self._get_loss_mask(aux_masks, gt_mask, pad_gt_mask, match_indices,
                                             num_gts, postfix)
-                loss_mask += loss_['loss_mask' + postfix]
-                loss_dice += loss_['loss_dice' + postfix]
+                loss_mask = loss_mask + loss_['loss_mask' + postfix]
+                loss_dice = loss_dice + loss_['loss_dice' + postfix]
         loss = {
             "loss_class_aux" + postfix: loss_class,
             "loss_bbox_aux" + postfix: loss_bbox,
@@ -434,21 +434,8 @@ class DINOLoss(DETRLoss):
                 num_gts=num_gts)
             total_loss.update(dn_loss)
         else:
-            total_loss.update(
-                {k + '_dn': paddle.to_tensor([0.])
-                 for k in total_loss.keys()})
-
-        loss_sum = 0.0
-        for loss_name in total_loss.keys():
-            print(loss_name)
-            # if 'class' in loss_name:
-            #     total_loss[loss_name] = total_loss[loss_name] * 0.
-            # if 'bbox' in loss_name:
-            #     total_loss[loss_name] = total_loss[loss_name] * 0.
-            # if 'giou' in loss_name:
-            #     total_loss[loss_name] = total_loss[loss_name] * 0.
-            loss_sum += total_loss[loss_name]
-        total_loss['total_loss'] = loss_sum
+            pass
+            # raise NotImplementedError
         return total_loss
 
     @staticmethod

@@ -424,9 +424,7 @@ class RTDETRTransformer(nn.Module):
                                           num_decoder_layers, eval_idx)
 
         # denoising part
-        self.denoising_class_embed = nn.Embedding(
-            num_classes,
-            hidden_dim)
+        self.denoising_class_embed = nn.Embedding(num_classes, hidden_dim)
         normal_(self.denoising_class_embed.weight)
         self.num_denoising = num_denoising
         self.label_noise_ratio = label_noise_ratio
@@ -555,7 +553,7 @@ class RTDETRTransformer(nn.Module):
                 get_contrastive_denoising_training_group(gt_meta,
                                             self.num_classes,
                                             self.num_queries,
-                                            self.denoising_class_embed.weight,
+                                            self.denoising_class_embed,
                                             self.num_denoising,
                                             self.label_noise_ratio,
                                             self.box_noise_scale)
@@ -618,8 +616,8 @@ class RTDETRTransformer(nn.Module):
             anchors, valid_mask = self._generate_anchors(spatial_shapes, device=memory.device)
         else:
             anchors, valid_mask = self.anchors, self.valid_mask
-        memory = torch.where(valid_mask, memory, torch.zeros_like(memory))
-        output_memory = self.enc_output(memory)
+        memory_ = torch.where(valid_mask, memory, torch.zeros_like(memory))
+        output_memory = self.enc_output(memory_)
 
         enc_outputs_class = self.enc_score_head(output_memory)
         enc_outputs_coord_unact = self.enc_bbox_head(output_memory) + anchors
@@ -631,6 +629,7 @@ class RTDETRTransformer(nn.Module):
         batch_ind = torch.arange(end=bs, dtype=topk_ind.dtype, device=memory.device)
         batch_ind = batch_ind.unsqueeze(-1).tile([1, self.num_queries])
         topk_ind = torch.stack([batch_ind, topk_ind], dim=-1)
+        topk_ind.requires_grad_(False)
 
         reference_points_unact = gather_nd(enc_outputs_coord_unact, topk_ind)  # unsigmoided.
         enc_topk_bboxes = torch.sigmoid(reference_points_unact)

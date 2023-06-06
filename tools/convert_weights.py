@@ -107,6 +107,10 @@ def copy_conv(conv_layer, w, b, use_gpu):
 def copy(name, w, std):
     value2 = torch.Tensor(w)
     value = std[name]
+    assert value.ndim == value2.ndim
+    mul1 = np.prod(value.shape)
+    mul2 = np.prod(value2.shape)
+    assert mul1 == mul2
     value.copy_(value2)
     std[name] = value
 

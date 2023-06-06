@@ -73,6 +73,24 @@ mmdet/models/losses/detr_loss.py
 _get_loss_bbox()
 可能是boxes被inplace操作，导致无法训练。
 
+
+与原版的一些不同：
+            # attn_mask 会进入 MultiHeadAttention, 和 QK^T/sqrt(dk) 相加。
+            # attn_mask 如果是 True, 则变成 0 , attn_mask 如果是 False, 则变成 负无穷 .
+            device = attn_mask.device
+            attn_mask = torch.where(
+                attn_mask.to(torch.bool),
+                torch.zeros(attn_mask.shape, dtype=tgt.dtype, device=device),
+                torch.ones(attn_mask.shape, dtype=tgt.dtype, device=device) * -100000.)
+
+
+        # 这里和paddle不同，暂时设为较大的数
+        # anchors = torch.where(valid_mask, anchors, paddle.to_tensor(float("inf")))
+        anchors = torch.where(valid_mask, anchors, torch.ones_like(anchors) * 100000.)
+
+
+
+
 encoder_layer(TransformerLayer) 被放进 HybridEncoder 的 self.encoder(nn.ModuleList)
 self.encoder里有1个元素，类型是 TransformerEncoder(encoder_layer, num_encoder_layers)
 
@@ -110,14 +128,18 @@ nohup xxx     > ppyolo.log 2>&1 &
 
 
 - - - - - - - - - - - - - - - - - - - - - -
+export CUDA_VISIBLE_DEVICES=0,1
+nohup python tools/train.py -f exps/rtdetr/rtdetr_r18vd_6x_voc2012.py -d 2 -b 24 -eb 24 -w 4 -ew 4 -lrs 0.1 -c rtdetr_r18vd_dec3_6x_coco.pth     > rtdetr_r18vd_6x_voc2012.log 2>&1 &
+
+python tools/train.py -f exps/rtdetr/rtdetr_r18vd_6x_voc2012.py -d 2 -b 24 -eb 24 -w 4 -ew 4 -lrs 1.0 -c rtdetr_r18vd_dec3_6x_coco.pth
+
+
+
+python tools/train.py -f exps/rtdetr/rtdetr_r18vd_6x_voc2012.py -d 1 -b 24 -eb 24 -w 4 -ew 4 -lrs 0.1 -c rtdetr_r18vd_dec3_6x_coco.pth
+
+
 python tools/train.py -f exps/rtdetr/rtdetr_r18vd_6x_voc2012.py -d 1 -b 2 -eb 2 -w 0 -ew 0 -c rtdetr_r18vd_dec3_6x_coco.pth
 
-
-
-python tools/train.py -f exps/rtdetr/rtdetr_r18vd_6x_coco.py -d 1 -b 2 -eb 2 -w 0 -ew 0 -c rtdetr_r18vd_dec3_6x_coco.pth
-
-
-python tools/train.py -f exps/rtdetr/rtdetr_r50vd_6x_coco.py -d 1 -b 2 -eb 2 -w 0 -ew 0 -c rtdetr_r50vd_6x_coco.pth
 
 
 

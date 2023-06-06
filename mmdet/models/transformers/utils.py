@@ -118,6 +118,8 @@ def get_contrastive_denoising_training_group(targets,
 
     num_group = num_denoising // max_gt_num
     num_group = 1 if num_group == 0 else num_group
+    label_noise_ratio = -1.
+    box_noise_scale = -1.
     # 原版对每张图片的gt pad到 max_gt_num, 但是我已经在数据预处理阶段 pad了，所以不需要做
     # bs = len(targets["gt_class"])
     # input_query_class = paddle.full([bs, max_gt_num], num_classes, dtype='int32')
@@ -129,21 +131,24 @@ def get_contrastive_denoising_training_group(targets,
     #         input_query_class[i, :num_gt] = targets["gt_class"][i].squeeze(-1)
     #         input_query_bbox[i, :num_gt] = targets["gt_bbox"][i]
     #         pad_gt_mask[i, :num_gt] = 1
-    input_query_class = targets["gt_class"].squeeze(-1).to(torch.int64)
-    input_query_bbox = targets["gt_bbox"]
-    pad_gt_mask = targets["pad_gt_mask"].squeeze(-1)
+    input_query_class = targets["gt_class"].clone().squeeze(-1).to(torch.int64)
+    # input_query_class = input_query_class2.clone() * 0 + num_classes
+    # for i, num_gt in enumerate(num_gts):
+    #     input_query_class[i, :num_gt] = input_query_class2[i, :num_gt]
+    input_query_bbox = targets["gt_bbox"].clone()
+    pad_gt_mask = targets["pad_gt_mask"].clone().squeeze(-1)
     bs = input_query_bbox.shape[0]
     device = input_query_bbox.device
 
 
     # each group has positive and negative queries.
-    input_query_class = input_query_class.tile([1, 2 * num_group])
-    input_query_bbox = input_query_bbox.tile([1, 2 * num_group, 1])
-    pad_gt_mask = pad_gt_mask.tile([1, 2 * num_group])
+    input_query_class_3 = input_query_class.repeat([1, 2 * num_group])
+    input_query_bbox_3 = input_query_bbox.repeat([1, 2 * num_group, 1])
+    pad_gt_mask = pad_gt_mask.repeat([1, 2 * num_group])
     # positive and negative mask
     negative_gt_mask = torch.zeros([bs, max_gt_num * 2, 1], device=device)
     negative_gt_mask[:, max_gt_num:] = 1
-    negative_gt_mask = negative_gt_mask.tile([1, num_group, 1])
+    negative_gt_mask = negative_gt_mask.repeat([1, num_group, 1])
     positive_gt_mask = 1 - negative_gt_mask
     # contrastive denoising training positive index
     positive_gt_mask = positive_gt_mask.squeeze(-1) * pad_gt_mask
@@ -153,6 +158,9 @@ def get_contrastive_denoising_training_group(targets,
     # total denoising queries
     num_denoising = int(max_gt_num * 2 * num_group)
 
+    # known_labels_expaned = input_query_class.clone()
+    # known_bbox_expand = input_query_bbox.clone()
+
     if label_noise_ratio > 0:
         input_query_class = input_query_class.flatten()
         pad_gt_mask = pad_gt_mask.flatten()
@@ -161,8 +169,8 @@ def get_contrastive_denoising_training_group(targets,
         chosen_idx = torch.nonzero(mask * pad_gt_mask).squeeze(-1)
         # randomly put a new one here
         new_label = torch.randint_like(chosen_idx, 0, num_classes, dtype=torch.int64, device=device)
-        input_query_class = scatter_1d(input_query_class, chosen_idx, new_label)
-        input_query_class = torch.reshape(input_query_class, [bs, num_denoising])
+        # known_labels_expaned = scatter_1d(known_labels_expaned, chosen_idx, new_label)
+        known_labels_expaned = torch.reshape(known_labels_expaned, [bs, num_denoising])
         pad_gt_mask = torch.reshape(pad_gt_mask, [bs, num_denoising])
 
     if box_noise_scale > 0:
@@ -175,33 +183,36 @@ def get_contrastive_denoising_training_group(targets,
         rand_part = torch.rand(input_query_bbox.shape, device=device)
         rand_part = (rand_part + 1.0) * negative_gt_mask + rand_part * (
             1 - negative_gt_mask)
-        rand_part *= rand_sign
-        known_bbox += rand_part * diff
+        rand_part = rand_part * rand_sign
+        known_bbox = known_bbox + rand_part * diff
         known_bbox = torch.clamp(known_bbox, min=0.0, max=1.0)
         input_query_bbox = bbox_xyxy_to_cxcywh(known_bbox)
         input_query_bbox = inverse_sigmoid(input_query_bbox)
+    aaaaaaa = 11
+    # input_query_class_3 = gather_1d(class_embed, input_query_class.flatten()) * pad_gt_mask.flatten()
+    # input_query_class_4 = gather_1d(class_embed, input_query_class_3.flatten())
+    input_query_class_4 = class_embed(input_query_class_3.flatten())
+    input_query_class_4 = input_query_class_4.reshape([bs, num_denoising, -1])
+    aa = 1
 
-    class_embed = torch.cat([class_embed, torch.zeros([1, class_embed.shape[-1]], device=device)])
-    input_query_class = gather_1d(class_embed, input_query_class.flatten()).reshape([bs, num_denoising, -1])
+    # class_embed_ = torch.cat([class_embed, torch.zeros([1, class_embed.shape[-1]], device=device)])
+    # input_query_class_3 = gather_1d(class_embed_, input_query_class.flatten()).reshape([bs, num_denoising, -1])
 
     tgt_size = num_denoising + num_queries
     attn_mask = torch.ones([tgt_size, tgt_size], device=device) < 0
     # match query cannot see the reconstruction
-    attn_mask[num_denoising:, :num_denoising] = True
+    # attn_mask[num_denoising:, :num_denoising] = True
     # reconstruct cannot see each other
-    for i in range(num_group):
-        if i == 0:
-            attn_mask[max_gt_num * 2 * i:max_gt_num * 2 * (i + 1), max_gt_num *
-                      2 * (i + 1):num_denoising] = True
-        if i == num_group - 1:
-            attn_mask[max_gt_num * 2 * i:max_gt_num * 2 * (i + 1), :max_gt_num *
-                      i * 2] = True
-        else:
-            attn_mask[max_gt_num * 2 * i:max_gt_num * 2 * (i + 1), max_gt_num *
-                      2 * (i + 1):num_denoising] = True
-            attn_mask[max_gt_num * 2 * i:max_gt_num * 2 * (i + 1), :max_gt_num *
-                      2 * i] = True
+    # for i in range(num_group):
+    #     if i == 0:
+    #         attn_mask[max_gt_num * 2 * i:max_gt_num * 2 * (i + 1), max_gt_num * 2 * (i + 1):num_denoising] = True
+    #     if i == num_group - 1:
+    #         attn_mask[max_gt_num * 2 * i:max_gt_num * 2 * (i + 1), :max_gt_num * i * 2] = True
+    #     else:
+    #         attn_mask[max_gt_num * 2 * i:max_gt_num * 2 * (i + 1), max_gt_num * 2 * (i + 1):num_denoising] = True
+    #         attn_mask[max_gt_num * 2 * i:max_gt_num * 2 * (i + 1), :max_gt_num * 2 * i] = True
     attn_mask = ~attn_mask
+    attn_mask.requires_grad_(False)
     # attn_mask 会进入 MultiHeadAttention, 和 QK^T/sqrt(dk) 相加
     dn_meta = {
         "dn_positive_idx": dn_positive_idx,
@@ -209,7 +220,130 @@ def get_contrastive_denoising_training_group(targets,
         "dn_num_split": [num_denoising, num_queries]
     }
 
-    return input_query_class, input_query_bbox, attn_mask, dn_meta
+    return input_query_class_4, input_query_bbox_3, attn_mask, dn_meta
+
+
+def get_contrastive_denoising_training_group2(targets,
+                                             num_classes,
+                                             num_queries,
+                                             class_embed,
+                                             num_denoising=100,
+                                             label_noise_ratio=0.5,
+                                             box_noise_scale=1.0):
+    """
+        def prepare_for_cdn(dn_args, training, num_queries, num_classes, hidden_dim, label_enc):
+        A major difference of DINO from DN-DETR is that the author process pattern embedding pattern embedding in its detector
+        forward function and use learnable tgt embedding, so we change this function a little bit.
+        :param dn_args: targets, dn_number, label_noise_ratio, box_noise_scale
+        :param training: if it is training or inference
+        :param num_queries: number of queires
+        :param num_classes: number of classes
+        :param hidden_dim: transformer hidden dim
+        :param label_enc: encode labels in dn
+        :return:
+        """
+    # targets, dn_number, label_noise_ratio, box_noise_scale = dn_args
+    dn_number = num_denoising
+    hidden_dim = 256
+    # positive and negative dn queries
+    dn_number = dn_number * 2
+    known = [(torch.ones_like(t['labels'])).cuda() for t in targets]
+    batch_size = len(known)
+    known_num = [sum(k) for k in known]
+    if int(max(known_num)) == 0:
+        dn_number = 1
+    else:
+        if dn_number >= 100:
+            dn_number = dn_number // (int(max(known_num) * 2))
+        elif dn_number < 1:
+            dn_number = 1
+    if dn_number == 0:
+        dn_number = 1
+    unmask_bbox = unmask_label = torch.cat(known)
+    labels = torch.cat([t['labels'] for t in targets])
+    boxes = torch.cat([t['boxes'] for t in targets])
+    batch_idx = torch.cat([torch.full_like(t['labels'].long(), i) for i, t in enumerate(targets)])
+
+    known_indice = torch.nonzero(unmask_label + unmask_bbox)
+    known_indice = known_indice.view(-1)
+
+    known_indice = known_indice.repeat(2 * dn_number, 1).view(-1)
+    known_labels = labels.repeat(2 * dn_number, 1).view(-1)
+    known_bid = batch_idx.repeat(2 * dn_number, 1).view(-1)
+    known_bboxs = boxes.repeat(2 * dn_number, 1)
+    known_labels_expaned = known_labels.clone()
+    known_bbox_expand = known_bboxs.clone()
+
+    if label_noise_ratio > 0:
+        p = torch.rand_like(known_labels_expaned.float())
+        chosen_indice = torch.nonzero(p < (label_noise_ratio * 0.5)).view(-1)  # half of bbox prob
+        new_label = torch.randint_like(chosen_indice, 0, num_classes)  # randomly put a new one here
+        known_labels_expaned.scatter_(0, chosen_indice, new_label)
+    single_pad = int(max(known_num))
+
+    pad_size = int(single_pad * 2 * dn_number)
+    positive_idx = torch.tensor(range(len(boxes))).long().cuda().unsqueeze(0).repeat(dn_number, 1)
+    positive_idx += (torch.tensor(range(dn_number)) * len(boxes) * 2).long().cuda().unsqueeze(1)
+    positive_idx = positive_idx.flatten()
+    negative_idx = positive_idx + len(boxes)
+    if box_noise_scale > 0:
+        known_bbox_ = torch.zeros_like(known_bboxs)
+        known_bbox_[:, :2] = known_bboxs[:, :2] - known_bboxs[:, 2:] / 2
+        known_bbox_[:, 2:] = known_bboxs[:, :2] + known_bboxs[:, 2:] / 2
+
+        diff = torch.zeros_like(known_bboxs)
+        diff[:, :2] = known_bboxs[:, 2:] / 2
+        diff[:, 2:] = known_bboxs[:, 2:] / 2
+
+        rand_sign = torch.randint_like(known_bboxs, low=0, high=2, dtype=torch.float32) * 2.0 - 1.0
+        rand_part = torch.rand_like(known_bboxs)
+        rand_part[negative_idx] += 1.0
+        rand_part *= rand_sign
+        known_bbox_ = known_bbox_ + torch.mul(rand_part,
+                                              diff).cuda() * box_noise_scale
+        known_bbox_ = known_bbox_.clamp(min=0.0, max=1.0)
+        known_bbox_expand[:, :2] = (known_bbox_[:, :2] + known_bbox_[:, 2:]) / 2
+        known_bbox_expand[:, 2:] = known_bbox_[:, 2:] - known_bbox_[:, :2]
+
+    m = known_labels_expaned.long().to('cuda')
+    input_label_embed = class_embed(m)
+    input_bbox_embed = inverse_sigmoid(known_bbox_expand)
+
+    padding_label = torch.zeros(pad_size, hidden_dim).cuda()
+    padding_bbox = torch.zeros(pad_size, 4).cuda()
+
+    input_query_label = padding_label.repeat(batch_size, 1, 1)
+    input_query_bbox = padding_bbox.repeat(batch_size, 1, 1)
+
+    map_known_indice = torch.tensor([]).to('cuda')
+    if len(known_num):
+        map_known_indice = torch.cat([torch.tensor(range(num)) for num in known_num])  # [1,2, 1,2,3]
+        map_known_indice = torch.cat([map_known_indice + single_pad * i for i in range(2 * dn_number)]).long()
+    if len(known_bid):
+        input_query_label[(known_bid.long(), map_known_indice)] = input_label_embed
+        input_query_bbox[(known_bid.long(), map_known_indice)] = input_bbox_embed
+
+    tgt_size = pad_size + num_queries
+    attn_mask = torch.ones(tgt_size, tgt_size).to('cuda') < 0
+    # match query cannot see the reconstruct
+    attn_mask[pad_size:, :pad_size] = True
+    # reconstruct cannot see each other
+    for i in range(dn_number):
+        if i == 0:
+            attn_mask[single_pad * 2 * i:single_pad * 2 * (i + 1), single_pad * 2 * (i + 1):pad_size] = True
+        if i == dn_number - 1:
+            attn_mask[single_pad * 2 * i:single_pad * 2 * (i + 1), :single_pad * i * 2] = True
+        else:
+            attn_mask[single_pad * 2 * i:single_pad * 2 * (i + 1), single_pad * 2 * (i + 1):pad_size] = True
+            attn_mask[single_pad * 2 * i:single_pad * 2 * (i + 1), :single_pad * 2 * i] = True
+
+    dn_meta = {
+        'pad_size': pad_size,
+        'num_dn_group': dn_number,
+    }
+
+    return input_query_label, input_query_bbox, attn_mask, dn_meta
+
 
 
 class MultiHeadAttention(nn.Module):
