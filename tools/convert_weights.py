@@ -332,7 +332,7 @@ def main(exp, args):
         if args.device == "gpu":
             temp_x = temp_x.cuda()
             temp_scale_factor = temp_scale_factor.cuda()
-        temp_out = model(temp_x, temp_scale_factor)
+        # temp_out = model(temp_x, temp_scale_factor)
         with open(args.ckpt, 'rb') as f:
             state_dict = pickle.load(f) if six.PY2 else pickle.load(f, encoding='latin1')
         # state_dict = fluid.io.load_program_state(args.ckpt)
