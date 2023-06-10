@@ -60,6 +60,9 @@ wget https://paddledet.bj.bcebos.com/models/picodet_l_640_coco_lcnet.pdparams
 wget https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/legendary_models/PPLCNet_x0_75_pretrained.pdparams
 wget https://paddledet.bj.bcebos.com/models/pretrained/LCNet_x1_5_pretrained.pdparams
 wget https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/legendary_models/PPLCNet_x2_0_pretrained.pdparams
+wget https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/legendary_models/PPLCNet_x1_0_ssld_pretrained.pdparams
+wget https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/legendary_models/PPLCNet_x2_5_ssld_pretrained.pdparams
+
 
 python tools/convert_weights.py -f exps/picodet/picodet_s_416_coco_lcnet.py -c picodet_s_416_coco_lcnet.pdparams -oc picodet_s_416_coco_lcnet.pth -nc 80
 python tools/convert_weights.py -f exps/picodet/picodet_m_416_coco_lcnet.py -c picodet_m_416_coco_lcnet.pdparams -oc picodet_m_416_coco_lcnet.pth -nc 80
@@ -71,6 +74,8 @@ python tools/convert_weights.py -f exps/picodet/picodet_l_640_coco_lcnet.py -c p
 python tools/convert_weights.py -f exps/picodet/picodet_s_416_coco_lcnet.py -c PPLCNet_x0_75_pretrained.pdparams -oc PPLCNet_x0_75_pretrained.pth -nc 80 --only_backbone True
 python tools/convert_weights.py -f exps/picodet/picodet_m_416_coco_lcnet.py -c LCNet_x1_5_pretrained.pdparams -oc LCNet_x1_5_pretrained.pth -nc 80 --only_backbone True
 python tools/convert_weights.py -f exps/picodet/picodet_l_640_coco_lcnet.py -c PPLCNet_x2_0_pretrained.pdparams -oc PPLCNet_x2_0_pretrained.pth -nc 80 --only_backbone True
+python tools/convert_weights.py -f exps/picodet/picodet_xm_640_coco_lcnet.py -c PPLCNet_x1_0_ssld_pretrained.pdparams -oc PPLCNet_x1_0_ssld_pretrained.pth -nc 80 --only_backbone True
+python tools/convert_weights.py -f exps/picodet/picodet_x_640_coco_lcnet.py -c PPLCNet_x2_5_ssld_pretrained.pdparams -oc PPLCNet_x2_5_ssld_pretrained.pth -nc 80 --only_backbone True
 
 
 
