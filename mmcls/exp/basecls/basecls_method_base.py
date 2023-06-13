@@ -75,14 +75,16 @@ class BaseCls_Method_Exp(BaseExp):
 
     def get_model(self):
         from mmcls.models import BaseCls
-        from mmdet.models import LCNet
+        from mmdet.models import LCNet, CSPDarknet
         if getattr(self, "model", None) is None:
-            Backbone = None
             in_channel = -1
             if self.backbone_type == 'LCNet':
-                Backbone = LCNet
-                backbone = Backbone(**self.backbone)
+                backbone = LCNet(**self.backbone)
                 in_channel = backbone._out_channels[-1]
+            elif self.backbone_type == 'CSPDarknet':
+                backbone = CSPDarknet(self.depth, self.width, depthwise=False, use_focus=self.use_focus, act=self.act, freeze_at=0)
+                base_channels = int(self.width * 64)  # 64
+                in_channel = base_channels * 16
             self.model = BaseCls(backbone, in_channel, self.num_classes)
         return self.model
 

@@ -27,6 +27,10 @@ export CUDA_VISIBLE_DEVICES=0,1
 nohup python tools/train_cls.py -f exps/cls/lcnet_x2_0_afhq.py -d 2 -b 128 -eb 128 -w 4 -ew 4     > lcnet_x2_0_afhq.log 2>&1 &
 
 
+export CUDA_VISIBLE_DEVICES=0,1
+nohup python tools/train_cls.py -f exps/cls/cspdarknet_s_ImageNet1k.py -d 2 -b 128 -eb 128 -w 4 -ew 4     > cspdarknet_s_ImageNet1k.log 2>&1 &
+
+
 
 ----------------------- 迁移学习，带上-c（--ckpt）参数读取预训练模型。 -----------------------
 后台启动：

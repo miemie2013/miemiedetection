@@ -27,6 +27,10 @@ class BaseCls(torch.nn.Module):
         x = self.backbone(x)
         if isinstance(x, list):
             x = x[-1]
+        elif isinstance(x, dict):
+            x = x['dark5']
+        else:
+            raise NotImplementedError
         avg_mean = x.mean([2, 3])
         logits = self.fc(avg_mean)
         if self.training:
