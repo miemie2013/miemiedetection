@@ -27,7 +27,7 @@ class Exp(BaseCls_Method_Exp):
         self.ema_decay = 0.9998
         self.weight_decay = 5e-4
         self.momentum = 0.9
-        self.print_interval = 20
+        self.print_interval = 100
         self.eval_interval = 1
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
@@ -35,7 +35,7 @@ class Exp(BaseCls_Method_Exp):
         self.scheduler = "yoloxwarmcos"
         self.warmup_lr = 0.
         self.warmup_epochs = 1
-        self.basic_lr_per_img = 0.01 / 64.0
+        self.basic_lr_per_img = 0.8 / (4 * 512.0)
         self.min_lr_ratio = 0.05
         self.no_aug_epochs = 15
         self.multiscale_range = 5

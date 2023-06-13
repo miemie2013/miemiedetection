@@ -24,11 +24,14 @@ python tools/demo.py image -f exps/picodet/picodet_s_416_coco_lcnet.py -c picode
 python tools/train_cls.py -f exps/cls/lcnet_x2_0_afhq.py -d 1 -b 64 -eb 64 -w 0 -ew 0
 
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train_cls.py -f exps/cls/lcnet_x2_0_afhq.py -d 2 -b 128 -eb 128 -w 4 -ew 4     > lcnet_x2_0_afhq.log 2>&1 &
+nohup python tools/train_cls.py -f exps/cls/lcnet_x2_0_afhq.py -d 2 -b 1024 -eb 1024 -w 4 -ew 4     > lcnet_x2_0_afhq.log 2>&1 &
 
 
 export CUDA_VISIBLE_DEVICES=0,1
-nohup python tools/train_cls.py -f exps/cls/cspdarknet_s_ImageNet1k.py -d 2 -b 128 -eb 128 -w 4 -ew 4     > cspdarknet_s_ImageNet1k.log 2>&1 &
+nohup python tools/train_cls.py -f exps/cls/cspdarknet_s_ImageNet1k.py -d 2 -b 1024 -eb 1024 -w 4 -ew 4     > cspdarknet_s_ImageNet1k.log 2>&1 &
+
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+nohup python tools/train_cls.py -f exps/cls/cspdarknet_s_ImageNet1k.py -d 4 -b 2048 -eb 2048 -w 4 -ew 4     > cspdarknet_s_ImageNet1k.log 2>&1 &
 
 
 
