@@ -14,14 +14,14 @@ class Exp(BaseCls_Method_Exp):
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
         # custom dataset
         self.num_classes = 3
-        self.data_dir = '../afhq'
+        self.data_dir = '../ImageNet1k/Light_ILSVRC2012'
         self.cls_names = 'class_names/afhq_classes.txt'
-        self.train_ann = "train.txt"    # self.train_ann should be placed in the self.data_dir directory.
-        self.val_ann = "val.txt"        # self.val_ann should be placed in the self.data_dir directory.
+        self.train_ann = "train_list.txt"    # self.train_ann should be placed in the self.data_dir directory.
+        self.val_ann = "val_list.txt"        # self.val_ann should be placed in the self.data_dir directory.
 
 
         # --------------  training config --------------------- #
-        self.max_epoch = 100
+        self.max_epoch = 360
 
         self.ema = True
         self.ema_decay = 0.9998

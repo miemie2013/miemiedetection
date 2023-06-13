@@ -4,24 +4,10 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 
 ----------------------- 转换权重 -----------------------
-wget https://paddledet.bj.bcebos.com/models/picodet_s_416_coco_lcnet.pdparams
-wget https://paddledet.bj.bcebos.com/models/picodet_m_416_coco_lcnet.pdparams
-wget https://paddledet.bj.bcebos.com/models/picodet_l_320_coco_lcnet.pdparams
-wget https://paddledet.bj.bcebos.com/models/picodet_l_416_coco_lcnet.pdparams
-wget https://paddledet.bj.bcebos.com/models/picodet_l_640_coco_lcnet.pdparams
 wget https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/legendary_models/PPLCNet_x0_75_pretrained.pdparams
 wget https://paddledet.bj.bcebos.com/models/pretrained/LCNet_x1_5_pretrained.pdparams
 wget https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/legendary_models/PPLCNet_x2_0_pretrained.pdparams
 
-python tools/convert_weights.py -f exps/picodet/picodet_s_416_coco_lcnet.py -c picodet_s_416_coco_lcnet.pdparams -oc picodet_s_416_coco_lcnet.pth -nc 80
-python tools/convert_weights.py -f exps/picodet/picodet_m_416_coco_lcnet.py -c picodet_m_416_coco_lcnet.pdparams -oc picodet_m_416_coco_lcnet.pth -nc 80
-python tools/convert_weights.py -f exps/picodet/picodet_l_320_coco_lcnet.py -c picodet_l_320_coco_lcnet.pdparams -oc picodet_l_320_coco_lcnet.pth -nc 80
-python tools/convert_weights.py -f exps/picodet/picodet_l_416_coco_lcnet.py -c picodet_l_416_coco_lcnet.pdparams -oc picodet_l_416_coco_lcnet.pth -nc 80
-python tools/convert_weights.py -f exps/picodet/picodet_l_640_coco_lcnet.py -c picodet_l_640_coco_lcnet.pdparams -oc picodet_l_640_coco_lcnet.pth -nc 80
-
-
-python tools/convert_weights.py -f exps/picodet/picodet_s_416_coco_lcnet.py -c PPLCNet_x0_75_pretrained.pdparams -oc PPLCNet_x0_75_pretrained.pth -nc 80 --only_backbone True
-python tools/convert_weights.py -f exps/picodet/picodet_m_416_coco_lcnet.py -c LCNet_x1_5_pretrained.pdparams -oc LCNet_x1_5_pretrained.pth -nc 80 --only_backbone True
 python tools/convert_weights.py -f exps/picodet/picodet_l_640_coco_lcnet.py -c PPLCNet_x2_0_pretrained.pdparams -oc PPLCNet_x2_0_pretrained.pth -nc 80 --only_backbone True
 
 
@@ -44,7 +30,7 @@ nohup python tools/train_cls.py -f exps/cls/lcnet_x2_0_afhq.py -d 2 -b 128 -eb 1
 
 ----------------------- 迁移学习，带上-c（--ckpt）参数读取预训练模型。 -----------------------
 后台启动：
-nohup xxx     > ppyolo.log 2>&1 &
+nohup xxx     > xxx.log 2>&1 &
 
 python tools/train_cls.py -f exps/cls/lcnet_x2_0_afhq.py -d 1 -b 64 -eb 64 -w 0 -ew 0 -lrs 1.0 -c PPLCNet_x2_0_pretrained.pth
 
@@ -53,16 +39,14 @@ python tools/train_cls.py -f exps/cls/lcnet_x2_0_afhq.py -d 1 -b 64 -eb 64 -w 0 
 python tools/train_cls.py -f exps/cls/lcnet_x2_0_afhq.py -d 1 -b 64 -eb 64 -w 0 -ew 0 -lrs 1.0 -c 3.pth --resume -oe
 
 
-
 ----------------------- 恢复训练（加上参数--resume） -----------------------
 
 
 
 ----------------------- 评估 -----------------------
-python tools/eval.py -f exps/picodet/picodet_s_416_coco_lcnet.py -d 1 -b 4 -c picodet_s_416_coco_lcnet.pth --conf 0.025 --tsize 416
+python tools/train_cls.py -f exps/cls/lcnet_x2_0_ImageNet1k.py -d 1 -b 64 -eb 64 -w 0 -ew 0 -lrs 1.0 -c 300.pth --resume -oe
 
 
------------------------ 复现COCO上的精度 -----------------------
 
 
 

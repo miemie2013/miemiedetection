@@ -16,6 +16,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 
 from mmcls.data import BaseClsDataPrefetcher
+from mmcls.data.data_aug import data_aug
 from mmdet.utils import (
     MeterBuffer,
     ModelEMA,
@@ -219,6 +220,8 @@ class Trainer:
 
         if self.archi_name == 'BaseCls':
             inps, targets = self.prefetcher.next()
+            with torch.no_grad():
+                inps = data_aug(inps)
             inps = inps.to(self.data_type)
             targets = targets.to(torch.int64)
             targets.requires_grad = False

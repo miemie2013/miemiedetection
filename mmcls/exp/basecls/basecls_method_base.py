@@ -49,7 +49,7 @@ class BaseCls_Method_Exp(BaseExp):
 
 
         # -----------------  testing config ------------------ #
-        self.input_size = (256, 256)
+        self.input_size = (224, 224)
 
         # ---------------- model config ---------------- #
         self.output_dir = "BaseCls_outputs"
