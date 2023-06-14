@@ -13,9 +13,9 @@ class Exp(BaseCls_Method_Exp):
         super(Exp, self).__init__()
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
         # custom dataset
-        self.num_classes = 3
+        self.num_classes = 1000
         self.data_dir = '../ImageNet1k/Light_ILSVRC2012'
-        self.cls_names = 'class_names/afhq_classes.txt'
+        self.cls_names = None
         self.train_ann = "train_list.txt"    # self.train_ann should be placed in the self.data_dir directory.
         self.val_ann = "val_list.txt"        # self.val_ann should be placed in the self.data_dir directory.
 

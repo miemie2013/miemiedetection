@@ -21,7 +21,7 @@ python tools/demo.py image -f exps/picodet/picodet_s_416_coco_lcnet.py -c picode
 
 
 ----------------------- 训练 -----------------------
-python tools/train_cls.py -f exps/cls/lcnet_x2_0_afhq.py -d 1 -b 64 -eb 64 -w 0 -ew 0
+python tools/train_cls.py -f exps/cls/lcnet_x2_0_afhq.py -d 1 -b 128 -eb 128 -w 0 -ew 0
 
 export CUDA_VISIBLE_DEVICES=0,1
 nohup python tools/train_cls.py -f exps/cls/lcnet_x2_0_afhq.py -d 2 -b 512 -eb 512 -w 4 -ew 4     > lcnet_x2_0_afhq.log 2>&1 &
