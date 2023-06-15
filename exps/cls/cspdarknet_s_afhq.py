@@ -44,6 +44,14 @@ class Exp(BaseCls_Method_Exp):
         # -----------------  testing config ------------------ #
         self.input_size = (224, 224)
 
+        # ---------------- model config ---------------- #
+        self.output_dir = "BaseCls_outputs"
+        self.depth = 0.33
+        self.width = 0.50
+        self.backbone_type = 'CSPDarknet'
+        self.act = 'relu'
+        self.use_focus = False
+
         # ---------------- dataloader config ---------------- #
         # 默认是4。如果报错“OSError: [WinError 1455] 页面文件太小,无法完成操作”，设置为2或0解决。
         self.data_num_workers = 2

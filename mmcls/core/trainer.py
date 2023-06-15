@@ -404,7 +404,7 @@ class Trainer:
             if save:
                 self.tblogger.add_scalar("val/Top-1 Acc", top1_acc, self.epoch + 1)
                 self.tblogger.add_scalar("val/Top-5 Acc", top5_acc, self.epoch + 1)
-            logger.info("top1_acc=%.6f, top5_acc=%.6f\n"%(top1_acc, top5_acc))
+            logger.info("top1_acc=%.6f, top5_acc=%.6f"%(top1_acc, top5_acc))
         synchronize()
 
         if save:
