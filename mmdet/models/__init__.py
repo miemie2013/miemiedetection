@@ -8,6 +8,7 @@ from .backbones.resnet_vb import Resnet50Vb
 from .backbones.resnet import ResNet, ConvNormLayer, SELayer, BasicBlock, BottleNeck, Blocks, Res5Head
 from .backbones.cspresnet import CSPResNet
 from .backbones.lcnet import LCNet
+from .backbones.mcnet import MCNet
 
 
 from .losses.yolov3_loss import YOLOv3Loss

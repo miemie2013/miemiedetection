@@ -21,6 +21,9 @@ python tools/demo.py image -f exps/picodet/picodet_s_416_coco_lcnet.py -c picode
 
 
 ----------------------- 训练 -----------------------
+python tools/train_cls.py -f exps/cls/mcnet_s_afhq.py -d 1 -b 128 -eb 128 -w 0 -ew 0
+
+
 python tools/train_cls.py -f exps/cls/cspdarknet_s_afhq.py -d 1 -b 128 -eb 128 -w 0 -ew 0
 
 
