@@ -81,8 +81,8 @@ def vis2(img, boxes, scores, cls_ids, conf=0.5, class_names=None):
         cv2.rectangle(image, (left, top), (right, bottom), bbox_color, bbox_thick)
         bbox_mess = '%s: %.2f' % (all_classes[cl], score)
         t_size = cv2.getTextSize(bbox_mess, 0, 0.5, thickness=1)[0]
-        cv2.rectangle(image, (left, top), (left + t_size[0], top - t_size[1] - 3), bbox_color, -1)
-        cv2.putText(image, bbox_mess, (left, top - 2), cv2.FONT_HERSHEY_SIMPLEX,
+        cv2.rectangle(image, (left, top), (left + t_size[0], top + t_size[1] + 3), bbox_color, -1)
+        cv2.putText(image, bbox_mess, (left, top + t_size[1] + 2), cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (0, 0, 0), 1, lineType=cv2.LINE_AA)
     return image
 
