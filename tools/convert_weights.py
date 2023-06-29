@@ -9,6 +9,7 @@ from loguru import logger
 
 import cv2
 import torch
+import numpy as np
 # import paddle.fluid as fluid
 import pickle
 import six
@@ -48,7 +49,6 @@ def make_parser():
         help="only convert backbone",
     )
     parser.add_argument("-pp0", "--private_purpose_0", action='store_true', help='for private purpose 0')
-    parser.add_argument('--fyx', action='store_true', help='for YoloX-Pytorch')
     parser.add_argument(
         "--device",
         default="cpu",
@@ -56,53 +56,6 @@ def make_parser():
         help="device to run our model, can either be cpu or gpu",
     )
     return parser
-
-
-def copy_conv_bn(conv_unit, w, scale, offset, m, v, use_gpu):
-    if use_gpu:
-        conv_unit.conv.weight.data = torch.Tensor(w).cuda()
-        conv_unit.bn.weight.data = torch.Tensor(scale).cuda()
-        conv_unit.bn.bias.data = torch.Tensor(offset).cuda()
-        conv_unit.bn.running_mean.data = torch.Tensor(m).cuda()
-        conv_unit.bn.running_var.data = torch.Tensor(v).cuda()
-    else:
-        conv_unit.conv.weight.data = torch.Tensor(w)
-        conv_unit.bn.weight.data = torch.Tensor(scale)
-        conv_unit.bn.bias.data = torch.Tensor(offset)
-        conv_unit.bn.running_mean.data = torch.Tensor(m)
-        conv_unit.bn.running_var.data = torch.Tensor(v)
-
-
-def copy_conv_gn(conv_unit, w, b, scale, offset, use_gpu):
-    if use_gpu:
-        conv_unit.conv.weight.data = torch.Tensor(w).cuda()
-        conv_unit.conv.bias.data = torch.Tensor(b).cuda()
-        conv_unit.gn.weight.data = torch.Tensor(scale).cuda()
-        conv_unit.gn.bias.data = torch.Tensor(offset).cuda()
-    else:
-        conv_unit.conv.weight.data = torch.Tensor(w)
-        conv_unit.conv.bias.data = torch.Tensor(b)
-        conv_unit.gn.weight.data = torch.Tensor(scale)
-        conv_unit.gn.bias.data = torch.Tensor(offset)
-
-def copy_conv_af(conv_unit, w, scale, offset, use_gpu):
-    if use_gpu:
-        conv_unit.conv.weight.data = torch.Tensor(w).cuda()
-        conv_unit.af.weight.data = torch.Tensor(scale).cuda()
-        conv_unit.af.bias.data = torch.Tensor(offset).cuda()
-    else:
-        conv_unit.conv.weight.data = torch.Tensor(w)
-        conv_unit.af.weight.data = torch.Tensor(scale)
-        conv_unit.af.bias.data = torch.Tensor(offset)
-
-
-def copy_conv(conv_layer, w, b, use_gpu):
-    if use_gpu:
-        conv_layer.weight.data = torch.Tensor(w).cuda()
-        conv_layer.bias.data = torch.Tensor(b).cuda()
-    else:
-        conv_layer.weight.data = torch.Tensor(w)
-        conv_layer.bias.data = torch.Tensor(b)
 
 def copy(name, w, std):
     value2 = torch.Tensor(w)
@@ -164,6 +117,8 @@ def main(exp, args):
             torch.save(new_state_dict, args.output_ckpt)
             logger.info("Done.")
             return 0
+        else:
+            pass
     elif model_class_name == 'PPYOLO':
         with open(args.ckpt, 'rb') as f:
             state_dict = pickle.load(f) if six.PY2 else pickle.load(f, encoding='latin1')
@@ -608,21 +563,6 @@ def main(exp, args):
         "model": model.state_dict(),
         "optimizer": None,
     }
-    # for YoloX-Pytorch
-    # python tools/convert_weights.py -f exps/ppyoloe_plus/ppyoloe_plus_crn_s_80e_coco.py -c ppyoloe_crn_s_obj365_pretrained.pdparams -oc ppyoloep_s_obj365.pth -nc 365 --fyx
-    if args.fyx:
-        new_std = model.state_dict()
-        new_std2 = {}
-        for kk in new_std.keys():
-            if kk.startswith('yolo_head.'):
-                new_std2[kk.replace('yolo_head.', 'head.')] = new_std[kk]
-            else:
-                new_std2[kk] = new_std[kk]
-        ckpt_state = {
-            "epoch": 0,
-            "state_dict": new_std2,
-            "optimizer": None,
-        }
     torch.save(ckpt_state, args.output_ckpt)
     logger.info("Done.")
 

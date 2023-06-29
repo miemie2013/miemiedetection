@@ -35,7 +35,7 @@ class YOLOXExp(COCOBaseExp):
         self.multiscale_range = 5
         # You can uncomment this line to specify a multiscale range
         # self.random_size = (14, 26)
-        self.output_dir = "YOLOX_outputs"
+        self.output_dir = "outputs/YOLOX_outputs"
 
         # --------------- transform config ----------------- #
         self.mosaic_prob = 1.0

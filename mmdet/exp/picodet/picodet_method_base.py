@@ -98,7 +98,7 @@ class PicoDet_Method_Exp(COCOBaseExp):
         self.test_size = [self.eval_height, self.eval_width]
 
         # ---------------- model config ---------------- #
-        self.output_dir = "PicoDet_outputs"
+        self.output_dir = "outputs/PicoDet_outputs"
         self.scale = 1.5
         self.backbone_type = 'LCNet'
         self.backbone = dict(

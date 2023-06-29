@@ -97,7 +97,7 @@ class PPYOLOE_Method_Exp(COCOBaseExp):
         self.test_size = [self.eval_height, self.eval_width]
 
         # ---------------- model config ---------------- #
-        self.output_dir = "PPYOLOE_outputs"
+        self.output_dir = "outputs/PPYOLOE_outputs"
         self.depth_mult = 0.33
         self.width_mult = 0.50
         self.backbone_type = 'CSPResNet'

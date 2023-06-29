@@ -60,7 +60,6 @@ class Exp(PPYOLOE_Method_Exp):
         self.test_size = [self.eval_height, self.eval_width]
 
         # ---------------- model config ---------------- #
-        self.output_dir = "PPYOLOE_outputs"
         self.depth_mult = 0.16
         self.width_mult = 0.25
         self.backbone_type = 'CSPResNet'

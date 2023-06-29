@@ -48,7 +48,6 @@ class Exp(PPYOLO_Method_Exp):
         self.test_size = (608, 608)
 
         # ---------------- model config ---------------- #
-        self.output_dir = "PPYOLO_outputs"
         self.backbone_type = 'ResNet'
         self.backbone = dict(
             depth=50,

@@ -48,7 +48,7 @@ class RTDETR_Method_Exp(COCOBaseExp):
         self.test_size = [self.eval_height, self.eval_width]
 
         # ---------------- model config ---------------- #
-        self.output_dir = "RTDETR_outputs"
+        self.output_dir = "outputs/RTDETR_outputs"
         self.hidden_dim = 256
         self.use_focal_loss = True
         self.with_mask = False
