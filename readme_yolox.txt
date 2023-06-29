@@ -13,6 +13,17 @@ wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yo
 wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_x.pth
 
 
+----------------------- 转 ppdetection 的权重 -----------------------
+
+python tools/convert_weights.py -f exps/yolox/yolox_s_voc2012.py -c 16.pdparams -oc pp_16.pth -nc 20
+
+
+python tools/eval.py -f exps/yolox/yolox_s_voc2012.py -d 1 -b 8 -w 4 -c pp_16.pth --conf 0.01 --tsize 640
+
+
+
+
+
 ----------------------- 预处理 -----------------------
 原版中YOLOX预处理：
 1.读图片

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-# Copyright (c) Megvii, Inc. and its affiliates.
 
 import argparse
 import os
@@ -117,8 +116,27 @@ def main(exp, args):
             torch.save(new_state_dict, args.output_ckpt)
             logger.info("Done.")
             return 0
-        else:
-            pass
+        # 转 ppdetection 的权重
+        with open(args.ckpt, 'rb') as f:
+            state_dict = pickle.load(f) if six.PY2 else pickle.load(f, encoding='latin1')
+        state_dict = state_dict['model']
+        print('======================== convert ppdetection weights ========================')
+        for key in state_dict.keys():
+            name2 = key
+            w = state_dict[key]   # w是一个元组，飞桨是这样保存的
+            w = w[1]
+            if 'StructuredToParameterName@@' in key:
+                continue
+            if 'num_batches_tracked' in key:
+                continue
+            else:
+                if '._mean' in key:
+                    name2 = name2.replace('._mean', '.running_mean')
+                if '._variance' in key:
+                    name2 = name2.replace('._variance', '.running_var')
+                copy(name2, w, model_std)
+        if args.only_backbone:
+            delattr(model, "head")
     elif model_class_name == 'PPYOLO':
         with open(args.ckpt, 'rb') as f:
             state_dict = pickle.load(f) if six.PY2 else pickle.load(f, encoding='latin1')
