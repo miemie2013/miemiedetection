@@ -36,8 +36,6 @@ bilibili [_糖蜜](https://space.bilibili.com/646843384)
 
 zhihu: [咩咩2013](https://www.zhihu.com/people/mie-mie-2013)
 
-xigua: [咩咩2013](https://www.ixigua.com/home/2088721227199148/?list_entrance=search)
-
 wechat：wer186259
 
 you can follow me on GitHub~
