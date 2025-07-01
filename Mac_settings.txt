@@ -1,0 +1,17 @@
+
+Mac给python3赋予别名python, 给pip3赋予别名pip
+https://blog.csdn.net/wangyining070205/article/details/128511864
+
+用户根目录下打开终端，
+chsh -s /bin/bash
+
+echo 'alias python=python3' >> .bash_profile
+
+echo 'alias pip=pip3' >> .bash_profile
+
+source ~/.bash_profile
+
+
+
+
+

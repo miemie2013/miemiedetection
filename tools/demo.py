@@ -6,6 +6,7 @@ import argparse
 import copy
 import os
 import time
+import platform
 from loguru import logger
 
 import cv2
@@ -1020,6 +1021,9 @@ if __name__ == "__main__":
         args.ckpt = '../' + args.ckpt   # 如果是绝对路径，把这一行注释掉
         args.path = '../' + args.path   # 如果是绝对路径，把这一行注释掉
         args.ncnn_output_path = '../' + args.ncnn_output_path   # 如果是绝对路径，把这一行注释掉
+    system_name = platform.system()
+    if system_name == 'Darwin':  # MacOS
+        args.device = 'cpu'   # MacOS，只能用cpu
     exp = get_exp(args.exp_file, args.name)
 
     main(exp, args)
