@@ -48,5 +48,11 @@ class PPYOLOE(torch.nn.Module):
         outputs = self.yolo_head.export_ncnn(ncnn_data, fpn_feats_names)
         return outputs
 
+    def export_miemienet(self, mm_data, x, input_shape):
+        x = self.backbone.export_miemienet(mm_data, x)
+        x = self.neck.export_miemienet(mm_data, x)
+        x = self.yolo_head.export_miemienet(mm_data, x, input_shape)
+        return x
+
 
 

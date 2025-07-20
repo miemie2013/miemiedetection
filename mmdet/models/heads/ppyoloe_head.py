@@ -29,6 +29,7 @@ from mmdet.models.initializer import bias_init_with_prob, constant_, normal_
 from mmdet.models.losses.iou_losses import GIoULoss
 from mmdet.utils import my_multiclass_nms, get_world_size
 import mmdet.models.ncnn_utils as ncnn_utils
+import mmdet.models.miemienet_utils as miemienet_utils
 
 
 def print_diff(dic, key, tensor):
@@ -53,6 +54,15 @@ class ESEAttn(nn.Module):
     def forward(self, feat, avg_feat):
         weight = torch.sigmoid(self.fc(avg_feat))
         return self.conv(feat * weight)
+
+    def export_miemienet(self, mm_data, feat, avg_feat):
+        weight = miemienet_utils.create_layer_and_forward(mm_data, self.fc, avg_feat)
+        weight = miemienet_utils.create_layer_and_forward(mm_data, 'ActNoArgs', weight, {'act_type': 'Sigmoid'})
+
+        # 然后是逐元素相乘
+        x = miemienet_utils.create_layer_and_forward(mm_data, 'ElementWise', [feat, weight], {'op_type': 'mul'})
+        x = self.conv.export_miemienet(mm_data, x)
+        return x
 
     def export_ncnn(self, ncnn_data, bottom_names):
         feat = bottom_names[0]
@@ -257,6 +267,45 @@ class PPYOLOEHead(nn.Module):
         reg_dist_list = torch.cat(reg_dist_list, -1)    # [N,  4, A]
 
         return cls_score_list, reg_dist_list, anchor_points, stride_tensor
+
+    def export_miemienet(self, mm_data, feats, input_shape):
+        cls_score_list, reg_dist_list = [], []
+        N, _, H, W = input_shape
+        for i, feat in enumerate(feats):
+            if i == 0:
+                oH = H // 32
+                oW = W // 32
+            elif i == 1:
+                oH = H // 16
+                oW = W // 16
+            elif i == 2:
+                oH = H // 8
+                oW = W // 8
+            l = oH * oW
+            avg_feat = miemienet_utils.create_layer_and_forward(mm_data, 'AvgPool2d', feat, {'globelpool': 1})
+
+            x = self.stem_cls[i].export_miemienet(mm_data, feat, avg_feat)
+            # 逐元素相加
+            cls_logit = miemienet_utils.create_layer_and_forward(mm_data, 'ElementWise', [x, feat], {'op_type': 'add'})
+
+            # 然后是卷积操作
+            cls_logit = miemienet_utils.create_layer_and_forward(mm_data, self.pred_cls[i], cls_logit)
+            cls_score = miemienet_utils.create_layer_and_forward(mm_data, 'ActNoArgs', cls_logit, {'act_type': 'Sigmoid'})
+            cls_score = miemienet_utils.create_layer_and_forward(mm_data, 'Reshape', cls_score, {'dim0': N, 'dim1': l, 'dim2': self.num_classes})
+            cls_score_list.append(cls_score)
+
+            reg_dist = self.stem_reg[i].export_miemienet(mm_data, feat, avg_feat)
+            # 然后是卷积操作
+            reg_dist = miemienet_utils.create_layer_and_forward(mm_data, self.pred_reg[i], reg_dist)
+
+            reg_dist = miemienet_utils.create_layer_and_forward(mm_data, 'Reshape', reg_dist, {'dim0': N, 'dim1': l, 'dim2': 4, 'dim3': self.reg_max + 1})
+            reg_dist = miemienet_utils.create_layer_and_forward(mm_data, 'Softmax', reg_dist, {'dim': 3})
+            reg_dist = miemienet_utils.create_layer_and_forward(mm_data, self.proj_conv, reg_dist)
+            reg_dist = miemienet_utils.create_layer_and_forward(mm_data, 'Reshape', reg_dist, {'dim0': N, 'dim1': l, 'dim2': 4})
+            reg_dist_list.append(reg_dist)
+        cls_score_list = miemienet_utils.create_layer_and_forward(mm_data, 'ConCat', cls_score_list, {'dim': 1})  # [N, A, 80]
+        reg_dist_list = miemienet_utils.create_layer_and_forward(mm_data, 'ConCat', reg_dist_list, {'dim': 1})    # [N, A,  4]
+        return cls_score_list, reg_dist_list
 
     def export_ncnn(self, ncnn_data, bottom_names):
         feats = bottom_names

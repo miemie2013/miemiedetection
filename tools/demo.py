@@ -22,6 +22,7 @@ from mmdet.data.data_augment import *
 from mmdet.exp import get_exp
 from mmdet.utils import fuse_model, get_model_info, postprocess, vis, get_classes, vis2, vis_solo, load_ckpt
 import mmdet.models.ncnn_utils as ncnn_utils
+import mmdet.models.miemienet_utils as miemienet_utils
 
 IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
 
@@ -1009,6 +1010,51 @@ def main(exp, args):
             raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
         logger.info("Saving ncnn param file in %s.param" % args.ncnn_output_path)
         logger.info("Saving ncnn bin file in %s.bin" % args.ncnn_output_path)
+    elif args.demo == "miemienet":
+        if archi_name == 'YOLOX':
+            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
+        elif archi_name == 'PPYOLO':
+            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
+        elif archi_name == 'PPYOLOE':
+            batch_size = 1
+            in_channels = 3
+            input_size = 640
+            # batch_size = 2
+            # in_channels = 3
+            # input_size = 4
+            input_shape = [batch_size, in_channels, input_size, input_size]
+
+            miemienet_output_path = args.ncnn_output_path
+            miemienet_utils.set_convert_to_fp16(False)
+            mm_data = miemienet_utils.create_new_param_bin(miemienet_output_path, input_num=2)
+            # 创建输入张量
+            x = miemienet_utils.create_tensor(mm_data, tensor_type='i')
+            x = model.export_miemienet(mm_data, x, input_shape)
+            # 最后一定要手动标记张量为输出张量
+            miemienet_utils.mark_tensor_as_output(mm_data, x[0])
+            miemienet_utils.mark_tensor_as_output(mm_data, x[1])
+            # 导出网络结构文件
+            miemienet_utils.export_net(mm_data)
+            # model.eval()
+            # x = torch.randn([batch_size, in_channels, input_size, input_size])
+            # x.requires_grad_(True)
+            # for batch_idx in range(3):
+            #     start_time = time.time()
+            #     y = model(x)
+            #     cost = time.time() - start_time
+            #     print('eval forward cost_time: {0:.3f} ms'.format(cost * 1000.))
+            # x_ndarray = x.permute((0, 2, 3, 1)).cpu().detach().numpy()
+            # y_ndarray0 = y[0].permute((0, 2, 1)).cpu().detach().numpy()
+            # y_ndarray1 = y[1].permute((0, 2, 1)).cpu().detach().numpy()
+            # miemienet_utils.save_as_txt("%s-eval-x.txt" % (miemienet_output_path,), x_ndarray)
+            # miemienet_utils.save_as_txt("%s-eval-y0.txt" % (miemienet_output_path,), y_ndarray0)
+            # miemienet_utils.save_as_txt("%s-eval-y1.txt" % (miemienet_output_path,), y_ndarray1)
+
+
+        else:
+            raise NotImplementedError("Architectures \'{}\' is not implemented.".format(archi_name))
+        logger.info("Saving miemienet mie file in %s.mie" % args.ncnn_output_path)
+        logger.info("Saving miemienet bin file in %s.bin" % args.ncnn_output_path)
 
 
 if __name__ == "__main__":

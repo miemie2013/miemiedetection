@@ -20,6 +20,7 @@ from mmdet.models.custom_layers import DropBlock
 from mmdet.models.ops import get_act_fn
 from mmdet.models.custom_layers import ShapeSpec
 import mmdet.models.ncnn_utils as ncnn_utils
+import mmdet.models.miemienet_utils as miemienet_utils
 
 __all__ = ['CustomCSPPAN']
 
@@ -57,6 +58,17 @@ class SPP(nn.Module):
             y = torch.cat(outs, -1)
 
         y = self.conv(y)
+        return y
+
+    def export_miemienet(self, mm_data, x):
+        outs = [x]
+        for pool in self.pool:
+            pool_out = miemienet_utils.create_layer_and_forward(mm_data, pool, x)
+            outs.append(pool_out)
+
+        # concat
+        y = miemienet_utils.create_layer_and_forward(mm_data, 'ConCat', outs, {'dim': 3})
+        y = self.conv.export_miemienet(mm_data, y)
         return y
 
     def export_ncnn(self, ncnn_data, bottom_names):
@@ -99,6 +111,21 @@ class CSPStage(nn.Module):
         y2 = self.convs(y2)
         y = torch.cat([y1, y2], 1)
         y = self.conv3(y)
+        return y
+
+    def export_miemienet(self, mm_data, x):
+        # 看conv1分支，是卷积操作
+        y1 = self.conv1.export_miemienet(mm_data, x)
+
+        # 看conv2分支，是卷积操作
+        y2 = self.conv2.export_miemienet(mm_data, x)
+        for layer in self.convs:
+            y2 = layer.export_miemienet(mm_data, y2)
+
+        # concat
+        y = miemienet_utils.create_layer_and_forward(mm_data, 'ConCat', [y1, y2], {'dim': 3})
+
+        y = self.conv3.export_miemienet(mm_data, y)
         return y
 
     def export_ncnn(self, ncnn_data, bottom_names):
@@ -245,7 +272,34 @@ class CustomCSPPAN(nn.Module):
             block = torch.cat([route, block], 1)
             route = self.pan_stages[i](block)
             pan_feats.append(route)
+        return pan_feats[::-1]
 
+    def export_miemienet(self, mm_data, x):
+        blocks = x[::-1]
+        fpn_feats = []
+
+        for i, block in enumerate(blocks):
+            if i > 0:
+                block = miemienet_utils.create_layer_and_forward(mm_data, 'ConCat', [route, block], {'dim': 3})
+            route = block
+            for layer in self.fpn_stages[i]:
+                route = layer.export_miemienet(mm_data, route)
+            fpn_feats.append(route)
+
+            if i < self.num_blocks - 1:
+                route = self.fpn_routes[i].export_miemienet(mm_data, route)
+                route = miemienet_utils.create_layer_and_forward(mm_data, 'Interp', route, {'size_h': 0, 'size_w': 0, 'scale_h': 2., 'scale_w': 2., 'mode': 'nearest', 'align_corners': 0, 'recompute_scale_factor': 0})
+
+        pan_feats = [fpn_feats[-1], ]
+        route = fpn_feats[-1]
+        for i in reversed(range(self.num_blocks - 1)):
+            block = fpn_feats[i]
+            route = self.pan_routes[i].export_miemienet(mm_data, route)
+            block = miemienet_utils.create_layer_and_forward(mm_data, 'ConCat', [route, block], {'dim': 3})
+            route = block
+            for layer in self.pan_stages[i]:
+                route = layer.export_miemienet(mm_data, route)
+            pan_feats.append(route)
         return pan_feats[::-1]
 
     def export_ncnn(self, ncnn_data, bottom_names):

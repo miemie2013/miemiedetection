@@ -23,6 +23,7 @@ import torch.nn.functional as F
 from mmdet.models.ops import get_act_fn
 from mmdet.models.custom_layers import ShapeSpec
 import mmdet.models.ncnn_utils as ncnn_utils
+import mmdet.models.miemienet_utils as miemienet_utils
 
 
 class ConvBNLayer(nn.Module):
@@ -62,6 +63,18 @@ class ConvBNLayer(nn.Module):
 
         return x
 
+    def export_miemienet(self, mm_data, x):
+        x = miemienet_utils.create_layer_and_forward(mm_data, [self.conv, self.bn], x)
+        if self.act_name == 'swish':
+            x = miemienet_utils.create_layer_and_forward(mm_data, 'ActNoArgs', x, {'act_type': 'SiLU'})
+        elif self.act_name == 'relu':
+            x = miemienet_utils.create_layer_and_forward(mm_data, 'ActNoArgs', x, {'act_type': 'ReLU'})
+        elif self.act_name is None:
+            pass
+        else:
+            raise NotImplementedError
+        return x
+
     def export_ncnn(self, ncnn_data, bottom_names):
         if ncnn_utils.support_fused_activation(self.act_name):
             bottom_names = ncnn_utils.fuse_conv_bn(ncnn_data, bottom_names, self.conv, self.bn, self.act_name)
@@ -97,6 +110,27 @@ class RepVggBlock(nn.Module):
             else:
                 y = self.conv1(x) + self.conv2(x)
         y = self.act(y)
+        return y
+
+    def export_miemienet(self, mm_data, x):
+        if hasattr(self, 'conv'):
+            y = self.conv.export_miemienet(mm_data, x)
+        else:
+            if self.alpha:
+                y1 = self.conv1.export_miemienet(mm_data, x)
+                y2 = self.conv2.export_miemienet(mm_data, x)
+                y = miemienet_utils.create_layer_and_forward(mm_data, 'ElementWise', [y1, y2], {'op_type': 'add'})
+                raise NotImplementedError
+            else:
+                y1 = self.conv1.export_miemienet(mm_data, x)
+                y2 = self.conv2.export_miemienet(mm_data, x)
+                y = miemienet_utils.create_layer_and_forward(mm_data, 'ElementWise', [y1, y2], {'op_type': 'add'})
+        if self.act_name == 'swish':
+            y = miemienet_utils.create_layer_and_forward(mm_data, 'ActNoArgs', y, {'act_type': 'SiLU'})
+        elif self.act_name == 'relu':
+            y = miemienet_utils.create_layer_and_forward(mm_data, 'ActNoArgs', y, {'act_type': 'ReLU'})
+        else:
+            raise NotImplementedError
         return y
 
     def export_ncnn(self, ncnn_data, bottom_names):
@@ -174,6 +208,15 @@ class BasicBlock(nn.Module):
         else:
             return y
 
+    def export_miemienet(self, mm_data, x):
+        y = self.conv1.export_miemienet(mm_data, x)
+        y = self.conv2.export_miemienet(mm_data, y)
+        if self.shortcut:
+            y = miemienet_utils.create_layer_and_forward(mm_data, 'ElementWise', [x, y], {'op_type': 'add'})
+            return y
+        else:
+            return y
+
     def export_ncnn(self, ncnn_data, bottom_names):
         if self.shortcut:
             add_0 = bottom_names
@@ -210,6 +253,22 @@ class EffectiveSELayer(nn.Module):
         x_se = x.mean((2, 3), keepdim=True)
         x_se = self.fc(x_se)
         return x * self.act(x_se)
+
+    def export_miemienet(self, mm_data, x):
+        x_se = miemienet_utils.create_layer_and_forward(mm_data, 'AvgPool2d', x, {'globelpool': 1})
+        x_se = miemienet_utils.create_layer_and_forward(mm_data, self.fc, x_se)
+        if self.act_name == 'swish':
+            x_se = miemienet_utils.create_layer_and_forward(mm_data, 'ActNoArgs', x_se, {'act_type': 'SiLU'})
+        elif self.act_name == 'relu':
+            x_se = miemienet_utils.create_layer_and_forward(mm_data, 'ActNoArgs', x_se, {'act_type': 'ReLU'})
+        elif self.act_name == 'hardsigmoid':
+            x_se = miemienet_utils.create_layer_and_forward(mm_data, 'ActNoArgs', x_se, {'act_type': 'Hardsigmoid'})
+        elif self.act_name is None:
+            pass
+        else:
+            raise NotImplementedError
+        x = miemienet_utils.create_layer_and_forward(mm_data, 'ElementWise', [x, x_se], {'op_type': 'mul'})
+        return x
 
     def export_ncnn(self, ncnn_data, bottom_names):
         # 看x_se分支，首先是mean操作，对应ncnn里的Reduction层
@@ -269,6 +328,20 @@ class CSPResStage(nn.Module):
         if self.attn is not None:
             y = self.attn(y)
         y = self.conv3(y)
+        return y
+
+    def export_miemienet(self, mm_data, x):
+        if self.conv_down is not None:
+            x = self.conv_down.export_miemienet(mm_data, x)
+        y1 = self.conv1.export_miemienet(mm_data, x)
+        y2 = self.conv2.export_miemienet(mm_data, x)
+        for layer in self.blocks:
+            y2 = layer.export_miemienet(mm_data, y2)
+        y = miemienet_utils.create_layer_and_forward(mm_data, 'ConCat', [y1, y2], {'dim': 3})
+
+        if self.attn is not None:
+            y = self.attn.export_miemienet(mm_data, y)
+        y = self.conv3.export_miemienet(mm_data, y)
         return y
 
     def export_ncnn(self, ncnn_data, bottom_names):
@@ -349,6 +422,17 @@ class CSPResNet(nn.Module):
         outs = []
         for idx, stage in enumerate(self.stages):
             x = stage(x)
+            if idx in self.return_idx:
+                outs.append(x)
+
+        return outs
+
+    def export_miemienet(self, mm_data, x):
+        for layer in self.stem:
+            x = layer.export_miemienet(mm_data, x)
+        outs = []
+        for idx, stage in enumerate(self.stages):
+            x = stage.export_miemienet(mm_data, x)
             if idx in self.return_idx:
                 outs.append(x)
 
